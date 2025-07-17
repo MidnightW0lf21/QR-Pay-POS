@@ -124,7 +124,12 @@ export default function Home() {
     const transactions = storedTransactions ? JSON.parse(storedTransactions) : [];
     transactions.unshift(newTransaction);
     localStorage.setItem(TRANSACTIONS_STORAGE_KEY, JSON.stringify(transactions));
-    toast({ title: "Úspěch", description: "Transakce uložena do historie." });
+    toast({ 
+      title: "Úspěch", 
+      description: "Transakce uložena do historie.",
+      variant: "success",
+      duration: 1000,
+    });
   };
 
   const qrCodeData = useMemo(() => {
