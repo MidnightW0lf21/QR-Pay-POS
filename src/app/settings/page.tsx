@@ -218,6 +218,15 @@ export default function SettingsPage() {
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
+             <div className="space-y-2">
+              <Label htmlFor="recipientName">Recipient Name</Label>
+              <Input
+                id="recipientName"
+                value={bankingDetails.recipientName}
+                onChange={(e) => setBankingDetails({ ...bankingDetails, recipientName: e.target.value })}
+                placeholder="e.g. John Doe"
+              />
+            </div>
             <div className="space-y-2">
               <Label htmlFor="bankName">Bank Name</Label>
               <Input

@@ -21,4 +21,5 @@ export const DEFAULT_BANKING_DETAILS: BankingDetails = {
   bankName: "",
   accountNumber: "",
   routingNumber: "",
+  recipientName: "",
 };

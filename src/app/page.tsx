@@ -72,19 +72,18 @@ export default function Home() {
   }, [cart, products]);
 
   const qrCodeData = useMemo(() => {
-    const cartItems = Object.entries(cart).map(([productId, quantity]) => {
-      const product = products.find(p => p.id === productId);
-      return { name: product?.name || 'Unknown', quantity };
-    });
-
-    const data = {
-      total: total.toFixed(2),
-      message: paymentMessage,
-      items: cartItems,
-      paymentInfo: bankingDetails,
-    };
-    return encodeURIComponent(JSON.stringify(data));
-  }, [total, paymentMessage, cart, products, bankingDetails]);
+    const totalInWholeNumber = Math.round(total);
+    const parts = [
+      "SPD*1.0",
+      `ACC:${bankingDetails.accountNumber}`,
+      `RN:${bankingDetails.recipientName}`,
+      `AM:${totalInWholeNumber}`,
+      "CC:CZK",
+      `MSG:${paymentMessage}`
+    ];
+    const data = parts.join("*");
+    return encodeURIComponent(data);
+  }, [total, paymentMessage, bankingDetails]);
   
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=${qrCodeData}`;
 
