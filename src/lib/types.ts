@@ -20,9 +20,12 @@ export interface CartItem {
   price: number;
 }
 
+export type PaymentMethod = 'qr' | 'cash';
+
 export interface Transaction {
   id: string;
   date: string;
   total: number;
   items: CartItem[];
+  paymentMethod: PaymentMethod;
 }

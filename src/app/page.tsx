@@ -16,7 +16,10 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Minus, ShoppingCart, Loader2 } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
+import { Minus, ShoppingCart, Loader2, Landmark, Wallet } from "lucide-react";
 import type { Product, BankingDetails, Transaction, CartItem } from "@/lib/types";
 import { 
   DEFAULT_PRODUCTS, 
@@ -38,6 +41,9 @@ export default function Home() {
   const [bankingDetails, setBankingDetails] = useState<BankingDetails>(DEFAULT_BANKING_DETAILS);
   const [cart, setCart] = useState<Record<string, number>>({});
   const [isQrDialogOpen, setIsQrDialogOpen] = useState(false);
+  const [isCashDialogOpen, setIsCashDialogOpen] = useState(false);
+  const [isCashMode, setIsCashMode] = useState(false);
+  const [cashReceived, setCashReceived] = useState<number | null>(null);
 
   useEffect(() => {
     if (isMounted) {
@@ -74,13 +80,24 @@ export default function Home() {
     }, 0);
   }, [cart, products]);
 
-  const handleOpenQrDialog = () => {
-    setIsQrDialogOpen(true);
+  const change = useMemo(() => {
+    if (cashReceived === null) return null;
+    return cashReceived - total;
+  }, [cashReceived, total]);
+
+  const handleOpenDialog = () => {
+    if (isCashMode) {
+      setIsCashDialogOpen(true);
+    } else {
+      setIsQrDialogOpen(true);
+    }
     saveTransaction();
   };
   
-  const handleCloseQrDialog = () => {
+  const handleCloseDialog = () => {
     setIsQrDialogOpen(false);
+    setIsCashDialogOpen(false);
+    setCashReceived(null);
     setCart({}); // Clear cart after transaction
   };
 
@@ -100,6 +117,7 @@ export default function Home() {
       date: new Date().toISOString(),
       total: total,
       items: transactionItems,
+      paymentMethod: isCashMode ? 'cash' : 'qr',
     };
 
     const storedTransactions = localStorage.getItem(TRANSACTIONS_STORAGE_KEY);
@@ -135,7 +153,20 @@ export default function Home() {
 
   return (
     <>
-      <div className="container mx-auto max-w-7xl p-4 sm:p-6 md:p-8 pb-24">
+      <div className="container mx-auto max-w-7xl p-4 sm:p-6 md:p-8 pb-32">
+        <div className="flex items-center space-x-2 mb-6">
+          <Landmark className="text-muted-foreground" />
+          <Switch
+            id="payment-mode"
+            checked={isCashMode}
+            onCheckedChange={setIsCashMode}
+            aria-label="Přepnout režim platby"
+          />
+          <Wallet className="text-muted-foreground" />
+          <Label htmlFor="payment-mode" className="text-lg">
+            {isCashMode ? "Režim hotovosti" : "Režim QR platby"}
+          </Label>
+        </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {products.map((product) => (
             <Card 
@@ -183,15 +214,15 @@ export default function Home() {
             <div className="text-lg font-bold">
               Celkem: <span className="text-primary text-2xl">{total.toFixed(2)} Kč</span>
             </div>
-            <Button size="lg" onClick={handleOpenQrDialog}>
-              <ShoppingCart className="mr-2 h-5 w-5" />
-              Generovat QR
+            <Button size="lg" onClick={handleOpenDialog}>
+              {isCashMode ? <Wallet className="mr-2 h-5 w-5" /> : <ShoppingCart className="mr-2 h-5 w-5" />}
+              {isCashMode ? 'Zaplatit hotově' : 'Generovat QR'}
             </Button>
           </div>
         </div>
       )}
 
-      <Dialog open={isQrDialogOpen} onOpenChange={handleCloseQrDialog}>
+      <Dialog open={isQrDialogOpen} onOpenChange={handleCloseDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Skenujte pro platbu</DialogTitle>
@@ -210,7 +241,50 @@ export default function Home() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="secondary" onClick={handleCloseQrDialog}>
+            <Button variant="secondary" onClick={handleCloseDialog}>
+              Zavřít
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+      
+      <Dialog open={isCashDialogOpen} onOpenChange={handleCloseDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Platba v hotovosti</DialogTitle>
+            <DialogDescription>
+              Zadejte přijatou částku pro výpočet vrácených peněz.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4 p-4">
+            <div className="text-center">
+              <p className="text-lg font-medium text-muted-foreground">Celková částka</p>
+              <p className="text-4xl font-bold text-primary">{total.toFixed(2)} Kč</p>
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="cash-received">Přijatá hotovost (Kč)</Label>
+              <Input
+                id="cash-received"
+                type="number"
+                placeholder="0.00"
+                value={cashReceived ?? ""}
+                onChange={(e) => setCashReceived(e.target.value === '' ? null : parseFloat(e.target.value))}
+                className="text-center text-lg h-12"
+              />
+            </div>
+            {change !== null && (
+              <div className="text-center p-4 bg-muted rounded-lg">
+                <p className="text-lg font-medium text-muted-foreground">
+                  {change >= 0 ? "Vrátit" : "Nedostatečná hotovost"}
+                </p>
+                <p className={`text-4xl font-bold ${change >= 0 ? "text-primary" : "text-destructive"}`}>
+                  {Math.abs(change).toFixed(2)} Kč
+                </p>
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="secondary" onClick={handleCloseDialog}>
               Zavřít
             </Button>
           </DialogFooter>
