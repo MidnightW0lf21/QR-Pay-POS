@@ -143,11 +143,11 @@ export default function Home() {
         <div className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-sm border-t p-4">
           <div className="container mx-auto max-w-7xl flex items-center justify-between">
             <div className="text-lg font-bold">
-              Total: <span className="text-primary text-2xl">{total.toFixed(2)} Kč</span>
+              Celkem: <span className="text-primary text-2xl">{total.toFixed(2)} Kč</span>
             </div>
             <Button size="lg" onClick={() => setIsQrDialogOpen(true)}>
               <ShoppingCart className="mr-2 h-5 w-5" />
-              Generate QR
+              Generovat QR
             </Button>
           </div>
         </div>
@@ -156,9 +156,9 @@ export default function Home() {
       <Dialog open={isQrDialogOpen} onOpenChange={setIsQrDialogOpen}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Scan to Pay</DialogTitle>
+            <DialogTitle>Skenujte pro platbu</DialogTitle>
             <DialogDescription>
-              Present this QR code to complete the transaction.
+              Předložte tento QR kód pro dokončení transakce.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col items-center justify-center space-y-4 p-4">
@@ -166,14 +166,14 @@ export default function Home() {
               <Image src={qrCodeUrl} alt="QR Code" width={256} height={256} />
             </div>
             <div className="text-center">
-              <p className="text-lg font-medium text-muted-foreground">Total Amount</p>
+              <p className="text-lg font-medium text-muted-foreground">Celková částka</p>
               <p className="text-4xl font-bold text-primary">{total.toFixed(2)} Kč</p>
               <p className="text-sm text-muted-foreground mt-2">{paymentMessage}</p>
             </div>
           </div>
           <DialogFooter>
             <Button variant="secondary" onClick={() => setIsQrDialogOpen(false)}>
-              Close
+              Zavřít
             </Button>
           </DialogFooter>
         </DialogContent>

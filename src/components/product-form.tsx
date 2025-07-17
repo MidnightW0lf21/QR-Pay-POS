@@ -21,9 +21,9 @@ import type { Product } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 
 const productFormSchema = z.object({
-  name: z.string().min(2, { message: "Name must be at least 2 characters." }),
-  price: z.coerce.number().positive({ message: "Price must be a positive number." }),
-  imageUrl: z.string().url({ message: "Please enter a valid image URL or upload a file." }).optional().or(z.literal("")),
+  name: z.string().min(2, { message: "Název musí mít alespoň 2 znaky." }),
+  price: z.coerce.number().positive({ message: "Cena musí být kladné číslo." }),
+  imageUrl: z.string().url({ message: "Zadejte platnou URL adresu obrázku nebo nahrajte soubor." }).optional().or(z.literal("")),
 });
 
 type ProductFormValues = z.infer<typeof productFormSchema>;
@@ -52,8 +52,8 @@ export default function ProductForm({ onSubmit, product }: ProductFormProps) {
       if (file.size > 1024 * 1024) { // 1MB limit
         toast({
           variant: "destructive",
-          title: "File too large",
-          description: "Please upload an image smaller than 1MB.",
+          title: "Soubor je příliš velký",
+          description: "Prosím nahrajte obrázek menší než 1MB.",
         });
         return;
       }
@@ -84,9 +84,9 @@ export default function ProductForm({ onSubmit, product }: ProductFormProps) {
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Product Name</FormLabel>
+              <FormLabel>Název produktu</FormLabel>
               <FormControl>
-                <Input placeholder="e.g. Latte" {...field} />
+                <Input placeholder="např. Latte" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -97,27 +97,27 @@ export default function ProductForm({ onSubmit, product }: ProductFormProps) {
           name="price"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Price</FormLabel>
+              <FormLabel>Cena</FormLabel>
               <FormControl>
-                <Input type="number" step="0.01" placeholder="e.g. 4.50" {...field} />
+                <Input type="number" step="0.01" placeholder="např. 85.00" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
           )}
         />
         <FormItem>
-          <FormLabel>Product Image</FormLabel>
+          <FormLabel>Obrázek produktu</FormLabel>
           <FormControl>
             <Input type="file" accept="image/*" onChange={handleImageUpload} />
           </FormControl>
           <FormDescription>
-            Upload a custom image for the product (max 1MB).
+            Nahrajte vlastní obrázek pro produkt (max 1MB).
           </FormDescription>
           {imagePreview && (
             <div className="mt-4">
               <Image 
                 src={imagePreview} 
-                alt="Image Preview" 
+                alt="Náhled obrázku" 
                 width={100} 
                 height={100} 
                 className="rounded-md object-cover" 
@@ -127,7 +127,7 @@ export default function ProductForm({ onSubmit, product }: ProductFormProps) {
           <FormMessage />
         </FormItem>
         <Button type="submit" className="w-full">
-          {product ? "Save Changes" : "Create Product"}
+          {product ? "Uložit změny" : "Vytvořit produkt"}
         </Button>
       </form>
     </Form>

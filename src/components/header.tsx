@@ -16,7 +16,7 @@ export default function Header() {
           <Link href="/settings" passHref>
             <Button variant="ghost" size="icon">
               <Settings className="h-5 w-5" />
-              <span className="sr-only">Settings</span>
+              <span className="sr-only">Nastavení</span>
             </Button>
           </Link>
         </div>

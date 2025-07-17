@@ -84,30 +84,30 @@ export default function SettingsPage() {
   const handleAddProduct = (product: Omit<Product, "id">) => {
     const newProduct = { ...product, id: crypto.randomUUID() };
     handleSaveProducts([...products, newProduct]);
-    toast({ title: "Success", description: "Product added." });
+    toast({ title: "Úspěch", description: "Produkt přidán." });
     setIsSheetOpen(false);
   };
 
   const handleEditProduct = (product: Product) => {
     handleSaveProducts(products.map((p) => (p.id === product.id ? product : p)));
-    toast({ title: "Success", description: "Product updated." });
+    toast({ title: "Úspěch", description: "Produkt aktualizován." });
     setIsSheetOpen(false);
     setEditingProduct(null);
   };
 
   const handleDeleteProduct = (productId: string) => {
     handleSaveProducts(products.filter((p) => p.id !== productId));
-    toast({ title: "Success", description: "Product deleted." });
+    toast({ title: "Úspěch", description: "Produkt smazán." });
   };
   
   const handleSaveMessage = () => {
     localStorage.setItem(MESSAGE_STORAGE_KEY, JSON.stringify(message));
-    toast({ title: "Success", description: "Message saved." });
+    toast({ title: "Úspěch", description: "Zpráva uložena." });
   };
 
   const handleSaveBankingDetails = () => {
     localStorage.setItem(BANKING_DETAILS_STORAGE_KEY, JSON.stringify(bankingDetails));
-    toast({ title: "Success", description: "Banking details saved." });
+    toast({ title: "Úspěch", description: "Bankovní údaje uloženy." });
   };
   
   if (!isMounted) {
@@ -124,20 +124,20 @@ export default function SettingsPage() {
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
-              <CardTitle>Manage Products</CardTitle>
+              <CardTitle>Spravovat produkty</CardTitle>
               <CardDescription>
-                Add, edit, or delete your products here.
+                Zde můžete přidávat, upravovat nebo mazat své produkty.
               </CardDescription>
             </div>
             <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
               <SheetTrigger asChild>
                 <Button onClick={() => { setEditingProduct(null); setIsSheetOpen(true); }}>
-                  <Plus className="mr-2 h-4 w-4" /> Add Product
+                  <Plus className="mr-2 h-4 w-4" /> Přidat produkt
                 </Button>
               </SheetTrigger>
               <SheetContent>
                 <SheetHeader>
-                  <SheetTitle>{editingProduct ? 'Edit Product' : 'Add New Product'}</SheetTitle>
+                  <SheetTitle>{editingProduct ? 'Upravit produkt' : 'Přidat nový produkt'}</SheetTitle>
                 </SheetHeader>
                 <ProductForm
                   onSubmit={editingProduct ? handleEditProduct : handleAddProduct}
@@ -151,10 +151,10 @@ export default function SettingsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[80px]">Image</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Price</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                    <TableHead className="w-[80px]">Obrázek</TableHead>
+                    <TableHead>Název</TableHead>
+                    <TableHead>Cena</TableHead>
+                    <TableHead className="text-right">Akce</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
@@ -191,14 +191,14 @@ export default function SettingsPage() {
                           </AlertDialogTrigger>
                           <AlertDialogContent>
                             <AlertDialogHeader>
-                              <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+                              <AlertDialogTitle>Jste si jistí?</AlertDialogTitle>
                               <AlertDialogDescription>
-                                This action cannot be undone. This will permanently delete the product.
+                                Tuto akci nelze vrátit zpět. Tímto trvale smažete produkt.
                               </AlertDialogDescription>
                             </AlertDialogHeader>
                             <AlertDialogFooter>
-                              <AlertDialogCancel>Cancel</AlertDialogCancel>
-                              <AlertDialogAction onClick={() => handleDeleteProduct(product.id)}>Delete</AlertDialogAction>
+                              <AlertDialogCancel>Zrušit</AlertDialogCancel>
+                              <AlertDialogAction onClick={() => handleDeleteProduct(product.id)}>Smazat</AlertDialogAction>
                             </AlertDialogFooter>
                           </AlertDialogContent>
                         </AlertDialog>
@@ -213,49 +213,49 @@ export default function SettingsPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>Banking Details</CardTitle>
+            <CardTitle>Bankovní spojení</CardTitle>
             <CardDescription>
-              Enter your banking information for payments. This information will be encoded in the QR code.
+              Zadejte své bankovní údaje pro platby. Tyto informace budou zakódovány v QR kódu.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
              <div className="space-y-2">
-              <Label htmlFor="recipientName">Recipient Name</Label>
+              <Label htmlFor="recipientName">Jméno příjemce</Label>
               <Input
                 id="recipientName"
                 value={bankingDetails.recipientName}
                 onChange={(e) => setBankingDetails({ ...bankingDetails, recipientName: e.target.value })}
-                placeholder="e.g. John Doe"
+                placeholder="např. Jan Novák"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="accountNumber">Account Number</Label>
+              <Label htmlFor="accountNumber">Číslo účtu</Label>
               <Input
                 id="accountNumber"
                 value={bankingDetails.accountNumber}
                 onChange={(e) => setBankingDetails({ ...bankingDetails, accountNumber: e.target.value })}
-                placeholder="e.g. 1234567890"
+                placeholder="např. 1234567890"
               />
             </div>
-            <Button onClick={handleSaveBankingDetails}>Save Banking Details</Button>
+            <Button onClick={handleSaveBankingDetails}>Uložit bankovní údaje</Button>
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Payment Message</CardTitle>
+            <CardTitle>Zpráva pro platbu</CardTitle>
             <CardDescription>
-              Set a predefined message to be included in the QR code.
+              Nastavte předdefinovanou zprávu, která bude součástí QR kódu.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <Textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
-              placeholder="e.g. Thank you for your purchase!"
+              placeholder="např. Děkujeme za Váš nákup!"
               rows={3}
             />
-            <Button onClick={handleSaveMessage}>Save Message</Button>
+            <Button onClick={handleSaveMessage}>Uložit zprávu</Button>
           </CardContent>
         </Card>
       </div>
