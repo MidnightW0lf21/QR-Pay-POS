@@ -3,6 +3,7 @@ import { type Product, type BankingDetails } from "./types";
 export const PRODUCTS_STORAGE_KEY = "qr-pay-products";
 export const MESSAGE_STORAGE_KEY = "qr-pay-message";
 export const BANKING_DETAILS_STORAGE_KEY = "qr-pay-banking-details";
+export const TRANSACTIONS_STORAGE_KEY = "qr-pay-transactions";
 
 export const DEFAULT_PRODUCTS: Product[] = [
   { id: "1", name: "Káva", price: 85.00, icon: "Coffee", imageUrl: "https://placehold.co/400x400.png" },

@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { Rocket, Settings } from "lucide-react";
+import { Rocket, Settings, History } from "lucide-react";
 
 export default function Header() {
   return (
@@ -12,7 +12,13 @@ export default function Header() {
           <Rocket className="h-6 w-6 text-primary" />
           <span className="text-xl font-bold">QR Pay</span>
         </Link>
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2">
+          <Link href="/history" passHref>
+            <Button variant="ghost" size="icon">
+              <History className="h-5 w-5" />
+              <span className="sr-only">Historie</span>
+            </Button>
+          </Link>
           <Link href="/settings" passHref>
             <Button variant="ghost" size="icon">
               <Settings className="h-5 w-5" />

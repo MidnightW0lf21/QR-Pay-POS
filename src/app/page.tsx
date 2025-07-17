@@ -17,19 +17,22 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Minus, ShoppingCart, Loader2 } from "lucide-react";
-import type { Product, BankingDetails } from "@/lib/types";
+import type { Product, BankingDetails, Transaction, CartItem } from "@/lib/types";
 import { 
   DEFAULT_PRODUCTS, 
   PRODUCTS_STORAGE_KEY, 
   MESSAGE_STORAGE_KEY, 
   DEFAULT_MESSAGE,
   BANKING_DETAILS_STORAGE_KEY,
-  DEFAULT_BANKING_DETAILS
+  DEFAULT_BANKING_DETAILS,
+  TRANSACTIONS_STORAGE_KEY,
 } from "@/lib/constants";
 import { useIsMounted } from "@/hooks/use-is-mounted";
+import { useToast } from "@/hooks/use-toast";
 
 export default function Home() {
   const isMounted = useIsMounted();
+  const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>(DEFAULT_PRODUCTS);
   const [paymentMessage, setPaymentMessage] = useState<string>(DEFAULT_MESSAGE);
   const [bankingDetails, setBankingDetails] = useState<BankingDetails>(DEFAULT_BANKING_DETAILS);
@@ -70,6 +73,41 @@ export default function Home() {
       return acc + (product ? product.price * quantity : 0);
     }, 0);
   }, [cart, products]);
+
+  const handleOpenQrDialog = () => {
+    setIsQrDialogOpen(true);
+    saveTransaction();
+  };
+  
+  const handleCloseQrDialog = () => {
+    setIsQrDialogOpen(false);
+    setCart({}); // Clear cart after transaction
+  };
+
+  const saveTransaction = () => {
+    const transactionItems: CartItem[] = Object.entries(cart).map(([productId, quantity]) => {
+      const product = products.find(p => p.id === productId)!;
+      return {
+        productId: product.id,
+        name: product.name,
+        price: product.price,
+        quantity: quantity,
+      };
+    });
+
+    const newTransaction: Transaction = {
+      id: crypto.randomUUID(),
+      date: new Date().toISOString(),
+      total: total,
+      items: transactionItems,
+    };
+
+    const storedTransactions = localStorage.getItem(TRANSACTIONS_STORAGE_KEY);
+    const transactions = storedTransactions ? JSON.parse(storedTransactions) : [];
+    transactions.unshift(newTransaction);
+    localStorage.setItem(TRANSACTIONS_STORAGE_KEY, JSON.stringify(transactions));
+    toast({ title: "Úspěch", description: "Transakce uložena do historie." });
+  };
 
   const qrCodeData = useMemo(() => {
     const totalInWholeNumber = Math.round(total);
@@ -145,7 +183,7 @@ export default function Home() {
             <div className="text-lg font-bold">
               Celkem: <span className="text-primary text-2xl">{total.toFixed(2)} Kč</span>
             </div>
-            <Button size="lg" onClick={() => setIsQrDialogOpen(true)}>
+            <Button size="lg" onClick={handleOpenQrDialog}>
               <ShoppingCart className="mr-2 h-5 w-5" />
               Generovat QR
             </Button>
@@ -153,12 +191,12 @@ export default function Home() {
         </div>
       )}
 
-      <Dialog open={isQrDialogOpen} onOpenChange={setIsQrDialogOpen}>
+      <Dialog open={isQrDialogOpen} onOpenChange={handleCloseQrDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Skenujte pro platbu</DialogTitle>
             <DialogDescription>
-              Předložte tento QR kód pro dokončení transakce.
+              Předložte tento QR kód pro dokončení transakce. Po zavření bude košík vymazán.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col items-center justify-center space-y-4 p-4">
@@ -172,7 +210,7 @@ export default function Home() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="secondary" onClick={() => setIsQrDialogOpen(false)}>
+            <Button variant="secondary" onClick={handleCloseQrDialog}>
               Zavřít
             </Button>
           </DialogFooter>

@@ -12,3 +12,17 @@ export interface BankingDetails {
   accountNumber: string;
   recipientName: string;
 }
+
+export interface CartItem {
+  productId: string;
+  quantity: number;
+  name: string;
+  price: number;
+}
+
+export interface Transaction {
+  id: string;
+  date: string;
+  total: number;
+  items: CartItem[];
+}
