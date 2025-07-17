@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -46,7 +47,6 @@ import {
 } from "@/lib/constants";
 import { useIsMounted } from "@/hooks/use-is-mounted";
 import ProductForm from "@/components/product-form";
-import IconDisplay from "@/components/icon-display";
 import { Plus, Edit, Trash2, Loader2 } from "lucide-react";
 
 export default function SettingsPage() {
@@ -116,7 +116,7 @@ export default function SettingsPage() {
             </div>
             <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
               <SheetTrigger asChild>
-                <Button onClick={() => setEditingProduct(null)}>
+                <Button onClick={() => { setEditingProduct(null); setIsSheetOpen(true); }}>
                   <Plus className="mr-2 h-4 w-4" /> Add Product
                 </Button>
               </SheetTrigger>
@@ -136,7 +136,7 @@ export default function SettingsPage() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead className="w-[80px]">Icon</TableHead>
+                    <TableHead className="w-[80px]">Image</TableHead>
                     <TableHead>Name</TableHead>
                     <TableHead>Price</TableHead>
                     <TableHead className="text-right">Actions</TableHead>
@@ -146,7 +146,14 @@ export default function SettingsPage() {
                   {products.map((product) => (
                     <TableRow key={product.id}>
                       <TableCell>
-                        <IconDisplay name={product.icon} className="h-6 w-6 text-muted-foreground" />
+                        <Image 
+                          src={product.imageUrl || "https://placehold.co/100x100.png"}
+                          alt={product.name}
+                          width={40}
+                          height={40}
+                          className="rounded-md object-cover"
+                          data-ai-hint="product image"
+                        />
                       </TableCell>
                       <TableCell className="font-medium">{product.name}</TableCell>
                       <TableCell>${product.price.toFixed(2)}</TableCell>

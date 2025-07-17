@@ -7,8 +7,6 @@ import {
   Card,
   CardContent,
   CardFooter,
-  CardHeader,
-  CardTitle,
 } from "@/components/ui/card";
 import {
   Dialog,
@@ -18,11 +16,10 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { Minus, Plus, ShoppingCart, Loader2 } from "lucide-react";
+import { Minus, ShoppingCart, Loader2 } from "lucide-react";
 import type { Product } from "@/lib/types";
 import { DEFAULT_PRODUCTS, PRODUCTS_STORAGE_KEY, MESSAGE_STORAGE_KEY, DEFAULT_MESSAGE } from "@/lib/constants";
 import { useIsMounted } from "@/hooks/use-is-mounted";
-import IconDisplay from "@/components/icon-display";
 
 export default function Home() {
   const isMounted = useIsMounted();
@@ -89,28 +86,41 @@ export default function Home() {
   return (
     <>
       <div className="container mx-auto max-w-7xl p-4 sm:p-6 md:p-8 pb-24">
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
           {products.map((product) => (
-            <Card key={product.id} className="flex flex-col overflow-hidden transition-all duration-300 hover:shadow-lg hover:-translate-y-1">
-              <CardHeader className="flex-row items-center gap-4 space-y-0 p-4">
-                <div className="bg-accent rounded-full p-3">
-                  <IconDisplay name={product.icon} className="h-6 w-6 text-accent-foreground" />
-                </div>
-                <CardTitle className="text-xl">{product.name}</CardTitle>
-              </CardHeader>
-              <CardContent className="flex-grow p-4 pt-0">
-                <p className="text-2xl font-bold text-primary">${product.price.toFixed(2)}</p>
-              </CardContent>
-              <CardFooter className="bg-muted/50 p-4">
-                <div className="flex items-center justify-between w-full">
-                  <Button variant="outline" size="icon" onClick={() => handleQuantityChange(product.id, -1)} disabled={!cart[product.id]}>
-                    <Minus className="h-4 w-4" />
-                  </Button>
-                  <span className="text-xl font-bold w-12 text-center">{cart[product.id] || 0}</span>
-                  <Button variant="outline" size="icon" onClick={() => handleQuantityChange(product.id, 1)}>
-                    <Plus className="h-4 w-4" />
-                  </Button>
-                </div>
+            <Card 
+              key={product.id} 
+              className="flex flex-col overflow-hidden transition-all duration-300 hover:shadow-lg cursor-pointer group"
+              onClick={() => handleQuantityChange(product.id, 1)}
+            >
+              <div className="relative w-full aspect-square">
+                <Image 
+                  src={product.imageUrl || "https://placehold.co/400x400.png"} 
+                  alt={product.name} 
+                  fill
+                  className="object-cover transition-transform duration-300 group-hover:scale-105"
+                  data-ai-hint="product image"
+                />
+                 {cart[product.id] > 0 && (
+                  <div className="absolute top-2 right-2 flex items-center bg-background/80 backdrop-blur-sm rounded-full p-1 shadow-md">
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-6 w-6 rounded-full"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        handleQuantityChange(product.id, -1);
+                      }}
+                    >
+                      <Minus className="h-4 w-4" />
+                    </Button>
+                    <span className="text-md font-bold w-6 text-center">{cart[product.id]}</span>
+                  </div>
+                )}
+              </div>
+              <CardFooter className="bg-background/80 p-3 flex-col items-start">
+                 <p className="font-semibold text-md truncate w-full">{product.name}</p>
+                 <p className="text-lg font-bold text-primary">${product.price.toFixed(2)}</p>
               </CardFooter>
             </Card>
           ))}

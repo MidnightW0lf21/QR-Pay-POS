@@ -4,5 +4,6 @@ export interface Product {
   id: string;
   name: string;
   price: number;
-  icon: keyof typeof icons;
+  icon?: keyof typeof icons;
+  imageUrl?: string;
 }
