@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -170,7 +171,7 @@ export default function SettingsPage() {
                         />
                       </TableCell>
                       <TableCell className="font-medium">{product.name}</TableCell>
-                      <TableCell>${product.price.toFixed(2)}</TableCell>
+                      <TableCell>{product.price.toFixed(2)} Kč</TableCell>
                       <TableCell className="text-right space-x-2">
                         <Button
                           variant="ghost"

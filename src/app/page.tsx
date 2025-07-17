@@ -132,7 +132,7 @@ export default function Home() {
               </div>
               <CardFooter className="bg-background/80 p-3 flex-col items-start">
                  <p className="font-semibold text-md truncate w-full">{product.name}</p>
-                 <p className="text-lg font-bold text-primary">${product.price.toFixed(2)}</p>
+                 <p className="text-lg font-bold text-primary">{product.price.toFixed(2)} Kč</p>
               </CardFooter>
             </Card>
           ))}
@@ -143,7 +143,7 @@ export default function Home() {
         <div className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-sm border-t p-4">
           <div className="container mx-auto max-w-7xl flex items-center justify-between">
             <div className="text-lg font-bold">
-              Total: <span className="text-primary text-2xl">${total.toFixed(2)}</span>
+              Total: <span className="text-primary text-2xl">{total.toFixed(2)} Kč</span>
             </div>
             <Button size="lg" onClick={() => setIsQrDialogOpen(true)}>
               <ShoppingCart className="mr-2 h-5 w-5" />
@@ -167,7 +167,7 @@ export default function Home() {
             </div>
             <div className="text-center">
               <p className="text-lg font-medium text-muted-foreground">Total Amount</p>
-              <p className="text-4xl font-bold text-primary">${total.toFixed(2)}</p>
+              <p className="text-4xl font-bold text-primary">{total.toFixed(2)} Kč</p>
               <p className="text-sm text-muted-foreground mt-2">{paymentMessage}</p>
             </div>
           </div>
