@@ -18,6 +18,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Sheet,
@@ -38,12 +40,14 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
-import type { Product } from "@/lib/types";
+import type { Product, BankingDetails } from "@/lib/types";
 import {
   DEFAULT_PRODUCTS,
   PRODUCTS_STORAGE_KEY,
   MESSAGE_STORAGE_KEY,
   DEFAULT_MESSAGE,
+  BANKING_DETAILS_STORAGE_KEY,
+  DEFAULT_BANKING_DETAILS,
 } from "@/lib/constants";
 import { useIsMounted } from "@/hooks/use-is-mounted";
 import ProductForm from "@/components/product-form";
@@ -54,6 +58,7 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const [products, setProducts] = useState<Product[]>([]);
   const [message, setMessage] = useState("");
+  const [bankingDetails, setBankingDetails] = useState<BankingDetails>(DEFAULT_BANKING_DETAILS);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
 
@@ -61,8 +66,12 @@ export default function SettingsPage() {
     if (isMounted) {
       const storedProducts = localStorage.getItem(PRODUCTS_STORAGE_KEY);
       setProducts(storedProducts ? JSON.parse(storedProducts) : DEFAULT_PRODUCTS);
+      
       const storedMessage = localStorage.getItem(MESSAGE_STORAGE_KEY);
       setMessage(storedMessage ? JSON.parse(storedMessage) : DEFAULT_MESSAGE);
+
+      const storedBankingDetails = localStorage.getItem(BANKING_DETAILS_STORAGE_KEY);
+      setBankingDetails(storedBankingDetails ? JSON.parse(storedBankingDetails) : DEFAULT_BANKING_DETAILS);
     }
   }, [isMounted]);
 
@@ -93,6 +102,11 @@ export default function SettingsPage() {
   const handleSaveMessage = () => {
     localStorage.setItem(MESSAGE_STORAGE_KEY, JSON.stringify(message));
     toast({ title: "Success", description: "Message saved." });
+  };
+
+  const handleSaveBankingDetails = () => {
+    localStorage.setItem(BANKING_DETAILS_STORAGE_KEY, JSON.stringify(bankingDetails));
+    toast({ title: "Success", description: "Banking details saved." });
   };
   
   if (!isMounted) {
@@ -193,6 +207,45 @@ export default function SettingsPage() {
                 </TableBody>
               </Table>
             </div>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Banking Details</CardTitle>
+            <CardDescription>
+              Enter your banking information for payments. This information will be encoded in the QR code.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="bankName">Bank Name</Label>
+              <Input
+                id="bankName"
+                value={bankingDetails.bankName}
+                onChange={(e) => setBankingDetails({ ...bankingDetails, bankName: e.target.value })}
+                placeholder="e.g. First National Bank"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="accountNumber">Account Number</Label>
+              <Input
+                id="accountNumber"
+                value={bankingDetails.accountNumber}
+                onChange={(e) => setBankingDetails({ ...bankingDetails, accountNumber: e.target.value })}
+                placeholder="e.g. 1234567890"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label htmlFor="routingNumber">Routing Number</Label>
+              <Input
+                id="routingNumber"
+                value={bankingDetails.routingNumber}
+                onChange={(e) => setBankingDetails({ ...bankingDetails, routingNumber: e.target.value })}
+                placeholder="e.g. 0987654321"
+              />
+            </div>
+            <Button onClick={handleSaveBankingDetails}>Save Banking Details</Button>
           </CardContent>
         </Card>
 

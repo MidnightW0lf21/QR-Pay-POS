@@ -17,14 +17,22 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Minus, ShoppingCart, Loader2 } from "lucide-react";
-import type { Product } from "@/lib/types";
-import { DEFAULT_PRODUCTS, PRODUCTS_STORAGE_KEY, MESSAGE_STORAGE_KEY, DEFAULT_MESSAGE } from "@/lib/constants";
+import type { Product, BankingDetails } from "@/lib/types";
+import { 
+  DEFAULT_PRODUCTS, 
+  PRODUCTS_STORAGE_KEY, 
+  MESSAGE_STORAGE_KEY, 
+  DEFAULT_MESSAGE,
+  BANKING_DETAILS_STORAGE_KEY,
+  DEFAULT_BANKING_DETAILS
+} from "@/lib/constants";
 import { useIsMounted } from "@/hooks/use-is-mounted";
 
 export default function Home() {
   const isMounted = useIsMounted();
   const [products, setProducts] = useState<Product[]>(DEFAULT_PRODUCTS);
   const [paymentMessage, setPaymentMessage] = useState<string>(DEFAULT_MESSAGE);
+  const [bankingDetails, setBankingDetails] = useState<BankingDetails>(DEFAULT_BANKING_DETAILS);
   const [cart, setCart] = useState<Record<string, number>>({});
   const [isQrDialogOpen, setIsQrDialogOpen] = useState(false);
 
@@ -37,6 +45,10 @@ export default function Home() {
       const storedMessage = localStorage.getItem(MESSAGE_STORAGE_KEY);
       if (storedMessage) {
         setPaymentMessage(JSON.parse(storedMessage));
+      }
+      const storedBankingDetails = localStorage.getItem(BANKING_DETAILS_STORAGE_KEY);
+      if (storedBankingDetails) {
+        setBankingDetails(JSON.parse(storedBankingDetails));
       }
     }
   }, [isMounted]);
@@ -69,9 +81,10 @@ export default function Home() {
       total: total.toFixed(2),
       message: paymentMessage,
       items: cartItems,
+      paymentInfo: bankingDetails,
     };
     return encodeURIComponent(JSON.stringify(data));
-  }, [total, paymentMessage, cart, products]);
+  }, [total, paymentMessage, cart, products, bankingDetails]);
   
   const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=${qrCodeData}`;
 

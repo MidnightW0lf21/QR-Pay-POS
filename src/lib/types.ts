@@ -7,3 +7,9 @@ export interface Product {
   icon?: keyof typeof icons;
   imageUrl?: string;
 }
+
+export interface BankingDetails {
+  bankName: string;
+  accountNumber: string;
+  routingNumber: string;
+}
