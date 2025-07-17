@@ -3,6 +3,7 @@
 
 import { useState, useEffect } from "react";
 import Image from "next/image";
+import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -40,6 +41,7 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import type { Product, BankingDetails } from "@/lib/types";
 import {
@@ -52,11 +54,12 @@ import {
 } from "@/lib/constants";
 import { useIsMounted } from "@/hooks/use-is-mounted";
 import ProductForm from "@/components/product-form";
-import { Plus, Edit, Trash2, Loader2 } from "lucide-react";
+import { Plus, Edit, Trash2, Loader2, Sun, Moon, Laptop } from "lucide-react";
 
 export default function SettingsPage() {
   const isMounted = useIsMounted();
   const { toast } = useToast();
+  const { theme, setTheme } = useTheme();
   const [products, setProducts] = useState<Product[]>([]);
   const [message, setMessage] = useState("");
   const [bankingDetails, setBankingDetails] = useState<BankingDetails>(DEFAULT_BANKING_DETAILS);
@@ -121,6 +124,53 @@ export default function SettingsPage() {
   return (
     <div className="container mx-auto max-w-4xl p-4 sm:p-6 md:p-8">
       <div className="space-y-8">
+        <Card>
+          <CardHeader>
+            <CardTitle>Vzhled</CardTitle>
+            <CardDescription>
+              Vyberte si světlý nebo tmavý režim.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <RadioGroup
+              value={theme}
+              onValueChange={setTheme}
+              className="grid grid-cols-3 gap-4"
+            >
+              <div>
+                <RadioGroupItem value="light" id="light" className="peer sr-only" />
+                <Label
+                  htmlFor="light"
+                  className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                >
+                  <Sun className="h-6 w-6 mb-2" />
+                  Světlý
+                </Label>
+              </div>
+              <div>
+                <RadioGroupItem value="dark" id="dark" className="peer sr-only" />
+                <Label
+                  htmlFor="dark"
+                  className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                >
+                  <Moon className="h-6 w-6 mb-2" />
+                  Tmavý
+                </Label>
+              </div>
+              <div>
+                <RadioGroupItem value="system" id="system" className="peer sr-only" />
+                <Label
+                  htmlFor="system"
+                  className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                >
+                  <Laptop className="h-6 w-6 mb-2" />
+                  Systém
+                </Label>
+              </div>
+            </RadioGroup>
+          </CardContent>
+        </Card>
+        
         <Card>
           <CardHeader className="flex flex-row items-center justify-between">
             <div>
