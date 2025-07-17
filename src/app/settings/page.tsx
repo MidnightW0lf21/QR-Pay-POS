@@ -228,30 +228,12 @@ export default function SettingsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="bankName">Bank Name</Label>
-              <Input
-                id="bankName"
-                value={bankingDetails.bankName}
-                onChange={(e) => setBankingDetails({ ...bankingDetails, bankName: e.target.value })}
-                placeholder="e.g. First National Bank"
-              />
-            </div>
-            <div className="space-y-2">
               <Label htmlFor="accountNumber">Account Number</Label>
               <Input
                 id="accountNumber"
                 value={bankingDetails.accountNumber}
                 onChange={(e) => setBankingDetails({ ...bankingDetails, accountNumber: e.target.value })}
                 placeholder="e.g. 1234567890"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="routingNumber">Routing Number</Label>
-              <Input
-                id="routingNumber"
-                value={bankingDetails.routingNumber}
-                onChange={(e) => setBankingDetails({ ...bankingDetails, routingNumber: e.target.value })}
-                placeholder="e.g. 0987654321"
               />
             </div>
             <Button onClick={handleSaveBankingDetails}>Save Banking Details</Button>

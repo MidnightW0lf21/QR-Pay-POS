@@ -18,8 +18,6 @@ export const DEFAULT_PRODUCTS: Product[] = [
 export const DEFAULT_MESSAGE = "Thank you for your business!";
 
 export const DEFAULT_BANKING_DETAILS: BankingDetails = {
-  bankName: "",
   accountNumber: "",
-  routingNumber: "",
   recipientName: "",
 };

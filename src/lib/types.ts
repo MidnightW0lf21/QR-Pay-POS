@@ -9,8 +9,6 @@ export interface Product {
 }
 
 export interface BankingDetails {
-  bankName: string;
   accountNumber: string;
-  routingNumber: string;
   recipientName: string;
 }
