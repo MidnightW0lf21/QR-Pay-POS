@@ -22,7 +22,7 @@ import { useToast } from "@/hooks/use-toast";
 
 const productFormSchema = z.object({
   name: z.string().min(2, { message: "Název musí mít alespoň 2 znaky." }),
-  price: z.coerce.number().positive({ message: "Cena musí být kladné číslo." }),
+  price: z.coerce.number().int({ message: "Cena musí být celé číslo." }).positive({ message: "Cena musí být kladné číslo." }),
   imageUrl: z.string().url({ message: "Zadejte platnou URL adresu obrázku nebo nahrajte soubor." }).optional().or(z.literal("")),
 });
 
@@ -99,7 +99,7 @@ export default function ProductForm({ onSubmit, product }: ProductFormProps) {
             <FormItem>
               <FormLabel>Cena</FormLabel>
               <FormControl>
-                <Input type="number" step="0.01" placeholder="např. 85.00" {...field} />
+                <Input type="number" step="1" placeholder="např. 85" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

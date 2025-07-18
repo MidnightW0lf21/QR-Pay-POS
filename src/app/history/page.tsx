@@ -85,7 +85,7 @@ export default function HistoryPage() {
                             {paymentInfo.text}
                           </Badge>
                         </div>
-                        <span className="font-bold text-primary text-lg">{transaction.total.toFixed(2)} Kč</span>
+                        <span className="font-bold text-primary text-lg">{transaction.total.toFixed(0)} Kč</span>
                       </div>
                     </AccordionTrigger>
                     <AccordionContent>
@@ -102,7 +102,7 @@ export default function HistoryPage() {
                             <TableRow key={item.productId}>
                               <TableCell>{item.name}</TableCell>
                               <TableCell className="text-center">{item.quantity}</TableCell>
-                              <TableCell className="text-right">{(item.price * item.quantity).toFixed(2)} Kč</TableCell>
+                              <TableCell className="text-right">{(item.price * item.quantity).toFixed(0)} Kč</TableCell>
                             </TableRow>
                           ))}
                         </TableBody>

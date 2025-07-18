@@ -215,7 +215,7 @@ export default function Home() {
               </div>
               <CardFooter className="bg-background/80 p-3 flex-col items-start">
                  <p className="font-semibold text-md truncate w-full">{product.name}</p>
-                 <p className="text-lg font-bold text-primary">{product.price.toFixed(2)} Kč</p>
+                 <p className="text-lg font-bold text-primary">{product.price.toFixed(0)} Kč</p>
               </CardFooter>
             </Card>
           ))}
@@ -226,7 +226,7 @@ export default function Home() {
         <div className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-sm border-t p-4">
           <div className="container mx-auto max-w-7xl flex items-center justify-between">
             <div className="text-lg font-bold">
-              Celkem: <span className="text-primary text-2xl">{total.toFixed(2)} Kč</span>
+              Celkem: <span className="text-primary text-2xl">{total.toFixed(0)} Kč</span>
             </div>
             <Button size="lg" onClick={handleOpenDialog}>
               {isCashMode ? <Wallet className="mr-2 h-5 w-5" /> : <ShoppingCart className="mr-2 h-5 w-5" />}
@@ -250,7 +250,7 @@ export default function Home() {
             </div>
             <div className="text-center">
               <p className="text-lg font-medium text-muted-foreground">Celková částka</p>
-              <p className="text-4xl font-bold text-primary">{total.toFixed(2)} Kč</p>
+              <p className="text-4xl font-bold text-primary">{total.toFixed(0)} Kč</p>
               <p className="text-sm text-muted-foreground mt-2">{paymentMessage}</p>
             </div>
           </div>
@@ -273,14 +273,14 @@ export default function Home() {
           <div className="space-y-4 p-4">
             <div className="text-center">
               <p className="text-lg font-medium text-muted-foreground">Celková částka</p>
-              <p className="text-4xl font-bold text-primary">{total.toFixed(2)} Kč</p>
+              <p className="text-4xl font-bold text-primary">{total.toFixed(0)} Kč</p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="cash-received">Přijatá hotovost (Kč)</Label>
               <Input
                 id="cash-received"
                 type="number"
-                placeholder="0.00"
+                placeholder="0"
                 value={cashReceived ?? ""}
                 onChange={(e) => setCashReceived(e.target.value === '' ? null : parseFloat(e.target.value))}
                 className="text-center text-lg h-12"
@@ -292,7 +292,7 @@ export default function Home() {
                   {change >= 0 ? "Vrátit" : "Nedostatečná hotovost"}
                 </p>
                 <p className={`text-4xl font-bold ${change >= 0 ? "text-primary" : "text-destructive"}`}>
-                  {Math.abs(change).toFixed(2)} Kč
+                  {Math.abs(change).toFixed(0)} Kč
                 </p>
               </div>
             )}

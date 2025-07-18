@@ -326,7 +326,7 @@ export default function SettingsPage() {
                         />
                       </TableCell>
                       <TableCell className="font-medium">{product.name}</TableCell>
-                      <TableCell>{product.price.toFixed(2)} Kč</TableCell>
+                      <TableCell>{product.price.toFixed(0)} Kč</TableCell>
                       <TableCell className="text-right space-x-2">
                         <Button
                           variant="ghost"
