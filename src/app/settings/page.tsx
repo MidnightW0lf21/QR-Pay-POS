@@ -164,10 +164,16 @@ export default function SettingsPage() {
       try {
         const text = e.target?.result;
         if (typeof text !== 'string') throw new Error("Nelze přečíst soubor");
-        const importedProducts = JSON.parse(text);
-        if (Array.isArray(importedProducts)) {
-          // Basic validation
-          const validProducts = importedProducts.filter(p => p.id && p.name && typeof p.price === 'number');
+        const importedData = JSON.parse(text);
+        if (Array.isArray(importedData)) {
+          const validProducts: Product[] = importedData
+            .filter(p => p.name && typeof p.price === 'number')
+            .map(p => ({
+              id: p.id || crypto.randomUUID(),
+              name: p.name,
+              price: p.price,
+              imageUrl: ""
+            }));
           handleSaveProducts(validProducts);
           toast({ title: "Úspěch", description: `Importováno ${validProducts.length} produktů.` });
         } else {
@@ -186,7 +192,8 @@ export default function SettingsPage() {
       toast({ variant: "destructive", title: "Chyba", description: "Žádné produkty k exportu." });
       return;
     }
-    const data = JSON.stringify(products, null, 2);
+    const exportableProducts = products.map(({ name, price }) => ({ name, price }));
+    const data = JSON.stringify(exportableProducts, null, 2);
     const blob = new Blob([data], { type: "application/json" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
