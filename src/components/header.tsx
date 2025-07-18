@@ -12,8 +12,8 @@ export default function Header() {
 
   return (
     <header className={cn(
-      "fixed top-0 left-0 right-0 z-50 backdrop-blur-sm border-b transition-colors duration-300",
-      paymentMode === 'cash' ? "bg-success/80" : "bg-primary/90"
+      "fixed top-0 left-0 right-0 z-50 border-b transition-colors duration-300",
+      paymentMode === 'cash' ? "bg-success" : "bg-primary"
     )}>
       <div className="container mx-auto flex h-16 items-center justify-between max-w-7xl">
         <Link href="/" className="flex items-center gap-2">
