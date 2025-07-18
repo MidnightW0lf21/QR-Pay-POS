@@ -184,7 +184,7 @@ export default function Home() {
               key={product.id} 
               className={cn(
                 "flex flex-col overflow-hidden transition-all duration-300 hover:shadow-lg cursor-pointer group",
-                 cart[product.id] > 0 && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+                 cart[product.id] > 0 && "ring-4 ring-primary ring-offset-2 ring-offset-background scale-[.98]"
               )}
               onClick={() => handleQuantityChange(product.id, 1)}
             >
