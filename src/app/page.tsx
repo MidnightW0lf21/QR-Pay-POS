@@ -42,7 +42,7 @@ export default function Home() {
   const [cart, setCart] = useState<Record<string, number>>({});
   const [isQrDialogOpen, setIsQrDialogOpen] = useState(false);
   const [isCashDialogOpen, setIsCashDialogOpen] = useState(false);
-  const [isCashMode, setIsCashMode] = useState(false);
+  const [isCashMode, setIsCashMode] = useState(true);
   const [cashReceived, setCashReceived] = useState<number | null>(null);
 
   useEffect(() => {
@@ -165,8 +165,8 @@ export default function Home() {
           <Landmark className="text-muted-foreground" />
           <Switch
             id="payment-mode"
-            checked={isCashMode}
-            onCheckedChange={setIsCashMode}
+            checked={!isCashMode}
+            onCheckedChange={(checked) => setIsCashMode(!checked)}
             aria-label="Přepnout režim platby"
           />
           <Wallet className="text-muted-foreground" />
