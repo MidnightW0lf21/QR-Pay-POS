@@ -33,6 +33,7 @@ import {
 import { useIsMounted } from "@/hooks/use-is-mounted";
 import { useToast } from "@/hooks/use-toast";
 import { useAppContext } from "@/context/AppContext";
+import { cn } from "@/lib/utils";
 
 export default function Home() {
   const isMounted = useIsMounted();
@@ -181,7 +182,10 @@ export default function Home() {
           {products.map((product) => (
             <Card 
               key={product.id} 
-              className="flex flex-col overflow-hidden transition-all duration-300 hover:shadow-lg cursor-pointer group"
+              className={cn(
+                "flex flex-col overflow-hidden transition-all duration-300 hover:shadow-lg cursor-pointer group",
+                 cart[product.id] > 0 && "ring-2 ring-primary ring-offset-2 ring-offset-background"
+              )}
               onClick={() => handleQuantityChange(product.id, 1)}
             >
               <div className="relative w-full aspect-square">
@@ -197,15 +201,15 @@ export default function Home() {
                     <Button 
                       variant="ghost" 
                       size="icon" 
-                      className="h-6 w-6 rounded-full"
+                      className="h-8 w-8 rounded-full"
                       onClick={(e) => {
                         e.stopPropagation();
                         handleQuantityChange(product.id, -1);
                       }}
                     >
-                      <Minus className="h-4 w-4" />
+                      <Minus className="h-5 w-5" />
                     </Button>
-                    <span className="text-md font-bold w-6 text-center">{cart[product.id]}</span>
+                    <span className="text-xl font-bold w-8 text-center">{cart[product.id]}</span>
                   </div>
                 )}
               </div>
