@@ -380,7 +380,7 @@ export default function SettingsPage() {
                 id="recipientName"
                 value={bankingDetails.recipientName}
                 onChange={(e) => setBankingDetails({ ...bankingDetails, recipientName: e.target.value })}
-                placeholder="např. Jan Novák"
+                placeholder="napr. Jan Novak"
               />
             </div>
             <div className="space-y-2">
@@ -473,5 +473,7 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+    
 
     
