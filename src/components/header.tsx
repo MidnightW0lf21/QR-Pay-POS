@@ -16,7 +16,7 @@ export default function Header() {
       paymentMode === 'cash' ? "bg-success/80 border-success/30" : "bg-primary/80 border-primary/30"
     )}>
       <div className="container mx-auto flex h-16 items-center justify-between max-w-7xl px-4">
-        <Link href="/" className="flex items-center gap-2">
+        <Link href="/" className="flex flex-1 items-center gap-2">
           <Store className="h-6 w-6 text-primary-foreground" />
           <span className={cn(
             "text-xl font-bold text-primary-foreground"
