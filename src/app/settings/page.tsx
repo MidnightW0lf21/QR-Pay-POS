@@ -384,12 +384,12 @@ export default function SettingsPage() {
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="accountNumber">Číslo účtu</Label>
+              <Label htmlFor="accountNumber">Číslo účtu (IBAN)</Label>
               <Input
                 id="accountNumber"
                 value={bankingDetails.accountNumber}
                 onChange={(e) => setBankingDetails({ ...bankingDetails, accountNumber: e.target.value })}
-                placeholder="např. 1234567890/0800"
+                placeholder="např. CZ6508000000001234567890"
               />
             </div>
             <Button onClick={handleSaveBankingDetails}>Uložit bankovní údaje</Button>
@@ -473,3 +473,5 @@ export default function SettingsPage() {
     </div>
   );
 }
+
+    
