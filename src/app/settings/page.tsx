@@ -1,9 +1,10 @@
 
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import Image from "next/image";
 import { useTheme } from "next-themes";
+import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -43,7 +44,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
-import type { Product, BankingDetails } from "@/lib/types";
+import type { Product, BankingDetails, Transaction } from "@/lib/types";
 import {
   DEFAULT_PRODUCTS,
   PRODUCTS_STORAGE_KEY,
@@ -51,10 +52,11 @@ import {
   DEFAULT_MESSAGE,
   BANKING_DETAILS_STORAGE_KEY,
   DEFAULT_BANKING_DETAILS,
+  TRANSACTIONS_STORAGE_KEY,
 } from "@/lib/constants";
 import { useIsMounted } from "@/hooks/use-is-mounted";
 import ProductForm from "@/components/product-form";
-import { Plus, Edit, Trash2, Loader2, Sun, Moon, Laptop } from "lucide-react";
+import { Plus, Edit, Trash2, Loader2, Sun, Moon, Laptop, Upload, Download, Trash, RefreshCcw } from "lucide-react";
 
 export default function SettingsPage() {
   const isMounted = useIsMounted();
@@ -65,6 +67,7 @@ export default function SettingsPage() {
   const [bankingDetails, setBankingDetails] = useState<BankingDetails>(DEFAULT_BANKING_DETAILS);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (isMounted) {
@@ -112,7 +115,95 @@ export default function SettingsPage() {
     localStorage.setItem(BANKING_DETAILS_STORAGE_KEY, JSON.stringify(bankingDetails));
     toast({ title: "Úspěch", description: "Bankovní údaje uloženy." });
   };
+
+  const handleExportHistory = () => {
+    const storedTransactions = localStorage.getItem(TRANSACTIONS_STORAGE_KEY);
+    const transactions: Transaction[] = storedTransactions ? JSON.parse(storedTransactions) : [];
+
+    if (transactions.length === 0) {
+      toast({ variant: "destructive", title: "Chyba", description: "Žádná historie transakcí k exportu." });
+      return;
+    }
+
+    const flattenedData = transactions.flatMap(tx =>
+      tx.items.map(item => ({
+        'ID Transakce': tx.id,
+        'Datum': new Date(tx.date).toLocaleString('cs-CZ'),
+        'Celkem': tx.total,
+        'Platební metoda': tx.paymentMethod === 'cash' ? 'Hotově' : 'QR Platba',
+        'ID Produktu': item.productId,
+        'Název Produktu': item.name,
+        'Množství': item.quantity,
+        'Cena za kus': item.price,
+        'Mezisoučet': item.price * item.quantity
+      }))
+    );
+    
+    const worksheet = XLSX.utils.json_to_sheet(flattenedData);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Transakce");
+    XLSX.writeFile(workbook, "historie-transakci.xlsx");
+    toast({ title: "Úspěch", description: "Historie transakcí exportována." });
+  };
+
+  const handleClearHistory = () => {
+    localStorage.removeItem(TRANSACTIONS_STORAGE_KEY);
+    toast({ title: "Úspěch", description: "Historie transakcí byla vymazána." });
+  };
   
+  const handleImportClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const file = event.target.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = (e) => {
+      try {
+        const text = e.target?.result;
+        if (typeof text !== 'string') throw new Error("Nelze přečíst soubor");
+        const importedProducts = JSON.parse(text);
+        if (Array.isArray(importedProducts)) {
+          // Basic validation
+          const validProducts = importedProducts.filter(p => p.id && p.name && typeof p.price === 'number');
+          handleSaveProducts(validProducts);
+          toast({ title: "Úspěch", description: `Importováno ${validProducts.length} produktů.` });
+        } else {
+          throw new Error("Neplatný formát souboru.");
+        }
+      } catch (error) {
+        toast({ variant: "destructive", title: "Chyba importu", description: "Soubor je poškozený nebo má nesprávný formát." });
+      }
+    };
+    reader.readAsText(file);
+    event.target.value = ''; // Reset input
+  };
+  
+  const handleExportProducts = () => {
+    if (products.length === 0) {
+      toast({ variant: "destructive", title: "Chyba", description: "Žádné produkty k exportu." });
+      return;
+    }
+    const data = JSON.stringify(products, null, 2);
+    const blob = new Blob([data], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "produkty.json";
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+    toast({ title: "Úspěch", description: "Produkty exportovány." });
+  };
+  
+  const handleRestoreDefaultProducts = () => {
+    handleSaveProducts(DEFAULT_PRODUCTS);
+    toast({ title: "Úspěch", description: "Výchozí produkty byly obnoveny." });
+  };
+
   if (!isMounted) {
     return (
       <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
@@ -172,31 +263,38 @@ export default function SettingsPage() {
         </Card>
         
         <Card>
-          <CardHeader className="flex flex-row items-center justify-between">
-            <div>
-              <CardTitle>Spravovat produkty</CardTitle>
-              <CardDescription>
-                Zde můžete přidávat, upravovat nebo mazat své produkty.
-              </CardDescription>
-            </div>
-            <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-              <SheetTrigger asChild>
-                <Button onClick={() => { setEditingProduct(null); setIsSheetOpen(true); }}>
-                  <Plus className="mr-2 h-4 w-4" /> Přidat produkt
-                </Button>
-              </SheetTrigger>
-              <SheetContent>
-                <SheetHeader>
-                  <SheetTitle>{editingProduct ? 'Upravit produkt' : 'Přidat nový produkt'}</SheetTitle>
-                </SheetHeader>
-                <ProductForm
-                  onSubmit={editingProduct ? handleEditProduct : handleAddProduct}
-                  product={editingProduct}
-                />
-              </SheetContent>
-            </Sheet>
+          <CardHeader>
+            <CardTitle>Spravovat produkty</CardTitle>
+            <CardDescription>
+              Zde můžete přidávat, upravovat, mazat, importovat a exportovat své produkty.
+            </CardDescription>
           </CardHeader>
           <CardContent>
+            <div className="flex flex-wrap gap-2 mb-4">
+              <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+                <SheetTrigger asChild>
+                  <Button onClick={() => { setEditingProduct(null); setIsSheetOpen(true); }}>
+                    <Plus className="mr-2 h-4 w-4" /> Přidat produkt
+                  </Button>
+                </SheetTrigger>
+                <SheetContent>
+                  <SheetHeader>
+                    <SheetTitle>{editingProduct ? 'Upravit produkt' : 'Přidat nový produkt'}</SheetTitle>
+                  </SheetHeader>
+                  <ProductForm
+                    onSubmit={editingProduct ? handleEditProduct : handleAddProduct}
+                    product={editingProduct}
+                  />
+                </SheetContent>
+              </Sheet>
+              <Button variant="outline" onClick={handleImportClick}>
+                <Upload className="mr-2 h-4 w-4" /> Importovat (JSON)
+              </Button>
+              <input type="file" ref={fileInputRef} onChange={handleFileImport} className="hidden" accept=".json" />
+              <Button variant="outline" onClick={handleExportProducts}>
+                <Download className="mr-2 h-4 w-4" /> Exportovat (JSON)
+              </Button>
+            </div>
             <div className="rounded-lg border">
               <Table>
                 <TableHeader>
@@ -284,7 +382,7 @@ export default function SettingsPage() {
                 id="accountNumber"
                 value={bankingDetails.accountNumber}
                 onChange={(e) => setBankingDetails({ ...bankingDetails, accountNumber: e.target.value })}
-                placeholder="např. 1234567890"
+                placeholder="např. 1234567890/0800"
               />
             </div>
             <Button onClick={handleSaveBankingDetails}>Uložit bankovní údaje</Button>
@@ -306,6 +404,62 @@ export default function SettingsPage() {
               rows={3}
             />
             <Button onClick={handleSaveMessage}>Uložit zprávu</Button>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Správa Dat</CardTitle>
+            <CardDescription>
+              Exportujte historii transakcí nebo spravujte data aplikace.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Button variant="outline" onClick={handleExportHistory}>
+              <Download className="mr-2 h-4 w-4" /> Exportovat historii (Excel)
+            </Button>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive">
+                  <Trash className="mr-2 h-4 w-4" /> Vymazat historii transakcí
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Jste si absolutně jistí?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Tato akce je nevratná a trvale smaže veškerou vaši historii transakcí.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Zrušit</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleClearHistory}>
+                    Ano, smazat historii
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="outline" className="sm:col-span-2">
+                  <RefreshCcw className="mr-2 h-4 w-4" /> Obnovit výchozí produkty
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Obnovit výchozí produkty?</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Tímto nahradíte váš současný seznam produktů výchozí sadou. Vaše vlastní produkty budou smazány.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Zrušit</AlertDialogCancel>
+                  <AlertDialogAction onClick={handleRestoreDefaultProducts}>
+                    Ano, obnovit
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </CardContent>
         </Card>
       </div>
