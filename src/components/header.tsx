@@ -12,26 +12,25 @@ export default function Header() {
 
   return (
     <header className={cn(
-      "fixed top-0 left-0 right-0 z-50 bg-background/80 backdrop-blur-sm border-b transition-colors duration-300",
-      paymentMode === 'cash' ? "bg-success/80" : "bg-background/80"
+      "fixed top-0 left-0 right-0 z-50 backdrop-blur-sm border-b transition-colors duration-300",
+      paymentMode === 'cash' ? "bg-success/80" : "bg-primary/90"
     )}>
       <div className="container mx-auto flex h-16 items-center justify-between max-w-7xl">
         <Link href="/" className="flex items-center gap-2">
           <Rocket className="h-6 w-6 text-primary-foreground" />
           <span className={cn(
-            "text-xl font-bold",
-            paymentMode === 'cash' ? "text-success-foreground" : "text-primary"
+            "text-xl font-bold text-primary-foreground"
           )}>QR Pay</span>
         </Link>
         <div className="flex items-center gap-2">
           <Link href="/history" passHref>
-            <Button variant="ghost" size="icon" className={cn(paymentMode === 'cash' && "text-success-foreground hover:bg-success-foreground/10")}>
+            <Button variant="ghost" size="icon" className={cn("text-primary-foreground hover:bg-primary-foreground/10")}>
               <History className="h-5 w-5" />
               <span className="sr-only">Historie</span>
             </Button>
           </Link>
           <Link href="/settings" passHref>
-            <Button variant="ghost" size="icon" className={cn(paymentMode === 'cash' && "text-success-foreground hover:bg-success-foreground/10")}>
+            <Button variant="ghost" size="icon" className={cn("text-primary-foreground hover:bg-primary-foreground/10")}>
               <Settings className="h-5 w-5" />
               <span className="sr-only">Nastavení</span>
             </Button>
