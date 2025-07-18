@@ -32,18 +32,21 @@ import {
 } from "@/lib/constants";
 import { useIsMounted } from "@/hooks/use-is-mounted";
 import { useToast } from "@/hooks/use-toast";
+import { useAppContext } from "@/context/AppContext";
 
 export default function Home() {
   const isMounted = useIsMounted();
   const { toast } = useToast();
+  const { paymentMode, setPaymentMode } = useAppContext();
   const [products, setProducts] = useState<Product[]>(DEFAULT_PRODUCTS);
   const [paymentMessage, setPaymentMessage] = useState<string>(DEFAULT_MESSAGE);
   const [bankingDetails, setBankingDetails] = useState<BankingDetails>(DEFAULT_BANKING_DETAILS);
   const [cart, setCart] = useState<Record<string, number>>({});
   const [isQrDialogOpen, setIsQrDialogOpen] = useState(false);
   const [isCashDialogOpen, setIsCashDialogOpen] = useState(false);
-  const [isCashMode, setIsCashMode] = useState(true);
   const [cashReceived, setCashReceived] = useState<number | null>(null);
+
+  const isCashMode = paymentMode === 'cash';
 
   useEffect(() => {
     if (isMounted) {
@@ -166,7 +169,7 @@ export default function Home() {
           <Switch
             id="payment-mode"
             checked={!isCashMode}
-            onCheckedChange={(checked) => setIsCashMode(!checked)}
+            onCheckedChange={(checked) => setPaymentMode(checked ? 'qr' : 'cash')}
             aria-label="Přepnout režim platby"
           />
           <Wallet className="text-muted-foreground" />

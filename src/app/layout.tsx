@@ -3,6 +3,7 @@ import './globals.css';
 import { Toaster } from "@/components/ui/toaster";
 import Header from '@/components/header';
 import { ThemeProvider } from '@/components/theme-provider';
+import { AppProvider } from '@/context/AppContext';
 
 export const metadata: Metadata = {
   title: 'QR Pay',
@@ -24,14 +25,16 @@ export default function RootLayout({
       <body className="font-body antialiased">
         <ThemeProvider
           attribute="class"
-          defaultTheme="system"
+          defaultTheme="dark"
           enableSystem
         >
-          <div className="relative flex min-h-screen w-full flex-col">
-            <Header />
-            <main className="flex-1 pt-16">{children}</main>
-          </div>
-          <Toaster />
+          <AppProvider>
+            <div className="relative flex min-h-screen w-full flex-col">
+              <Header />
+              <main className="flex-1 pt-16">{children}</main>
+            </div>
+            <Toaster />
+          </AppProvider>
         </ThemeProvider>
       </body>
     </html>
