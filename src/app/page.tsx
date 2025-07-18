@@ -91,10 +91,10 @@ export default function Home() {
     } else {
       setIsQrDialogOpen(true);
     }
-    saveTransaction();
   };
   
   const handleCloseDialog = () => {
+    saveTransaction();
     setIsQrDialogOpen(false);
     setIsCashDialogOpen(false);
     setCashReceived(null);
@@ -102,6 +102,8 @@ export default function Home() {
   };
 
   const saveTransaction = () => {
+    if (Object.keys(cart).length === 0) return;
+
     const transactionItems: CartItem[] = Object.entries(cart).map(([productId, quantity]) => {
       const product = products.find(p => p.id === productId)!;
       return {
@@ -227,7 +229,7 @@ export default function Home() {
         </div>
       )}
 
-      <Dialog open={isQrDialogOpen} onOpenChange={handleCloseDialog}>
+      <Dialog open={isQrDialogOpen} onOpenChange={(open) => !open && handleCloseDialog()}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Skenujte pro platbu</DialogTitle>
@@ -253,7 +255,7 @@ export default function Home() {
         </DialogContent>
       </Dialog>
       
-      <Dialog open={isCashDialogOpen} onOpenChange={handleCloseDialog}>
+      <Dialog open={isCashDialogOpen} onOpenChange={(open) => !open && handleCloseDialog()}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle>Platba v hotovosti</DialogTitle>
