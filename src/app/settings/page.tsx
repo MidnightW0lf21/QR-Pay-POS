@@ -56,7 +56,16 @@ import {
 } from "@/lib/constants";
 import { useIsMounted } from "@/hooks/use-is-mounted";
 import ProductForm from "@/components/product-form";
-import { Plus, Edit, Trash2, Loader2, Sun, Moon, Laptop, Upload, Download, Trash, RefreshCcw } from "lucide-react";
+import { Plus, Edit, Trash2, Loader2, Sun, Moon, Laptop, Upload, Download, Trash, RefreshCcw, Smartphone } from "lucide-react";
+
+interface BeforeInstallPromptEvent extends Event {
+  readonly platforms: string[];
+  readonly userChoice: Promise<{
+    outcome: 'accepted' | 'dismissed';
+    platform: string;
+  }>;
+  prompt(): Promise<void>;
+}
 
 export default function SettingsPage() {
   const isMounted = useIsMounted();
@@ -67,7 +76,21 @@ export default function SettingsPage() {
   const [bankingDetails, setBankingDetails] = useState<BankingDetails>(DEFAULT_BANKING_DETAILS);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
+  const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    const handleBeforeInstallPrompt = (e: Event) => {
+      e.preventDefault();
+      setDeferredPrompt(e as BeforeInstallPromptEvent);
+    };
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstallPrompt);
+    };
+  }, []);
 
   useEffect(() => {
     if (isMounted) {
@@ -81,6 +104,19 @@ export default function SettingsPage() {
       setBankingDetails(storedBankingDetails ? JSON.parse(storedBankingDetails) : DEFAULT_BANKING_DETAILS);
     }
   }, [isMounted]);
+
+  const handleInstallClick = async () => {
+    if (deferredPrompt) {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      if (outcome === 'accepted') {
+        toast({ title: "Úspěch", description: "Aplikace byla úspěšně nainstalována." });
+      } else {
+        toast({ title: "Instalace zrušena", description: "Instalaci můžete provést později." });
+      }
+      setDeferredPrompt(null);
+    }
+  };
 
   const handleSaveProducts = (newProducts: Product[]) => {
     setProducts(newProducts);
@@ -222,6 +258,21 @@ export default function SettingsPage() {
   return (
     <div className="container mx-auto max-w-4xl p-4 sm:p-6 md:p-8">
       <div className="space-y-8">
+        {deferredPrompt && (
+          <Card className="bg-primary/10 border-primary">
+            <CardHeader>
+              <CardTitle>Instalace aplikace</CardTitle>
+              <CardDescription>
+                Nainstalujte si tuto aplikaci na své zařízení pro rychlý přístup a offline použití.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <Button onClick={handleInstallClick} className="w-full">
+                <Smartphone className="mr-2 h-4 w-4" /> Instalovat aplikaci
+              </Button>
+            </CardContent>
+          </Card>
+        )}
         <Card>
           <CardHeader>
             <CardTitle>Vzhled</CardTitle>
