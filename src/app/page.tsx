@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo } from "react";
 import Image from "next/image";
+import QRCode from "qrcode";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -46,6 +47,7 @@ export default function Home() {
   const [isQrDialogOpen, setIsQrDialogOpen] = useState(false);
   const [isCashDialogOpen, setIsCashDialogOpen] = useState(false);
   const [cashReceived, setCashReceived] = useState<number | null>(null);
+  const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
 
   const isCashMode = paymentMode === 'cash';
 
@@ -148,11 +150,25 @@ export default function Home() {
       "CC:CZK",
       `MSG:${paymentMessage}`
     ];
-    const data = parts.join("*");
-    return encodeURIComponent(data);
+    return parts.join("*");
   }, [total, paymentMessage, bankingDetails]);
   
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=256x256&data=${qrCodeData}`;
+  useEffect(() => {
+    if (isQrDialogOpen && qrCodeData) {
+      QRCode.toDataURL(qrCodeData, {
+        errorCorrectionLevel: 'H',
+        margin: 2,
+        width: 256,
+      })
+      .then(url => {
+        setQrCodeDataUrl(url);
+      })
+      .catch(err => {
+        console.error("Failed to generate QR code", err);
+        setQrCodeDataUrl(''); // Clear on error
+      });
+    }
+  }, [isQrDialogOpen, qrCodeData]);
 
   if (!isMounted) {
     return (
@@ -246,7 +262,13 @@ export default function Home() {
           </DialogHeader>
           <div className="flex flex-col items-center justify-center space-y-4 p-4">
             <div className="p-4 bg-white rounded-lg shadow-md">
-              <Image src={qrCodeUrl} alt="QR Code" width={256} height={256} />
+              {qrCodeDataUrl ? (
+                <Image src={qrCodeDataUrl} alt="QR Code" width={256} height={256} />
+              ) : (
+                <div className="w-[256px] h-[256px] flex items-center justify-center bg-gray-100">
+                   <Loader2 className="h-16 w-16 animate-spin text-primary" />
+                </div>
+              )}
             </div>
             <div className="text-center">
               <p className="text-lg font-medium text-muted-foreground">Celková částka</p>
