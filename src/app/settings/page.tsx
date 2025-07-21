@@ -309,7 +309,7 @@ a.click();
             </CardHeader>
             <CardContent>
               <Button onClick={handleInstallClick} className="w-full" disabled={!deferredPrompt}>
-                <Smartphone className="mr-2 h-4 w-4" /> Instalovat aplikaci (Android/Desktop)
+                <Smartphone className="mr-2 h-4 w-4" /> Instalovat aplikaci (Android)
               </Button>
             </CardContent>
           </Card>
