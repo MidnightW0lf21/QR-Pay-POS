@@ -42,6 +42,12 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { useToast } from "@/hooks/use-toast";
 import type { Product, BankingDetails, Transaction } from "@/lib/types";
@@ -56,7 +62,7 @@ import {
 } from "@/lib/constants";
 import { useIsMounted } from "@/hooks/use-is-mounted";
 import ProductForm from "@/components/product-form";
-import { Plus, Edit, Trash2, Loader2, Sun, Moon, Laptop, Upload, Download, Trash, RefreshCcw, Smartphone } from "lucide-react";
+import { Plus, Edit, Trash2, Loader2, Sun, Moon, Laptop, Upload, Download, Trash, RefreshCcw, Smartphone, Info, X } from "lucide-react";
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -78,6 +84,7 @@ export default function SettingsPage() {
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [showInstallPrompt, setShowInstallPrompt] = useState(true);
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -124,7 +131,7 @@ export default function SettingsPage() {
   };
 
   const handleAddProduct = (product: Omit<Product, "id">) => {
-    const newProduct = { ...product, id: crypto.randomUUID() };
+    const newProduct = { ...product, id: crypto.randomUUID(), enabled: true };
     handleSaveProducts([...products, newProduct]);
     toast({ title: "Úspěch", description: "Produkt přidán." });
     setIsSheetOpen(false);
@@ -208,7 +215,8 @@ export default function SettingsPage() {
               id: p.id || crypto.randomUUID(),
               name: p.name,
               price: p.price,
-              imageUrl: ""
+              imageUrl: p.imageUrl || "",
+              enabled: p.enabled !== false,
             }));
           handleSaveProducts(validProducts);
           toast({ title: "Úspěch", description: `Importováno ${validProducts.length} produktů.` });
@@ -228,7 +236,7 @@ export default function SettingsPage() {
       toast({ variant: "destructive", title: "Chyba", description: "Žádné produkty k exportu." });
       return;
     }
-    const exportableProducts = products.map(({ name, price }) => ({ name, price }));
+    const exportableProducts = products.map(({ name, price, imageUrl, enabled }) => ({ name, price, imageUrl, enabled }));
     const data = JSON.stringify(exportableProducts, null, 2);
     const blob = new Blob([data], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -236,7 +244,7 @@ export default function SettingsPage() {
     a.href = url;
     a.download = "produkty.json";
     document.body.appendChild(a);
-    a.click();
+a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     toast({ title: "Úspěch", description: "Produkty exportovány." });
@@ -245,6 +253,13 @@ export default function SettingsPage() {
   const handleRestoreDefaultProducts = () => {
     handleSaveProducts(DEFAULT_PRODUCTS);
     toast({ title: "Úspěch", description: "Výchozí produkty byly obnoveny." });
+  };
+  
+  const handleToggleProductEnabled = (productId: string) => {
+    const newProducts = products.map(p => 
+      p.id === productId ? { ...p, enabled: !p.enabled } : p
+    );
+    handleSaveProducts(newProducts);
   };
 
   if (!isMounted) {
@@ -258,17 +273,43 @@ export default function SettingsPage() {
   return (
     <div className="container mx-auto max-w-4xl p-4 sm:p-6 md:p-8">
       <div className="space-y-8">
-        {deferredPrompt && (
-          <Card className="bg-primary/10 border-primary">
+        {showInstallPrompt && (
+          <Card className="bg-primary/10 border-primary relative">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="absolute top-2 right-2 h-6 w-6"
+              onClick={() => setShowInstallPrompt(false)}
+            >
+              <X className="h-4 w-4" />
+              <span className="sr-only">Zavřít</span>
+            </Button>
             <CardHeader>
-              <CardTitle>Instalace aplikace</CardTitle>
+              <div className="flex items-center gap-2">
+                <CardTitle>Instalace aplikace</CardTitle>
+                <TooltipProvider>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                    </TooltipTrigger>
+                    <TooltipContent side="top" className="max-w-xs">
+                      <p className="font-bold mb-2">Jak nainstalovat na iOS:</p>
+                      <ol className="list-decimal list-inside space-y-1">
+                        <li>Otevřete tuto stránku v Safari.</li>
+                        <li>Klepněte na ikonu 'Sdílet'.</li>
+                        <li>Sjeďte dolů a vyberte 'Přidat na plochu'.</li>
+                      </ol>
+                    </TooltipContent>
+                  </Tooltip>
+                </TooltipProvider>
+              </div>
               <CardDescription>
                 Nainstalujte si tuto aplikaci na své zařízení pro rychlý přístup a offline použití.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <Button onClick={handleInstallClick} className="w-full">
-                <Smartphone className="mr-2 h-4 w-4" /> Instalovat aplikaci
+              <Button onClick={handleInstallClick} className="w-full" disabled={!deferredPrompt}>
+                <Smartphone className="mr-2 h-4 w-4" /> Instalovat aplikaci (Android/Desktop)
               </Button>
             </CardContent>
           </Card>
@@ -497,9 +538,12 @@ export default function SettingsPage() {
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+            <Button variant="outline" onClick={() => setShowInstallPrompt(true)}>
+              Zobrazit instalační dialog
+            </Button>
             <AlertDialog>
               <AlertDialogTrigger asChild>
-                <Button variant="outline" className="sm:col-span-2">
+                <Button variant="outline">
                   <RefreshCcw className="mr-2 h-4 w-4" /> Obnovit výchozí produkty
                 </Button>
               </AlertDialogTrigger>
@@ -524,7 +568,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
-    
-
-    
