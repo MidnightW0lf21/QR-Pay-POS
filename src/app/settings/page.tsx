@@ -23,6 +23,7 @@ import {
 } from "@/components/ui/table";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
   Sheet,
@@ -244,7 +245,7 @@ export default function SettingsPage() {
     a.href = url;
     a.download = "produkty.json";
     document.body.appendChild(a);
-a.click();
+    a.click();
     document.body.removeChild(a);
     URL.revokeObjectURL(url);
     toast({ title: "Úspěch", description: "Produkty exportovány." });
@@ -257,7 +258,7 @@ a.click();
   
   const handleToggleProductEnabled = (productId: string) => {
     const newProducts = products.map(p => 
-      p.id === productId ? { ...p, enabled: !p.enabled } : p
+      p.id === productId ? { ...p, enabled: !(p.enabled ?? true) } : p
     );
     handleSaveProducts(newProducts);
   };
@@ -401,6 +402,7 @@ a.click();
                     <TableHead className="w-[80px]">Obrázek</TableHead>
                     <TableHead>Název</TableHead>
                     <TableHead>Cena</TableHead>
+                    <TableHead>Povoleno</TableHead>
                     <TableHead className="text-right">Akce</TableHead>
                   </TableRow>
                 </TableHeader>
@@ -419,6 +421,12 @@ a.click();
                       </TableCell>
                       <TableCell className="font-medium">{product.name}</TableCell>
                       <TableCell>{product.price.toFixed(0)} Kč</TableCell>
+                      <TableCell>
+                        <Switch
+                          checked={product.enabled !== false}
+                          onCheckedChange={() => handleToggleProductEnabled(product.id)}
+                        />
+                      </TableCell>
                       <TableCell className="text-right space-x-2">
                         <Button
                           variant="ghost"

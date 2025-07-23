@@ -178,6 +178,8 @@ export default function Home() {
     );
   }
 
+  const visibleProducts = products.filter(p => p.enabled !== false);
+
   return (
     <>
       <div className="container mx-auto max-w-7xl p-4 sm:p-6 md:p-8 pb-32">
@@ -195,7 +197,7 @@ export default function Home() {
           </Label>
         </div>
         <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
-          {products.map((product) => (
+          {visibleProducts.map((product) => (
             <Card 
               key={product.id} 
               className={cn(

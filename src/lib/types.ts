@@ -6,6 +6,7 @@ export interface Product {
   price: number;
   icon?: keyof typeof icons;
   imageUrl?: string;
+  enabled?: boolean;
 }
 
 export interface BankingDetails {
