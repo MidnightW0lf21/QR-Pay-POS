@@ -16,8 +16,21 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, Wallet, QrCode } from "lucide-react";
+import { Loader2, Wallet, QrCode, Trash } from "lucide-react";
 import type { Transaction } from "@/lib/types";
 import { TRANSACTIONS_STORAGE_KEY } from "@/lib/constants";
 import { useIsMounted } from "@/hooks/use-is-mounted";
@@ -25,6 +38,7 @@ import { useIsMounted } from "@/hooks/use-is-mounted";
 export default function HistoryPage() {
   const isMounted = useIsMounted();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (isMounted) {
@@ -34,6 +48,19 @@ export default function HistoryPage() {
       }
     }
   }, [isMounted]);
+
+  const handleDeleteLastTransaction = () => {
+    const newTransactions = [...transactions];
+    newTransactions.shift(); // Remove the first (most recent) transaction
+    setTransactions(newTransactions);
+    localStorage.setItem(TRANSACTIONS_STORAGE_KEY, JSON.stringify(newTransactions));
+    toast({
+      title: "Úspěch",
+      description: "Poslední transakce byla smazána.",
+      variant: "success",
+      duration: 2000,
+    });
+  };
 
   if (!isMounted) {
     return (
@@ -62,10 +89,38 @@ export default function HistoryPage() {
     <div className="container mx-auto max-w-4xl p-4 sm:p-6 md:p-8">
       <Card>
         <CardHeader>
-          <CardTitle>Historie transakcí</CardTitle>
-          <CardDescription>
-            Zde je seznam vašich nedávných transakcí.
-          </CardDescription>
+          <div className="flex justify-between items-start">
+            <div>
+              <CardTitle>Historie transakcí</CardTitle>
+              <CardDescription>
+                Zde je seznam vašich nedávných transakcí.
+              </CardDescription>
+            </div>
+            {transactions.length > 0 && (
+               <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" size="sm">
+                    <Trash className="mr-2 h-4 w-4" />
+                    Smazat poslední
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Opravdu smazat poslední transakci?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Tato akce je nevratná. Dojde k trvalému odstranění poslední zaznamenané transakce.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Zrušit</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleDeleteLastTransaction}>
+                      Ano, smazat
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            )}
+          </div>
         </CardHeader>
         <CardContent>
           {transactions.length === 0 ? (
