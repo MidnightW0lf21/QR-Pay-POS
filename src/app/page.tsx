@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -38,15 +39,19 @@ import { cn } from "@/lib/utils";
 import { getImage } from "@/lib/db";
 
 const ProductImage = ({ product, fill }: { product: Product; fill?: boolean }) => {
-  const [imageUrl, setImageUrl] = useState(product.imageUrl);
+  const [imageUrl, setImageUrl] = useState(product.imageUrl || "https://placehold.co/400x400.png");
 
   useEffect(() => {
     const loadImage = async () => {
       if (product.imageUrl?.startsWith('img_')) {
         const storedImage = await getImage(product.imageUrl);
-        setImageUrl(storedImage);
-      } else {
+        if (storedImage) {
+          setImageUrl(storedImage);
+        }
+      } else if (product.imageUrl) {
         setImageUrl(product.imageUrl);
+      } else {
+        setImageUrl("https://placehold.co/400x400.png");
       }
     };
     loadImage();
@@ -54,7 +59,7 @@ const ProductImage = ({ product, fill }: { product: Product; fill?: boolean }) =
 
   return (
     <Image 
-      src={imageUrl || "https://placehold.co/400x400.png"} 
+      src={imageUrl} 
       alt={product.name} 
       fill={fill}
       width={fill ? undefined : 400}
@@ -354,3 +359,5 @@ export default function Home() {
     </>
   );
 }
+
+    
