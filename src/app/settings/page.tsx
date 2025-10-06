@@ -76,17 +76,15 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 const ProductImage = ({ product }: { product: Product }) => {
-  const [imageUrl, setImageUrl] = useState(product.imageUrl || "https://placehold.co/100x100.png");
+  const [imageUrl, setImageUrl] = useState(product.imageUrl);
 
   useEffect(() => {
     const loadImage = async () => {
       if (product.imageUrl?.startsWith('img_')) {
         const storedImage = await getImage(product.imageUrl);
-        if (storedImage) {
-          setImageUrl(storedImage);
-        }
+        setImageUrl(storedImage);
       } else {
-        setImageUrl(product.imageUrl || "https://placehold.co/100x100.png");
+        setImageUrl(product.imageUrl);
       }
     };
     loadImage();
@@ -94,7 +92,7 @@ const ProductImage = ({ product }: { product: Product }) => {
 
   return (
     <Image 
-      src={imageUrl}
+      src={imageUrl || "https://placehold.co/100x100.png"}
       alt={product.name}
       width={40}
       height={40}

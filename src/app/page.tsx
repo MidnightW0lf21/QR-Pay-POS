@@ -38,17 +38,15 @@ import { cn } from "@/lib/utils";
 import { getImage } from "@/lib/db";
 
 const ProductImage = ({ product, fill }: { product: Product; fill?: boolean }) => {
-  const [imageUrl, setImageUrl] = useState(product.imageUrl || "https://placehold.co/400x400.png");
+  const [imageUrl, setImageUrl] = useState(product.imageUrl);
 
   useEffect(() => {
     const loadImage = async () => {
       if (product.imageUrl?.startsWith('img_')) {
         const storedImage = await getImage(product.imageUrl);
-        if (storedImage) {
-          setImageUrl(storedImage);
-        }
+        setImageUrl(storedImage);
       } else {
-        setImageUrl(product.imageUrl || "https://placehold.co/400x400.png");
+        setImageUrl(product.imageUrl);
       }
     };
     loadImage();
@@ -56,7 +54,7 @@ const ProductImage = ({ product, fill }: { product: Product; fill?: boolean }) =
 
   return (
     <Image 
-      src={imageUrl} 
+      src={imageUrl || "https://placehold.co/400x400.png"} 
       alt={product.name} 
       fill={fill}
       width={fill ? undefined : 400}
