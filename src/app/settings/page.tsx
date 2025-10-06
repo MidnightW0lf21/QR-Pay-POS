@@ -64,6 +64,7 @@ import {
 import { useIsMounted } from "@/hooks/use-is-mounted";
 import ProductForm from "@/components/product-form";
 import { Plus, Edit, Trash2, Loader2, Sun, Moon, Laptop, Upload, Download, Trash, RefreshCcw, Smartphone, Info, X } from "lucide-react";
+import { getImage, saveImage, deleteImage, getAllImageKeys } from "@/lib/db";
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -73,6 +74,36 @@ interface BeforeInstallPromptEvent extends Event {
   }>;
   prompt(): Promise<void>;
 }
+
+const ProductImage = ({ product }: { product: Product }) => {
+  const [imageUrl, setImageUrl] = useState(product.imageUrl || "https://placehold.co/100x100.png");
+
+  useEffect(() => {
+    const loadImage = async () => {
+      if (product.imageUrl?.startsWith('img_')) {
+        const storedImage = await getImage(product.imageUrl);
+        if (storedImage) {
+          setImageUrl(storedImage);
+        }
+      } else {
+        setImageUrl(product.imageUrl || "https://placehold.co/100x100.png");
+      }
+    };
+    loadImage();
+  }, [product.imageUrl]);
+
+  return (
+    <Image 
+      src={imageUrl}
+      alt={product.name}
+      width={40}
+      height={40}
+      className="rounded-md object-cover"
+      data-ai-hint="product image"
+    />
+  );
+};
+
 
 export default function SettingsPage() {
   const isMounted = useIsMounted();
@@ -145,7 +176,11 @@ export default function SettingsPage() {
     setEditingProduct(null);
   };
 
-  const handleDeleteProduct = (productId: string) => {
+  const handleDeleteProduct = async (productId: string) => {
+    const productToDelete = products.find(p => p.id === productId);
+    if (productToDelete?.imageUrl?.startsWith('img_')) {
+      await deleteImage(productToDelete.imageUrl);
+    }
     handleSaveProducts(products.filter((p) => p.id !== productId));
     toast({ title: "Úspěch", description: "Produkt smazán." });
   };
@@ -204,23 +239,33 @@ export default function SettingsPage() {
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = (e) => {
+    reader.onload = async (e) => {
       try {
         const text = e.target?.result;
         if (typeof text !== 'string') throw new Error("Nelze přečíst soubor");
         const importedData = JSON.parse(text);
+
         if (Array.isArray(importedData)) {
-          const validProducts: Product[] = importedData
-            .filter(p => p.name && typeof p.price === 'number')
-            .map(p => ({
-              id: p.id || crypto.randomUUID(),
-              name: p.name,
-              price: p.price,
-              imageUrl: p.imageUrl || "",
-              enabled: p.enabled !== false,
-            }));
-          handleSaveProducts(validProducts);
-          toast({ title: "Úspěch", description: `Importováno ${validProducts.length} produktů.` });
+          const newProducts: Product[] = [];
+          for (const p of importedData) {
+            if (p.name && typeof p.price === 'number') {
+              let imageUrl = p.imageUrl || "";
+              if (imageUrl.startsWith('data:')) {
+                  const imageKey = `img_${crypto.randomUUID()}`;
+                  await saveImage(imageKey, imageUrl);
+                  imageUrl = imageKey;
+              }
+              newProducts.push({
+                id: p.id || crypto.randomUUID(),
+                name: p.name,
+                price: p.price,
+                imageUrl: imageUrl,
+                enabled: p.enabled !== false,
+              });
+            }
+          }
+          handleSaveProducts(newProducts);
+          toast({ title: "Úspěch", description: `Importováno ${newProducts.length} produktů.` });
         } else {
           throw new Error("Neplatný formát souboru.");
         }
@@ -232,12 +277,20 @@ export default function SettingsPage() {
     event.target.value = ''; // Reset input
   };
   
-  const handleExportProducts = () => {
+  const handleExportProducts = async () => {
     if (products.length === 0) {
       toast({ variant: "destructive", title: "Chyba", description: "Žádné produkty k exportu." });
       return;
     }
-    const exportableProducts = products.map(({ name, price, imageUrl, enabled }) => ({ name, price, imageUrl, enabled }));
+    const exportableProducts = await Promise.all(
+        products.map(async ({ name, price, imageUrl, enabled }) => {
+            let finalImageUrl = imageUrl || "";
+            if (imageUrl?.startsWith('img_')) {
+                finalImageUrl = await getImage(imageUrl) || "";
+            }
+            return { name, price, imageUrl: finalImageUrl, enabled };
+        })
+    );
     const data = JSON.stringify(exportableProducts, null, 2);
     const blob = new Blob([data], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -251,7 +304,11 @@ export default function SettingsPage() {
     toast({ title: "Úspěch", description: "Produkty exportovány." });
   };
   
-  const handleRestoreDefaultProducts = () => {
+  const handleRestoreDefaultProducts = async () => {
+    const currentImageKeys = await getAllImageKeys();
+    for (const key of currentImageKeys) {
+        await deleteImage(key);
+    }
     handleSaveProducts(DEFAULT_PRODUCTS);
     toast({ title: "Úspěch", description: "Výchozí produkty byly obnoveny." });
   };
@@ -410,14 +467,7 @@ export default function SettingsPage() {
                   {products.map((product) => (
                     <TableRow key={product.id}>
                       <TableCell>
-                        <Image 
-                          src={product.imageUrl || "https://placehold.co/100x100.png"}
-                          alt={product.name}
-                          width={40}
-                          height={40}
-                          className="rounded-md object-cover"
-                          data-ai-hint="product image"
-                        />
+                        <ProductImage product={product} />
                       </TableCell>
                       <TableCell className="font-medium">{product.name}</TableCell>
                       <TableCell>{product.price.toFixed(0)} Kč</TableCell>

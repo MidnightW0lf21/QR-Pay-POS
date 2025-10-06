@@ -35,6 +35,37 @@ import { useIsMounted } from "@/hooks/use-is-mounted";
 import { useToast } from "@/hooks/use-toast";
 import { useAppContext } from "@/context/AppContext";
 import { cn } from "@/lib/utils";
+import { getImage } from "@/lib/db";
+
+const ProductImage = ({ product, fill }: { product: Product; fill?: boolean }) => {
+  const [imageUrl, setImageUrl] = useState(product.imageUrl || "https://placehold.co/400x400.png");
+
+  useEffect(() => {
+    const loadImage = async () => {
+      if (product.imageUrl?.startsWith('img_')) {
+        const storedImage = await getImage(product.imageUrl);
+        if (storedImage) {
+          setImageUrl(storedImage);
+        }
+      } else {
+        setImageUrl(product.imageUrl || "https://placehold.co/400x400.png");
+      }
+    };
+    loadImage();
+  }, [product.imageUrl]);
+
+  return (
+    <Image 
+      src={imageUrl} 
+      alt={product.name} 
+      fill={fill}
+      width={fill ? undefined : 400}
+      height={fill ? undefined : 400}
+      className="object-cover transition-transform duration-300 group-hover:scale-105"
+      data-ai-hint="product image"
+    />
+  );
+};
 
 export default function Home() {
   const isMounted = useIsMounted();
@@ -207,13 +238,7 @@ export default function Home() {
               onClick={() => handleQuantityChange(product.id, 1)}
             >
               <div className="relative w-full aspect-square">
-                <Image 
-                  src={product.imageUrl || "https://placehold.co/400x400.png"} 
-                  alt={product.name} 
-                  fill
-                  className="object-cover transition-transform duration-300 group-hover:scale-105"
-                  data-ai-hint="product image"
-                />
+                <ProductImage product={product} fill />
                  {cart[product.id] > 0 && (
                   <div className="absolute top-2 right-2 flex items-center bg-background/80 backdrop-blur-sm rounded-full p-1 shadow-md">
                     <Button 

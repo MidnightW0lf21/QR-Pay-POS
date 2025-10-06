@@ -4,7 +4,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import * as z from "zod";
 import Image from "next/image";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { saveImage, getImage } from "@/lib/db";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -23,19 +24,20 @@ import { useToast } from "@/hooks/use-toast";
 const productFormSchema = z.object({
   name: z.string().min(2, { message: "Název musí mít alespoň 2 znaky." }),
   price: z.coerce.number().int({ message: "Cena musí být celé číslo." }).positive({ message: "Cena musí být kladné číslo." }),
-  imageUrl: z.string().url({ message: "Zadejte platnou URL adresu obrázku nebo nahrajte soubor." }).optional().or(z.literal("")),
+  imageUrl: z.string().optional(),
 });
 
 type ProductFormValues = z.infer<typeof productFormSchema>;
 
 interface ProductFormProps {
-  onSubmit: (data: (ProductFormValues & { imageUrl?: string }) | (Product & { imageUrl?: string })) => void;
+  onSubmit: (data: Omit<Product, 'id'> | Product) => void;
   product?: Product | null;
 }
 
 export default function ProductForm({ onSubmit, product }: ProductFormProps) {
   const { toast } = useToast();
-  const [imagePreview, setImagePreview] = useState<string | null>(product?.imageUrl || null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
   
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
@@ -46,14 +48,34 @@ export default function ProductForm({ onSubmit, product }: ProductFormProps) {
     },
   });
 
+  useEffect(() => {
+    async function loadInitialImage() {
+      if (product?.imageUrl) {
+        if (product.imageUrl.startsWith('data:')) {
+          setImagePreview(product.imageUrl);
+          setImageDataUrl(product.imageUrl);
+        } else if (product.imageUrl.startsWith('img_')) {
+          const storedImage = await getImage(product.imageUrl);
+          if (storedImage) {
+            setImagePreview(storedImage);
+            setImageDataUrl(storedImage);
+          }
+        } else {
+           setImagePreview(product.imageUrl);
+        }
+      }
+    }
+    loadInitialImage();
+  }, [product]);
+
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 1024 * 1024) { // 1MB limit
+      if (file.size > 2 * 1024 * 1024) { // 2MB limit
         toast({
           variant: "destructive",
           title: "Soubor je příliš velký",
-          description: "Prosím nahrajte obrázek menší než 1MB.",
+          description: "Prosím nahrajte obrázek menší než 2MB.",
         });
         return;
       }
@@ -61,14 +83,33 @@ export default function ProductForm({ onSubmit, product }: ProductFormProps) {
       reader.onloadend = () => {
         const dataUrl = reader.result as string;
         setImagePreview(dataUrl);
-        form.setValue("imageUrl", dataUrl);
+        setImageDataUrl(dataUrl);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handleSubmit = (data: ProductFormValues) => {
-    const finalData = { ...data, imageUrl: imagePreview || data.imageUrl };
+  const handleSubmit = async (data: ProductFormValues) => {
+    let imageUrl = product?.imageUrl || "";
+
+    if (imageDataUrl && (!product?.imageUrl || imageDataUrl !== imagePreview)) {
+      // New or changed image
+      const imageKey = `img_${crypto.randomUUID()}`;
+      await saveImage(imageKey, imageDataUrl);
+      imageUrl = imageKey;
+    } else if (imagePreview && !imagePreview.startsWith('http') && !imagePreview.startsWith('img_')) {
+      // Handle legacy base64 data from older versions
+      const imageKey = `img_${crypto.randomUUID()}`;
+      await saveImage(imageKey, imagePreview);
+      imageUrl = imageKey;
+    } else if (data.imageUrl && !imageDataUrl) {
+      // URL was typed in
+      imageUrl = data.imageUrl;
+    }
+
+
+    const finalData = { ...data, imageUrl };
+    
     if (product) {
       onSubmit({ ...product, ...finalData });
     } else {
@@ -106,12 +147,37 @@ export default function ProductForm({ onSubmit, product }: ProductFormProps) {
           )}
         />
         <FormItem>
-          <FormLabel>Obrázek produktu</FormLabel>
-          <FormControl>
-            <Input type="file" accept="image/*" onChange={handleImageUpload} />
-          </FormControl>
+           <FormLabel>Obrázek produktu</FormLabel>
+           <div className="flex space-x-2">
+             <FormField
+                control={form.control}
+                name="imageUrl"
+                render={({ field }) => (
+                  <FormControl>
+                    <Input 
+                      placeholder="URL nebo nahrát soubor"
+                      {...field}
+                      onChange={(e) => {
+                        field.onChange(e);
+                        setImagePreview(e.target.value);
+                        setImageDataUrl(null);
+                      }}
+                      className="flex-grow"
+                    />
+                  </FormControl>
+                )}
+              />
+            <FormControl>
+              <Button asChild variant="outline" className="shrink-0">
+                <label>
+                  Nahrát...
+                  <Input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
+                </label>
+              </Button>
+            </FormControl>
+           </div>
           <FormDescription>
-            Nahrajte vlastní obrázek pro produkt (max 1MB).
+            Zadejte URL nebo nahrajte soubor (max 2MB).
           </FormDescription>
           {imagePreview && (
             <div className="mt-4">
