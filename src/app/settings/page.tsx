@@ -76,7 +76,7 @@ interface BeforeInstallPromptEvent extends Event {
 }
 
 const ProductImage = ({ product }: { product: Product }) => {
-  const [imageUrl, setImageUrl] = useState(product.imageUrl || "https://placehold.co/100x100.png");
+  const [imageUrl, setImageUrl] = useState("https://placehold.co/100x100.png");
 
   useEffect(() => {
     const loadImage = async () => {
@@ -84,6 +84,8 @@ const ProductImage = ({ product }: { product: Product }) => {
         const storedImage = await getImage(product.imageUrl);
         if (storedImage) {
           setImageUrl(storedImage);
+        } else {
+          setImageUrl("https://placehold.co/100x100.png");
         }
       } else if (product.imageUrl) {
         setImageUrl(product.imageUrl);
@@ -628,5 +630,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
-    
