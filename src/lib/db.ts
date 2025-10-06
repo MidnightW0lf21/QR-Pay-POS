@@ -1,4 +1,5 @@
-import { openDB, type DBSchema } from 'idb';
+
+import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 
 const DB_NAME = 'QuickPayDB';
 const DB_VERSION = 1;
@@ -11,30 +12,51 @@ interface MyDB extends DBSchema {
   };
 }
 
-const dbPromise = openDB<MyDB>(DB_NAME, DB_VERSION, {
-  upgrade(db) {
-    if (!db.objectStoreNames.contains(IMAGE_STORE_NAME)) {
-      db.createObjectStore(IMAGE_STORE_NAME);
-    }
-  },
-});
+let dbPromise: Promise<IDBPDatabase<MyDB>> | null = null;
+
+function getDbPromise() {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+  if (!dbPromise) {
+    dbPromise = openDB<MyDB>(DB_NAME, DB_VERSION, {
+      upgrade(db) {
+        if (!db.objectStoreNames.contains(IMAGE_STORE_NAME)) {
+          db.createObjectStore(IMAGE_STORE_NAME);
+        }
+      },
+    });
+  }
+  return dbPromise;
+}
+
 
 export async function saveImage(key: string, value: string) {
-  return (await dbPromise).put(IMAGE_STORE_NAME, value, key);
+  const db = await getDbPromise();
+  if (!db) return;
+  return db.put(IMAGE_STORE_NAME, value, key);
 }
 
 export async function getImage(key: string) {
-  return (await dbPromise).get(IMAGE_STORE_NAME, key);
+  const db = await getDbPromise();
+  if (!db) return undefined;
+  return db.get(IMAGE_STORE_NAME, key);
 }
 
 export async function deleteImage(key: string) {
-  return (await dbPromise).delete(IMAGE_STORE_NAME, key);
+  const db = await getDbPromise();
+  if (!db) return;
+  return db.delete(IMAGE_STORE_NAME, key);
 }
 
 export async function getAllImages() {
-    return (await dbPromise).getAll(IMAGE_STORE_NAME);
+    const db = await getDbPromise();
+    if (!db) return [];
+    return db.getAll(IMAGE_STORE_NAME);
 }
 
 export async function getAllImageKeys() {
-    return (await dbPromise).getAllKeys(IMAGE_STORE_NAME);
+    const db = await getDbPromise();
+    if (!db) return [];
+    return db.getAllKeys(IMAGE_STORE_NAME);
 }
