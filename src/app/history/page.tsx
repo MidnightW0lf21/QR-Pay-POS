@@ -39,6 +39,13 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
@@ -55,9 +62,10 @@ import {
   FilterX,
   Boxes,
   Receipt,
+  Package,
 } from "lucide-react";
-import type { Transaction, PaymentMethod } from "@/lib/types";
-import { TRANSACTIONS_STORAGE_KEY } from "@/lib/constants";
+import type { Transaction, PaymentMethod, Product } from "@/lib/types";
+import { TRANSACTIONS_STORAGE_KEY, PRODUCTS_STORAGE_KEY } from "@/lib/constants";
 import { useIsMounted } from "@/hooks/use-is-mounted";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
@@ -66,12 +74,14 @@ import { cs } from "date-fns/locale";
 export default function HistoryPage() {
   const isMounted = useIsMounted();
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const { toast } = useToast();
 
   const [paymentFilter, setPaymentFilter] = useState<"all" | PaymentMethod>(
     "all"
   );
   const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined);
+  const [productFilter, setProductFilter] = useState<"all" | string>("all");
   const [selectedTransactions, setSelectedTransactions] = useState<Set<string>>(
     new Set()
   );
@@ -82,6 +92,10 @@ export default function HistoryPage() {
       if (storedTransactions) {
         setTransactions(JSON.parse(storedTransactions));
       }
+      const storedProducts = localStorage.getItem(PRODUCTS_STORAGE_KEY);
+      if (storedProducts) {
+        setProducts(JSON.parse(storedProducts));
+      }
     }
   }, [isMounted]);
 
@@ -91,13 +105,18 @@ export default function HistoryPage() {
       filtered = filtered.filter((tx) => tx.paymentMethod === paymentFilter);
     }
     if (dateFilter) {
+      filtered = filtered.filter(
+        (tx) => new Date(tx.date).toDateString() === dateFilter.toDateString()
+      );
+    }
+    if (productFilter !== "all") {
       filtered = filtered.filter((tx) =>
-        new Date(tx.date).toDateString() === dateFilter.toDateString()
+        tx.items.some((item) => item.productId === productFilter)
       );
     }
     return filtered;
-  }, [transactions, paymentFilter, dateFilter]);
-  
+  }, [transactions, paymentFilter, dateFilter, productFilter]);
+
   const stats = useMemo(() => {
     return filteredTransactions.reduce(
       (acc, tx) => {
@@ -149,9 +168,7 @@ export default function HistoryPage() {
     if (selectedTransactions.size === filteredTransactions.length) {
       setSelectedTransactions(new Set());
     } else {
-      setSelectedTransactions(
-        new Set(filteredTransactions.map((tx) => tx.id))
-      );
+      setSelectedTransactions(new Set(filteredTransactions.map((tx) => tx.id)));
     }
   };
 
@@ -187,10 +204,11 @@ export default function HistoryPage() {
       variant: "default" as const,
     };
   };
-  
+
   const clearFilters = () => {
     setPaymentFilter("all");
     setDateFilter(undefined);
+    setProductFilter("all");
   };
 
   return (
@@ -205,54 +223,59 @@ export default function HistoryPage() {
               </CardDescription>
             </div>
             {selectedTransactions.size > 0 ? (
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive">
+                    <Trash className="mr-2 h-4 w-4" />
+                    Smazat vybrané ({selectedTransactions.size})
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>
+                      Opravdu smazat vybrané transakce?
+                    </AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Tato akce je nevratná. Dojde k trvalému odstranění
+                      vybraných transakcí.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Zrušit</AlertDialogCancel>
+                    <AlertDialogAction onClick={handleBatchDelete}>
+                      Ano, smazat
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            ) : (
+              transactions.length > 0 && (
                 <AlertDialog>
                   <AlertDialogTrigger asChild>
-                    <Button variant="destructive">
+                    <Button variant="outline" size="sm">
                       <Trash className="mr-2 h-4 w-4" />
-                      Smazat vybrané ({selectedTransactions.size})
+                      Smazat poslední
                     </Button>
                   </AlertDialogTrigger>
                   <AlertDialogContent>
                     <AlertDialogHeader>
-                      <AlertDialogTitle>Opravdu smazat vybrané transakce?</AlertDialogTitle>
+                      <AlertDialogTitle>
+                        Opravdu smazat poslední transakci?
+                      </AlertDialogTitle>
                       <AlertDialogDescription>
-                        Tato akce je nevratná. Dojde k trvalému odstranění vybraných transakcí.
+                        Tato akce je nevratná. Dojde k trvalému odstranění
+                        poslední zaznamenané transakce.
                       </AlertDialogDescription>
                     </AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Zrušit</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleBatchDelete}>Ano, smazat</AlertDialogAction>
+                      <AlertDialogAction onClick={handleDeleteLastTransaction}>
+                        Ano, smazat
+                      </AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
-              ) : (
-                transactions.length > 0 && (
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="outline" size="sm">
-                        <Trash className="mr-2 h-4 w-4" />
-                        Smazat poslední
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>
-                          Opravdu smazat poslední transakci?
-                        </AlertDialogTitle>
-                        <AlertDialogDescription>
-                          Tato akce je nevratná. Dojde k trvalému odstranění
-                          poslední zaznamenané transakce.
-                        </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Zrušit</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDeleteLastTransaction}>
-                          Ano, smazat
-                        </AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                )
+              )
             )}
           </div>
         </CardHeader>
@@ -295,7 +318,11 @@ export default function HistoryPage() {
                       )}
                     >
                       <CalendarIcon className="mr-2 h-4 w-4" />
-                      {dateFilter ? format(dateFilter, "PPP", { locale: cs }) : <span>Vyberte datum</span>}
+                      {dateFilter ? (
+                        format(dateFilter, "PPP", { locale: cs })
+                      ) : (
+                        <span>Vyberte datum</span>
+                      )}
                     </Button>
                   </PopoverTrigger>
                   <PopoverContent className="w-auto p-0">
@@ -309,27 +336,50 @@ export default function HistoryPage() {
                   </PopoverContent>
                 </Popover>
               </div>
-              <div className="col-span-1 sm:col-span-2 lg:col-span-1 lg:self-end">
-                 <Button onClick={clearFilters} variant="ghost" className="w-full">
+              
+              <div>
+                <Label htmlFor="product-filter">Produkt</Label>
+                <Select value={productFilter} onValueChange={setProductFilter}>
+                  <SelectTrigger id="product-filter" className="mt-1">
+                    <SelectValue placeholder="Vyberte produkt" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Všechny produkty</SelectItem>
+                    {products.map((product) => (
+                      <SelectItem key={product.id} value={product.id}>
+                        {product.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              
+              <div className="self-end">
+                <Button onClick={clearFilters} variant="ghost" className="w-full">
                   <FilterX className="mr-2 h-4 w-4" />
                   Zrušit filtry
                 </Button>
               </div>
             </div>
-            
+
             <Card className="bg-muted/50">
               <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-4 p-4 text-center">
                 <div>
-                  <p className="text-sm text-muted-foreground">Celkový příjem</p>
-                  <p className="text-2xl font-bold text-primary">{stats.totalRevenue.toFixed(0)} Kč</p>
+                  <p className="text-sm text-muted-foreground">
+                    Celkový příjem
+                  </p>
+                  <p className="text-2xl font-bold text-primary">
+                    {stats.totalRevenue.toFixed(0)} Kč
+                  </p>
                 </div>
                 <div>
                   <p className="text-sm text-muted-foreground">Transakcí</p>
                   <p className="text-2xl font-bold flex items-center justify-center gap-2">
-                    <Receipt className="h-5 w-5" /> {filteredTransactions.length}
+                    <Receipt className="h-5 w-5" />{" "}
+                    {filteredTransactions.length}
                   </p>
                 </div>
-                 <div className="col-span-2 sm:col-span-1">
+                <div className="col-span-2 sm:col-span-1">
                   <p className="text-sm text-muted-foreground">Prodáno kusů</p>
                   <p className="text-2xl font-bold flex items-center justify-center gap-2">
                     <Boxes className="h-5 w-5" /> {stats.totalItemsSold}
@@ -337,23 +387,34 @@ export default function HistoryPage() {
                 </div>
               </CardContent>
             </Card>
-
           </div>
-          
+
           {transactions.length === 0 ? (
-            <p className="text-muted-foreground">Nebyly nalezeny žádné transakce.</p>
+            <p className="text-muted-foreground">
+              Nebyly nalezeny žádné transakce.
+            </p>
           ) : filteredTransactions.length === 0 ? (
-             <p className="text-muted-foreground text-center py-8">Pro vybrané filtry nebyly nalezeny žádné transakce.</p>
+            <p className="text-muted-foreground text-center py-8">
+              Pro vybrané filtry nebyly nalezeny žádné transakce.
+            </p>
           ) : (
             <Accordion type="single" collapsible className="w-full">
               <div className="flex items-center px-4 py-2 border-b">
-                 <Checkbox
-                    id="select-all"
-                    checked={selectedTransactions.size === filteredTransactions.length && filteredTransactions.length > 0}
-                    onCheckedChange={toggleSelectAll}
-                    aria-label="Vybrat vše"
-                  />
-                  <Label htmlFor="select-all" className="ml-3 text-sm font-medium">Vybrat vše na této stránce</Label>
+                <Checkbox
+                  id="select-all"
+                  checked={
+                    selectedTransactions.size === filteredTransactions.length &&
+                    filteredTransactions.length > 0
+                  }
+                  onCheckedChange={toggleSelectAll}
+                  aria-label="Vybrat vše"
+                />
+                <Label
+                  htmlFor="select-all"
+                  className="ml-3 text-sm font-medium"
+                >
+                  Vybrat vše na této stránce
+                </Label>
               </div>
               {filteredTransactions.map((transaction) => {
                 const paymentInfo = getPaymentMethodInfo(
@@ -363,9 +424,11 @@ export default function HistoryPage() {
                   <AccordionItem value={transaction.id} key={transaction.id}>
                     <div className="flex items-center w-full">
                       <div className="px-4 py-2 flex items-center">
-                         <Checkbox
+                        <Checkbox
                           checked={selectedTransactions.has(transaction.id)}
-                          onCheckedChange={() => toggleTransactionSelection(transaction.id)}
+                          onCheckedChange={() =>
+                            toggleTransactionSelection(transaction.id)
+                          }
                           aria-label={`Vybrat transakci ${transaction.id}`}
                         />
                       </div>
@@ -373,9 +436,14 @@ export default function HistoryPage() {
                         <div className="flex justify-between items-center w-full pr-4">
                           <div className="flex flex-col items-start">
                             <span className="text-sm">
-                              {new Date(transaction.date).toLocaleString("cs-CZ")}
+                              {new Date(transaction.date).toLocaleString(
+                                "cs-CZ"
+                              )}
                             </span>
-                            <Badge variant={paymentInfo.variant} className="mt-1">
+                            <Badge
+                              variant={paymentInfo.variant}
+                              className="mt-1"
+                            >
                               {paymentInfo.icon}
                               {paymentInfo.text}
                             </Badge>
@@ -391,7 +459,9 @@ export default function HistoryPage() {
                         <TableHeader>
                           <TableRow>
                             <TableHead>Produkt</TableHead>
-                            <TableHead className="text-center">Množství</TableHead>
+                            <TableHead className="text-center">
+                              Množství
+                            </TableHead>
                             <TableHead className="text-right">Cena</TableHead>
                           </TableRow>
                         </TableHeader>
@@ -420,5 +490,3 @@ export default function HistoryPage() {
     </div>
   );
 }
-
-    
