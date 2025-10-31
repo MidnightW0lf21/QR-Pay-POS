@@ -205,14 +205,10 @@ export default function SettingsPage() {
     toast({ title: "Úspěch", description: "Produkt smazán." });
   };
   
-  const handleSaveMessage = () => {
+  const handleSaveQrSettings = () => {
     localStorage.setItem(MESSAGE_STORAGE_KEY, JSON.stringify(message));
-    toast({ title: "Úspěch", description: "Zpráva uložena." });
-  };
-
-  const handleSaveBankingDetails = () => {
     localStorage.setItem(BANKING_DETAILS_STORAGE_KEY, JSON.stringify(bankingDetails));
-    toast({ title: "Úspěch", description: "Bankovní údaje uloženy." });
+    toast({ title: "Úspěch", description: "Nastavení QR platby uloženo." });
   };
 
   const handleExportHistory = () => {
@@ -360,7 +356,7 @@ export default function SettingsPage() {
           <Card>
             <AccordionTrigger className="p-6">
               <CardHeader className="p-0">
-                <CardTitle>Instalace & Vzhled</CardTitle>
+                <CardTitle>Instalace &amp; Vzhled</CardTitle>
                 <CardDescription>
                   Nainstalujte si aplikaci, vyberte si světlý nebo tmavý režim a nastavte zobrazení.
                 </CardDescription>
@@ -420,7 +416,7 @@ export default function SettingsPage() {
                         <RadioGroupItem value="light" id="light" className="peer sr-only" />
                         <Label
                           htmlFor="light"
-                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&amp;:has([data-state=checked])]:border-primary"
                         >
                           <Sun className="h-6 w-6 mb-2" />
                           Světlý
@@ -430,7 +426,7 @@ export default function SettingsPage() {
                         <RadioGroupItem value="dark" id="dark" className="peer sr-only" />
                         <Label
                           htmlFor="dark"
-                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&amp;:has([data-state=checked])]:border-primary"
                         >
                           <Moon className="h-6 w-6 mb-2" />
                           Tmavý
@@ -440,7 +436,7 @@ export default function SettingsPage() {
                         <RadioGroupItem value="system" id="system" className="peer sr-only" />
                         <Label
                           htmlFor="system"
-                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&amp;:has([data-state=checked])]:border-primary"
                         >
                           <Laptop className="h-6 w-6 mb-2" />
                           Systém
@@ -459,7 +455,7 @@ export default function SettingsPage() {
                         <RadioGroupItem value="2-col" id="2-col" className="peer sr-only" />
                         <Label
                           htmlFor="2-col"
-                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&amp;:has([data-state=checked])]:border-primary"
                         >
                           <Rows className="h-6 w-6 mb-2" />
                           2 Sloupce
@@ -469,7 +465,7 @@ export default function SettingsPage() {
                         <RadioGroupItem value="3-col" id="3-col" className="peer sr-only" />
                         <Label
                           htmlFor="3-col"
-                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&amp;:has([data-state=checked])]:border-primary"
                         >
                           <LayoutGrid className="h-6 w-6 mb-2" />
                           3 Sloupce
@@ -587,14 +583,14 @@ export default function SettingsPage() {
           <Card>
             <AccordionTrigger className="p-6">
               <CardHeader className="p-0">
-                <CardTitle>Bankovní spojení</CardTitle>
+                <CardTitle>QR Platba</CardTitle>
                 <CardDescription>
-                  Zadejte své bankovní údaje pro QR platby.
+                  Spravujte bankovní údaje a zprávu pro QR platby.
                 </CardDescription>
               </CardHeader>
             </AccordionTrigger>
             <AccordionContent className="px-6 pb-6">
-              <div className="space-y-4">
+              <div className="space-y-6">
                 <div className="space-y-2">
                   <Label htmlFor="recipientName">Jméno příjemce</Label>
                   <Input
@@ -613,37 +609,23 @@ export default function SettingsPage() {
                     placeholder="např. CZ6508000000001234567890"
                   />
                 </div>
-                <Button onClick={handleSaveBankingDetails}>Uložit bankovní údaje</Button>
-              </div>
-            </AccordionContent>
-          </Card>
-        </AccordionItem>
-
-        <AccordionItem value="item-4" className="border-none">
-          <Card>
-            <AccordionTrigger className="p-6">
-              <CardHeader className="p-0">
-                <CardTitle>Zpráva pro platbu</CardTitle>
-                <CardDescription>
-                  Nastavte předdefinovanou zprávu pro QR kód.
-                </CardDescription>
-              </CardHeader>
-            </AccordionTrigger>
-            <AccordionContent className="px-6 pb-6">
-              <div className="space-y-4">
-                <Textarea
-                  value={message}
-                  onChange={(e) => setMessage(e.target.value)}
-                  placeholder="např. Děkujeme za Váš nákup!"
-                  rows={3}
-                />
-                <Button onClick={handleSaveMessage}>Uložit zprávu</Button>
+                 <div className="space-y-2">
+                  <Label htmlFor="paymentMessage">Zpráva pro platbu</Label>
+                  <Textarea
+                    id="paymentMessage"
+                    value={message}
+                    onChange={(e) => setMessage(e.target.value)}
+                    placeholder="např. Děkujeme za Váš nákup!"
+                    rows={3}
+                  />
+                </div>
+                <Button onClick={handleSaveQrSettings}>Uložit nastavení QR</Button>
               </div>
             </AccordionContent>
           </Card>
         </AccordionItem>
         
-        <AccordionItem value="item-5" className="border-none">
+        <AccordionItem value="item-4" className="border-none">
           <Card>
             <AccordionTrigger className="p-6">
               <CardHeader className="p-0">
@@ -711,5 +693,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
-    
