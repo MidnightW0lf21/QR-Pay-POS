@@ -75,7 +75,7 @@ const ProductImage = ({ product, fill }: { product: Product; fill?: boolean }) =
 export default function Home() {
   const isMounted = useIsMounted();
   const { toast } = useToast();
-  const { paymentMode, setPaymentMode } = useAppContext();
+  const { paymentMode, setPaymentMode, columnView } = useAppContext();
   const [products, setProducts] = useState<Product[]>(DEFAULT_PRODUCTS);
   const [paymentMessage, setPaymentMessage] = useState<string>(DEFAULT_MESSAGE);
   const [bankingDetails, setBankingDetails] = useState<BankingDetails>(DEFAULT_BANKING_DETAILS);
@@ -232,7 +232,11 @@ export default function Home() {
             {isCashMode ? "Režim hotovosti" : "Režim QR platby"}
           </Label>
         </div>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 gap-4">
+        <div className={cn(
+          "grid gap-4",
+          columnView === '2-col' ? "grid-cols-2" : "grid-cols-3",
+          "sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
+        )}>
           {visibleProducts.map((product) => (
             <Card 
               key={product.id} 
@@ -361,3 +365,5 @@ export default function Home() {
     </>
   );
 }
+
+    
