@@ -24,6 +24,7 @@ import { useToast } from "@/hooks/use-toast";
 const productFormSchema = z.object({
   name: z.string().min(2, { message: "Název musí mít alespoň 2 znaky." }),
   price: z.coerce.number().int({ message: "Cena musí být celé číslo." }).positive({ message: "Cena musí být kladné číslo." }),
+  stock: z.coerce.number().int({ message: "Sklad musí být celé číslo." }).min(0, { message: "Sklad musí být nezáporné číslo." }),
   imageUrl: z.string().optional(),
 });
 
@@ -44,6 +45,7 @@ export default function ProductForm({ onSubmit, product }: ProductFormProps) {
     defaultValues: {
       name: product?.name || "",
       price: product?.price || 0,
+      stock: product?.stock || 0,
       imageUrl: product?.imageUrl || "",
     },
   });
@@ -96,7 +98,7 @@ export default function ProductForm({ onSubmit, product }: ProductFormProps) {
       // New or changed image
       const imageKey = `img_${crypto.randomUUID()}`;
       await saveImage(imageKey, imageDataUrl);
-      imageUrl = imageKey;
+imageUrl = imageKey;
     } else if (imagePreview && !imagePreview.startsWith('http') && !imagePreview.startsWith('img_')) {
       // Handle legacy base64 data from older versions
       const imageKey = `img_${crypto.randomUUID()}`;
@@ -141,6 +143,19 @@ export default function ProductForm({ onSubmit, product }: ProductFormProps) {
               <FormLabel>Cena</FormLabel>
               <FormControl>
                 <Input type="number" step="1" placeholder="např. 85" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+         <FormField
+          control={form.control}
+          name="stock"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Počet kusů skladem</FormLabel>
+              <FormControl>
+                <Input type="number" step="1" placeholder="např. 20" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

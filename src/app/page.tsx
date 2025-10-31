@@ -10,6 +10,7 @@ import {
   CardContent,
   CardFooter,
 } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -21,7 +22,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Minus, ShoppingCart, Loader2, Landmark, Wallet } from "lucide-react";
+import { Minus, ShoppingCart, Loader2, Landmark, Wallet, Package } from "lucide-react";
 import type { Product, BankingDetails, Transaction, CartItem } from "@/lib/types";
 import { 
   DEFAULT_PRODUCTS, 
@@ -105,8 +106,23 @@ export default function Home() {
   }, [isMounted]);
 
   const handleQuantityChange = (productId: string, amount: number) => {
+    const product = products.find((p) => p.id === productId);
+    if (!product) return;
+
     setCart((prevCart) => {
-      const newQuantity = (prevCart[productId] || 0) + amount;
+      const currentQuantity = prevCart[productId] || 0;
+      const newQuantity = currentQuantity + amount;
+      
+      if (amount > 0 && currentQuantity >= product.stock) {
+        toast({
+          variant: "destructive",
+          title: "Nedostatek zboží",
+          description: `Na skladě je pouze ${product.stock} kusů produktu ${product.name}.`,
+          duration: 2000,
+        });
+        return prevCart;
+      }
+      
       if (newQuantity <= 0) {
         const { [productId]: _, ...rest } = prevCart;
         return rest;
@@ -155,6 +171,17 @@ export default function Home() {
         quantity: quantity,
       };
     });
+
+    // Deduct stock
+    const newProducts = products.map(product => {
+      if (cart[product.id]) {
+        return { ...product, stock: product.stock - cart[product.id] };
+      }
+      return product;
+    });
+    setProducts(newProducts);
+    localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(newProducts));
+
 
     const newTransaction: Transaction = {
       id: crypto.randomUUID(),
@@ -237,40 +264,54 @@ export default function Home() {
           columnView === '2-col' ? "grid-cols-2" : "grid-cols-3",
           "sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5"
         )}>
-          {visibleProducts.map((product) => (
-            <Card 
-              key={product.id} 
-              className={cn(
-                "flex flex-col overflow-hidden transition-all duration-300 hover:shadow-lg cursor-pointer group",
-                 cart[product.id] > 0 && "ring-4 ring-primary ring-offset-2 ring-offset-background scale-[.98]"
-              )}
-              onClick={() => handleQuantityChange(product.id, 1)}
-            >
-              <div className="relative w-full aspect-square">
-                <ProductImage product={product} fill />
-                 {cart[product.id] > 0 && (
-                  <div className="absolute top-2 right-2 flex items-center bg-background/80 backdrop-blur-sm rounded-full p-1 shadow-md">
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-8 w-8 rounded-full"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        handleQuantityChange(product.id, -1);
-                      }}
-                    >
-                      <Minus className="h-5 w-5" />
-                    </Button>
-                    <span className="text-xl font-bold w-8 text-center">{cart[product.id]}</span>
-                  </div>
+          {visibleProducts.map((product) => {
+            const isOutOfStock = product.stock <= 0;
+            const inCart = cart[product.id] || 0;
+            const remainingStock = product.stock - inCart;
+
+            return (
+              <Card 
+                key={product.id} 
+                className={cn(
+                  "flex flex-col overflow-hidden transition-all duration-300 group",
+                  inCart > 0 && "ring-4 ring-primary ring-offset-2 ring-offset-background scale-[.98]",
+                  isOutOfStock && inCart === 0 ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:shadow-lg"
                 )}
-              </div>
-              <CardFooter className="bg-background/80 p-3 flex-col items-start">
-                 <p className="font-semibold text-md truncate w-full">{product.name}</p>
-                 <p className="text-lg font-bold text-primary">{product.price.toFixed(0)} Kč</p>
-              </CardFooter>
-            </Card>
-          ))}
+                onClick={() => !isOutOfStock && handleQuantityChange(product.id, 1)}
+              >
+                <div className="relative w-full aspect-square">
+                  <ProductImage product={product} fill />
+                   {inCart > 0 && (
+                    <div className="absolute top-2 right-2 flex items-center bg-background/80 backdrop-blur-sm rounded-full p-1 shadow-md">
+                      <Button 
+                        variant="ghost" 
+                        size="icon" 
+                        className="h-8 w-8 rounded-full"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleQuantityChange(product.id, -1);
+                        }}
+                      >
+                        <Minus className="h-5 w-5" />
+                      </Button>
+                      <span className="text-xl font-bold w-8 text-center">{inCart}</span>
+                    </div>
+                  )}
+                  {isOutOfStock && inCart === 0 ? (
+                    <Badge variant="destructive" className="absolute bottom-2 left-2">Vyprodáno</Badge>
+                  ) : (
+                    <Badge variant="secondary" className="absolute bottom-2 left-2 flex items-center">
+                      <Package className="mr-1.5 h-3 w-3" /> {product.stock} ks
+                    </Badge>
+                  )}
+                </div>
+                <CardFooter className="bg-background/80 p-3 flex-col items-start">
+                   <p className="font-semibold text-md truncate w-full">{product.name}</p>
+                   <p className="text-lg font-bold text-primary">{product.price.toFixed(0)} Kč</p>
+                </CardFooter>
+              </Card>
+            )
+          })}
         </div>
       </div>
 
@@ -365,5 +406,3 @@ export default function Home() {
     </>
   );
 }
-
-    
