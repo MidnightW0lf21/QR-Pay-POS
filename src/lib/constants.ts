@@ -4,6 +4,7 @@ export const PRODUCTS_STORAGE_KEY = "qr-pay-products";
 export const MESSAGE_STORAGE_KEY = "qr-pay-message";
 export const BANKING_DETAILS_STORAGE_KEY = "qr-pay-banking-details";
 export const TRANSACTIONS_STORAGE_KEY = "qr-pay-transactions";
+export const SETTINGS_ACCORDION_STATE_KEY = "qr-pay-settings-accordion-state";
 
 export const DEFAULT_PRODUCTS: Product[] = [
   { id: "1", name: "Káva", price: 85, icon: "Coffee", imageUrl: "https://placehold.co/400x400.png", enabled: true },
@@ -22,3 +23,5 @@ export const DEFAULT_BANKING_DETAILS: BankingDetails = {
   accountNumber: "",
   recipientName: "",
 };
+
+    

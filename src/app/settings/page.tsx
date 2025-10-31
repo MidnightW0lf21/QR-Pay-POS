@@ -66,6 +66,7 @@ import {
   BANKING_DETAILS_STORAGE_KEY,
   DEFAULT_BANKING_DETAILS,
   TRANSACTIONS_STORAGE_KEY,
+  SETTINGS_ACCORDION_STATE_KEY
 } from "@/lib/constants";
 import { useIsMounted } from "@/hooks/use-is-mounted";
 import { useAppContext } from "@/context/AppContext";
@@ -89,11 +90,7 @@ const ProductImage = ({ product }: { product: Product }) => {
     const loadImage = async () => {
       if (product.imageUrl?.startsWith('img_')) {
         const storedImage = await getImage(product.imageUrl);
-        if (storedImage) {
-          setImageUrl(storedImage);
-        } else {
-          setImageUrl("https://placehold.co/100x100.png");
-        }
+        setImageUrl(storedImage || "https://placehold.co/100x100.png");
       } else if (product.imageUrl) {
         setImageUrl(product.imageUrl);
       } else {
@@ -129,6 +126,7 @@ export default function SettingsPage() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(true);
+  const [openAccordions, setOpenAccordions] = useState<string[]>(['item-1', 'item-2']);
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -153,9 +151,19 @@ export default function SettingsPage() {
 
       const storedBankingDetails = localStorage.getItem(BANKING_DETAILS_STORAGE_KEY);
       setBankingDetails(storedBankingDetails ? JSON.parse(storedBankingDetails) : DEFAULT_BANKING_DETAILS);
+    
+      const storedAccordionState = localStorage.getItem(SETTINGS_ACCORDION_STATE_KEY);
+      if (storedAccordionState) {
+          setOpenAccordions(JSON.parse(storedAccordionState));
+      }
     }
   }, [isMounted]);
 
+  const handleAccordionChange = (value: string[]) => {
+    setOpenAccordions(value);
+    localStorage.setItem(SETTINGS_ACCORDION_STATE_KEY, JSON.stringify(value));
+  };
+  
   const handleInstallClick = async () => {
     if (deferredPrompt) {
       deferredPrompt.prompt();
@@ -342,7 +350,12 @@ export default function SettingsPage() {
 
   return (
     <div className="container mx-auto max-w-4xl p-4 sm:p-6 md:p-8">
-      <Accordion type="multiple" defaultValue={['item-1', 'item-2']} className="w-full space-y-8">
+      <Accordion 
+        type="multiple" 
+        value={openAccordions}
+        onValueChange={handleAccordionChange}
+        className="w-full space-y-8"
+      >
         <AccordionItem value="item-1" className="border-none">
           <Card>
             <AccordionTrigger className="p-6">
