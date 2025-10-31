@@ -109,19 +109,20 @@ export default function Home() {
     const product = products.find((p) => p.id === productId);
     if (!product) return;
 
+    const currentQuantity = cart[productId] || 0;
+
+    if (amount > 0 && currentQuantity >= product.stock) {
+      toast({
+        variant: "destructive",
+        title: "Nedostatek zboží",
+        description: `Na skladě je pouze ${product.stock} kusů produktu ${product.name}.`,
+        duration: 2000,
+      });
+      return;
+    }
+
     setCart((prevCart) => {
-      const currentQuantity = prevCart[productId] || 0;
       const newQuantity = currentQuantity + amount;
-      
-      if (amount > 0 && currentQuantity >= product.stock) {
-        toast({
-          variant: "destructive",
-          title: "Nedostatek zboží",
-          description: `Na skladě je pouze ${product.stock} kusů produktu ${product.name}.`,
-          duration: 2000,
-        });
-        return prevCart;
-      }
       
       if (newQuantity <= 0) {
         const { [productId]: _, ...rest } = prevCart;
@@ -300,7 +301,7 @@ export default function Home() {
                   {isOutOfStock && inCart === 0 ? (
                     <Badge variant="destructive" className="absolute bottom-2 left-2">Vyprodáno</Badge>
                   ) : (
-                    <Badge variant={isOutOfStock ? "destructive" : "secondary"} className="absolute bottom-2 left-2 flex items-center">
+                    <Badge variant={remainingStock <= 0 ? "destructive" : "secondary"} className="absolute bottom-2 left-2 flex items-center">
                       <Package className="mr-1.5 h-3 w-3" /> {product.stock} ks
                     </Badge>
                   )}
