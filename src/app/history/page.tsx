@@ -62,7 +62,7 @@ import {
   FilterX,
   Boxes,
   Receipt,
-  Package,
+  TrendingUp,
 } from "lucide-react";
 import type { Transaction, PaymentMethod, Product } from "@/lib/types";
 import { TRANSACTIONS_STORAGE_KEY, PRODUCTS_STORAGE_KEY } from "@/lib/constants";
@@ -130,6 +130,14 @@ export default function HistoryPage() {
       { totalRevenue: 0, totalItemsSold: 0 }
     );
   }, [filteredTransactions]);
+
+  const dailyIncome = useMemo(() => {
+    const targetDate = dateFilter || new Date();
+    const dailyTransactions = transactions.filter(tx => 
+      new Date(tx.date).toDateString() === targetDate.toDateString()
+    );
+    return dailyTransactions.reduce((acc, tx) => acc + tx.total, 0);
+  }, [transactions, dateFilter]);
 
   const handleDeleteLastTransaction = () => {
     const newTransactions = [...transactions];
@@ -362,31 +370,45 @@ export default function HistoryPage() {
               </div>
             </div>
 
-            <Card className="bg-muted/50">
-              <CardContent className="grid grid-cols-2 sm:grid-cols-3 gap-4 p-4 text-center">
-                <div>
-                  <p className="text-sm text-muted-foreground">
-                    Celkový příjem
-                  </p>
-                  <p className="text-2xl font-bold text-primary">
-                    {stats.totalRevenue.toFixed(0)} Kč
-                  </p>
-                </div>
-                <div>
-                  <p className="text-sm text-muted-foreground">Transakcí</p>
-                  <p className="text-2xl font-bold flex items-center justify-center gap-2">
-                    <Receipt className="h-5 w-5" />{" "}
-                    {filteredTransactions.length}
-                  </p>
-                </div>
-                <div className="col-span-2 sm:col-span-1">
-                  <p className="text-sm text-muted-foreground">Prodáno kusů</p>
-                  <p className="text-2xl font-bold flex items-center justify-center gap-2">
-                    <Boxes className="h-5 w-5" /> {stats.totalItemsSold}
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Card className="bg-primary/10 border-primary/20">
+                <CardContent className="p-4 text-center">
+                    <p className="text-sm text-primary/80 flex items-center justify-center gap-1.5">
+                      <TrendingUp className="h-4 w-4"/>
+                      Denní příjem
+                    </p>
+                    <p className="text-3xl font-bold text-primary">
+                      {dailyIncome.toFixed(0)} Kč
+                    </p>
+                </CardContent>
+              </Card>
+
+              <Card className="bg-muted/50">
+                <CardContent className="grid grid-cols-3 gap-4 p-4 text-center">
+                  <div>
+                    <p className="text-sm text-muted-foreground">
+                      Příjem (filtr)
+                    </p>
+                    <p className="text-xl font-bold">
+                      {stats.totalRevenue.toFixed(0)} Kč
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Transakcí</p>
+                    <p className="text-xl font-bold flex items-center justify-center gap-1">
+                      <Receipt className="h-4 w-4" />{" "}
+                      {filteredTransactions.length}
+                    </p>
+                  </div>
+                  <div>
+                    <p className="text-sm text-muted-foreground">Prodáno</p>
+                    <p className="text-xl font-bold flex items-center justify-center gap-1">
+                      <Boxes className="h-4 w-4" /> {stats.totalItemsSold}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           </div>
 
           {transactions.length === 0 ? (
@@ -490,3 +512,5 @@ export default function HistoryPage() {
     </div>
   );
 }
+
+    
