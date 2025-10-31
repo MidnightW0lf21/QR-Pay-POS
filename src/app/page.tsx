@@ -46,11 +46,7 @@ const ProductImage = ({ product, fill }: { product: Product; fill?: boolean }) =
     const loadImage = async () => {
       if (product.imageUrl?.startsWith('img_')) {
         const storedImage = await getImage(product.imageUrl);
-        if (storedImage) {
-          setImageUrl(storedImage);
-        } else {
-          setImageUrl("https://placehold.co/400x400.png");
-        }
+        setImageUrl(storedImage || "https://placehold.co/400x400.png");
       } else if (product.imageUrl) {
         setImageUrl(product.imageUrl);
       } else {
@@ -112,7 +108,7 @@ export default function Home() {
     const currentQuantity = cart[productId] || 0;
 
     if (amount > 0 && currentQuantity >= product.stock) {
-      toast({
+       toast({
         variant: "destructive",
         title: "Nedostatek zboží",
         description: `Na skladě je pouze ${product.stock} kusů produktu ${product.name}.`,
@@ -120,10 +116,9 @@ export default function Home() {
       });
       return;
     }
-
+    
     setCart((prevCart) => {
-      const newQuantity = currentQuantity + amount;
-      
+      const newQuantity = (prevCart[productId] || 0) + amount;
       if (newQuantity <= 0) {
         const { [productId]: _, ...rest } = prevCart;
         return rest;
@@ -299,9 +294,9 @@ export default function Home() {
                     </div>
                   )}
                   {isOutOfStock && inCart === 0 ? (
-                    <Badge variant="destructive" className="absolute bottom-2 left-2">Vyprodáno</Badge>
+                    <Badge variant="destructive" className="absolute bottom-2 left-2 text-sm">Vyprodáno</Badge>
                   ) : (
-                    <Badge variant={remainingStock <= 0 ? "destructive" : "secondary"} className="absolute bottom-2 left-2 flex items-center">
+                    <Badge variant={remainingStock <= 0 ? "destructive" : "secondary"} className="absolute bottom-2 left-2 flex items-center text-sm">
                       <Package className="mr-1.5 h-3 w-3" /> {product.stock} ks
                     </Badge>
                   )}
