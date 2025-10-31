@@ -464,9 +464,9 @@ export default function HistoryPage() {
                         />
                       </div>
                       <AccordionTrigger className="flex-1">
-                        <div className="flex justify-between items-center w-full pr-4">
-                          <div className="flex flex-col items-start">
-                            <span className="text-sm">
+                        <div className="flex justify-between items-end w-full pr-4">
+                          <div className="flex flex-col items-start text-left">
+                            <span className="text-sm mb-1">
                               {new Date(transaction.date).toLocaleString(
                                 "cs-CZ"
                               )}
