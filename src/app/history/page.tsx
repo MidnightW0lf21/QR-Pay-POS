@@ -121,7 +121,16 @@ export default function HistoryPage() {
     return filteredTransactions.reduce(
       (acc, tx) => {
         acc.totalRevenue += tx.total;
-        acc.totalItemsSold += tx.items.reduce(
+
+        let itemsToSum = tx.items;
+        // If a product filter is active, only sum quantities of that specific product
+        if (productFilter !== "all") {
+          itemsToSum = tx.items.filter(
+            (item) => item.productId === productFilter
+          );
+        }
+
+        acc.totalItemsSold += itemsToSum.reduce(
           (itemAcc, item) => itemAcc + item.quantity,
           0
         );
@@ -129,7 +138,7 @@ export default function HistoryPage() {
       },
       { totalRevenue: 0, totalItemsSold: 0 }
     );
-  }, [filteredTransactions]);
+  }, [filteredTransactions, productFilter]);
 
   const dailyIncome = useMemo(() => {
     const targetDate = dateFilter || new Date();
@@ -512,5 +521,3 @@ export default function HistoryPage() {
     </div>
   );
 }
-
-    
