@@ -300,7 +300,7 @@ export default function Home() {
                   {isOutOfStock && inCart === 0 ? (
                     <Badge variant="destructive" className="absolute bottom-2 left-2">Vyprodáno</Badge>
                   ) : (
-                    <Badge variant="secondary" className="absolute bottom-2 left-2 flex items-center">
+                    <Badge variant={isOutOfStock ? "destructive" : "secondary"} className="absolute bottom-2 left-2 flex items-center">
                       <Package className="mr-1.5 h-3 w-3" /> {product.stock} ks
                     </Badge>
                   )}
