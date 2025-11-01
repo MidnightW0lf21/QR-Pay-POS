@@ -129,7 +129,7 @@ imageUrl = imageKey;
             <FormItem>
               <FormLabel>Název produktu</FormLabel>
               <FormControl>
-                <Input placeholder="např. Latte" {...field} />
+                <Input placeholder="např. Náramek" {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>

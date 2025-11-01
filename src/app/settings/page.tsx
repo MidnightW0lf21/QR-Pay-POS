@@ -26,12 +26,12 @@ import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-  SheetTrigger,
-} from "@/components/ui/sheet";
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from "@/components/ui/dialog";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -73,6 +73,7 @@ import { useAppContext } from "@/context/AppContext";
 import ProductForm from "@/components/product-form";
 import { Plus, Edit, Trash2, Loader2, Sun, Moon, Laptop, Upload, Download, Trash, RefreshCcw, Smartphone, Info, X, LayoutGrid, Rows } from "lucide-react";
 import { getImage, saveImage, deleteImage, getAllImageKeys } from "@/lib/db";
+import { ScrollArea } from "@/components/ui/scroll-area";
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -347,352 +348,358 @@ export default function SettingsPage() {
 
   return (
     <div className="container mx-auto max-w-4xl p-4 sm:p-6 md:p-8">
-      <Accordion 
-        type="multiple" 
-        value={openAccordions}
-        onValueChange={handleAccordionChange}
-        className="w-full space-y-8"
-      >
-        <AccordionItem value="item-1" className="border-none">
-          <Card>
-            <AccordionTrigger className="p-6">
-              <CardHeader className="p-0">
-                <CardTitle>Instalace &amp; Vzhled</CardTitle>
-                <CardDescription>
-                  Nainstalujte si aplikaci, vyberte si světlý nebo tmavý režim a nastavte zobrazení.
-                </CardDescription>
-              </CardHeader>
-            </AccordionTrigger>
-            <AccordionContent className="px-6 pb-6">
-              {showInstallPrompt && (
-                  <Card className="bg-primary/10 border-primary relative mb-6">
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute top-2 right-2 h-6 w-6"
-                      onClick={() => setShowInstallPrompt(false)}
-                    >
-                      <X className="h-4 w-4" />
-                      <span className="sr-only">Zavřít</span>
-                    </Button>
-                    <CardHeader>
-                      <div className="flex items-center gap-2">
-                        <CardTitle>Instalace aplikace</CardTitle>
-                        <TooltipProvider>
-                          <Tooltip>
-                            <TooltipTrigger asChild>
-                              <Info className="h-4 w-4 text-muted-foreground cursor-help" />
-                            </TooltipTrigger>
-                            <TooltipContent side="top" className="max-w-xs">
-                              <p className="font-bold mb-2">Jak nainstalovat na iOS:</p>
-                              <ol className="list-decimal list-inside space-y-1">
-                                <li>Otevřete tuto stránku v Safari.</li>
-                                <li>Klepněte na ikonu 'Sdílet'.</li>
-                                <li>Sjeďte dolů a vyberte 'Přidat na plochu'.</li>
-                              </ol>
-                            </TooltipContent>
-                          </Tooltip>
-                        </TooltipProvider>
-                      </div>
-                      <CardDescription>
-                        Nainstalujte si tuto aplikaci na své zařízení pro rychlý přístup a offline použití.
-                      </CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Button onClick={handleInstallClick} className="w-full" disabled={!deferredPrompt}>
-                        <Smartphone className="mr-2 h-4 w-4" /> Instalovat aplikaci (Android)
+      <Dialog open={isSheetOpen} onOpenChange={setIsSheetOpen}>
+        <Accordion 
+          type="multiple" 
+          value={openAccordions}
+          onValueChange={handleAccordionChange}
+          className="w-full space-y-8"
+        >
+          <AccordionItem value="item-1" className="border-none">
+            <Card>
+              <AccordionTrigger className="p-6">
+                <CardHeader className="p-0">
+                  <CardTitle>Instalace &amp; Vzhled</CardTitle>
+                  <CardDescription>
+                    Nainstalujte si aplikaci, vyberte si světlý nebo tmavý režim a nastavte zobrazení.
+                  </CardDescription>
+                </CardHeader>
+              </AccordionTrigger>
+              <AccordionContent className="px-6 pb-6">
+                {showInstallPrompt && (
+                    <Card className="bg-primary/10 border-primary relative mb-6">
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="absolute top-2 right-2 h-6 w-6"
+                        onClick={() => setShowInstallPrompt(false)}
+                      >
+                        <X className="h-4 w-4" />
+                        <span className="sr-only">Zavřít</span>
                       </Button>
-                    </CardContent>
-                  </Card>
-                )}
-                <div className="space-y-4">
-                  <div>
-                    <Label className="text-base font-medium">Motiv</Label>
-                    <RadioGroup
-                      value={theme}
-                      onValueChange={setTheme}
-                      className="grid grid-cols-3 gap-4 mt-2"
-                    >
-                      <div>
-                        <RadioGroupItem value="light" id="light" className="peer sr-only" />
-                        <Label
-                          htmlFor="light"
-                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                        >
-                          <Sun className="h-6 w-6 mb-2" />
-                          Světlý
-                        </Label>
-                      </div>
-                      <div>
-                        <RadioGroupItem value="dark" id="dark" className="peer sr-only" />
-                        <Label
-                          htmlFor="dark"
-                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                        >
-                          <Moon className="h-6 w-6 mb-2" />
-                          Tmavý
-                        </Label>
-                      </div>
-                      <div>
-                        <RadioGroupItem value="system" id="system" className="peer sr-only" />
-                        <Label
-                          htmlFor="system"
-                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                        >
-                          <Laptop className="h-6 w-6 mb-2" />
-                          Systém
-                        </Label>
-                      </div>
-                    </RadioGroup>
+                      <CardHeader>
+                        <div className="flex items-center gap-2">
+                          <CardTitle>Instalace aplikace</CardTitle>
+                          <TooltipProvider>
+                            <Tooltip>
+                              <TooltipTrigger asChild>
+                                <Info className="h-4 w-4 text-muted-foreground cursor-help" />
+                              </TooltipTrigger>
+                              <TooltipContent side="top" className="max-w-xs">
+                                <p className="font-bold mb-2">Jak nainstalovat na iOS:</p>
+                                <ol className="list-decimal list-inside space-y-1">
+                                  <li>Otevřete tuto stránku v Safari.</li>
+                                  <li>Klepněte na ikonu 'Sdílet'.</li>
+                                  <li>Sjeďte dolů a vyberte 'Přidat na plochu'.</li>
+                                </ol>
+                              </TooltipContent>
+                            </Tooltip>
+                          </TooltipProvider>
+                        </div>
+                        <CardDescription>
+                          Nainstalujte si tuto aplikaci na své zařízení pro rychlý přístup a offline použití.
+                        </CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <Button onClick={handleInstallClick} className="w-full" disabled={!deferredPrompt}>
+                          <Smartphone className="mr-2 h-4 w-4" /> Instalovat aplikaci (Android)
+                        </Button>
+                      </CardContent>
+                    </Card>
+                  )}
+                  <div className="space-y-4">
+                    <div>
+                      <Label className="text-base font-medium">Motiv</Label>
+                      <RadioGroup
+                        value={theme}
+                        onValueChange={setTheme}
+                        className="grid grid-cols-3 gap-4 mt-2"
+                      >
+                        <div>
+                          <RadioGroupItem value="light" id="light" className="peer sr-only" />
+                          <Label
+                            htmlFor="light"
+                            className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                          >
+                            <Sun className="h-6 w-6 mb-2" />
+                            Světlý
+                          </Label>
+                        </div>
+                        <div>
+                          <RadioGroupItem value="dark" id="dark" className="peer sr-only" />
+                          <Label
+                            htmlFor="dark"
+                            className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                          >
+                            <Moon className="h-6 w-6 mb-2" />
+                            Tmavý
+                          </Label>
+                        </div>
+                        <div>
+                          <RadioGroupItem value="system" id="system" className="peer sr-only" />
+                          <Label
+                            htmlFor="system"
+                            className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                          >
+                            <Laptop className="h-6 w-6 mb-2" />
+                            Systém
+                          </Label>
+                        </div>
+                      </RadioGroup>
+                    </div>
+                    <div>
+                      <Label className="text-base font-medium">Zobrazení na mobilu</Label>
+                      <RadioGroup
+                        value={columnView}
+                        onValueChange={(value) => setColumnView(value as '2-col' | '3-col')}
+                        className="grid grid-cols-2 gap-4 mt-2"
+                      >
+                        <div>
+                          <RadioGroupItem value="2-col" id="2-col" className="peer sr-only" />
+                          <Label
+                            htmlFor="2-col"
+                            className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                          >
+                            <Rows className="h-6 w-6 mb-2" />
+                            2 Sloupce
+                          </Label>
+                        </div>
+                        <div>
+                          <RadioGroupItem value="3-col" id="3-col" className="peer sr-only" />
+                          <Label
+                            htmlFor="3-col"
+                            className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                          >
+                            <LayoutGrid className="h-6 w-6 mb-2" />
+                            3 Sloupce
+                          </Label>
+                        </div>
+                      </RadioGroup>
+                    </div>
                   </div>
-                  <div>
-                    <Label className="text-base font-medium">Zobrazení na mobilu</Label>
-                     <RadioGroup
-                      value={columnView}
-                      onValueChange={(value) => setColumnView(value as '2-col' | '3-col')}
-                      className="grid grid-cols-2 gap-4 mt-2"
-                    >
-                      <div>
-                        <RadioGroupItem value="2-col" id="2-col" className="peer sr-only" />
-                        <Label
-                          htmlFor="2-col"
-                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                        >
-                          <Rows className="h-6 w-6 mb-2" />
-                          2 Sloupce
-                        </Label>
-                      </div>
-                      <div>
-                        <RadioGroupItem value="3-col" id="3-col" className="peer sr-only" />
-                        <Label
-                          htmlFor="3-col"
-                          className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                        >
-                          <LayoutGrid className="h-6 w-6 mb-2" />
-                          3 Sloupce
-                        </Label>
-                      </div>
-                    </RadioGroup>
-                  </div>
-                </div>
-            </AccordionContent>
-          </Card>
-        </AccordionItem>
-        
-        <AccordionItem value="item-2" className="border-none">
-          <Card>
-            <AccordionTrigger className="p-6">
-              <CardHeader className="p-0">
-                <CardTitle>Spravovat produkty</CardTitle>
-                <CardDescription>
-                  Přidávejte, upravujte, mažte, importujte a exportujte své produkty.
-                </CardDescription>
-              </CardHeader>
-            </AccordionTrigger>
-            <AccordionContent className="px-6 pb-6">
-              <div className="flex flex-wrap gap-2 mb-4">
-                <Sheet open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-                  <SheetTrigger asChild>
+              </AccordionContent>
+            </Card>
+          </AccordionItem>
+          
+          <AccordionItem value="item-2" className="border-none">
+            <Card>
+              <AccordionTrigger className="p-6">
+                <CardHeader className="p-0">
+                  <CardTitle>Spravovat produkty</CardTitle>
+                  <CardDescription>
+                    Přidávejte, upravujte, mažte, importujte a exportujte své produkty.
+                  </CardDescription>
+                </CardHeader>
+              </AccordionTrigger>
+              <AccordionContent className="px-6 pb-6">
+                <div className="flex flex-wrap gap-2 mb-4">
+                  <DialogTrigger asChild>
                     <Button onClick={() => { setEditingProduct(null); setIsSheetOpen(true); }}>
                       <Plus className="mr-2 h-4 w-4" /> Přidat produkt
                     </Button>
-                  </SheetTrigger>
-                  <SheetContent>
-                    <SheetHeader>
-                      <SheetTitle>{editingProduct ? 'Upravit produkt' : 'Přidat nový produkt'}</SheetTitle>
-                    </SheetHeader>
-                    <ProductForm
-                      onSubmit={editingProduct ? handleEditProduct : handleAddProduct}
-                      product={editingProduct}
-                    />
-                  </SheetContent>
-                </Sheet>
-                <Button variant="outline" onClick={handleImportClick}>
-                  <Upload className="mr-2 h-4 w-4" /> Importovat (JSON)
-                </Button>
-                <input type="file" ref={fileInputRef} onChange={handleFileImport} className="hidden" accept=".json" />
-                <Button variant="outline" onClick={handleExportProducts}>
-                  <Download className="mr-2 h-4 w-4" /> Exportovat (JSON)
-                </Button>
-              </div>
-              <div className="rounded-lg border">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[80px]">Obrázek</TableHead>
-                      <TableHead>Název</TableHead>
-                      <TableHead>Cena</TableHead>
-                      <TableHead>Skladem</TableHead>
-                      <TableHead>Povoleno</TableHead>
-                      <TableHead className="text-right">Akce</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {products.map((product) => (
-                      <TableRow key={product.id}>
-                        <TableCell>
-                          <ProductImage product={product} />
-                        </TableCell>
-                        <TableCell className="font-medium">{product.name}</TableCell>
-                        <TableCell>{product.price.toFixed(0)} Kč</TableCell>
-                        <TableCell>{product.stock}</TableCell>
-                        <TableCell>
-                          <Switch
-                            checked={product.enabled !== false}
-                            onCheckedChange={() => handleToggleProductEnabled(product.id)}
-                          />
-                        </TableCell>
-                        <TableCell className="text-right space-x-2">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            onClick={() => {
-                              setEditingProduct(product);
-                              setIsSheetOpen(true);
-                            }}
-                          >
-                            <Edit className="h-4 w-4" />
-                          </Button>
-                          <AlertDialog>
-                            <AlertDialogTrigger asChild>
-                              <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
-                                <Trash2 className="h-4 w-4" />
-                              </Button>
-                            </AlertDialogTrigger>
-                            <AlertDialogContent>
-                              <AlertDialogHeader>
-                                <AlertDialogTitle>Jste si jistí?</AlertDialogTitle>
-                                <AlertDialogDescription>
-                                  Tuto akci nelze vrátit zpět. Tímto trvale smažete produkt.
-                                </AlertDialogDescription>
-                              </AlertDialogHeader>
-                              <AlertDialogFooter>
-                                <AlertDialogCancel>Zrušit</AlertDialogCancel>
-                                <AlertDialogAction onClick={() => handleDeleteProduct(product.id)}>Smazat</AlertDialogAction>
-                              </AlertDialogFooter>
-                            </AlertDialogContent>
-                          </AlertDialog>
-                        </TableCell>
+                  </DialogTrigger>
+                  <Button variant="outline" onClick={handleImportClick}>
+                    <Upload className="mr-2 h-4 w-4" /> Importovat (JSON)
+                  </Button>
+                  <input type="file" ref={fileInputRef} onChange={handleFileImport} className="hidden" accept=".json" />
+                  <Button variant="outline" onClick={handleExportProducts}>
+                    <Download className="mr-2 h-4 w-4" /> Exportovat (JSON)
+                  </Button>
+                </div>
+                <div className="rounded-lg border">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[80px]">Obrázek</TableHead>
+                        <TableHead>Název</TableHead>
+                        <TableHead>Cena</TableHead>
+                        <TableHead>Skladem</TableHead>
+                        <TableHead>Povoleno</TableHead>
+                        <TableHead className="text-right">Akce</TableHead>
                       </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-            </AccordionContent>
-          </Card>
-        </AccordionItem>
-        
-        <AccordionItem value="item-3" className="border-none">
-          <Card>
-            <AccordionTrigger className="p-6">
-              <CardHeader className="p-0">
-                <CardTitle>QR Platba</CardTitle>
-                <CardDescription>
-                  Spravujte bankovní údaje a zprávu pro QR platby.
-                </CardDescription>
-              </CardHeader>
-            </AccordionTrigger>
-            <AccordionContent className="px-6 pb-6">
-              <div className="space-y-6">
-                <div className="space-y-2">
-                  <Label htmlFor="recipientName">Jméno příjemce</Label>
-                  <Input
-                    id="recipientName"
-                    value={bankingDetails.recipientName}
-                    onChange={(e) => setBankingDetails({ ...bankingDetails, recipientName: e.target.value })}
-                    placeholder="napr. Jan Novak"
-                  />
+                    </TableHeader>
+                    <TableBody>
+                      {products.map((product) => (
+                        <TableRow key={product.id}>
+                          <TableCell>
+                            <ProductImage product={product} />
+                          </TableCell>
+                          <TableCell className="font-medium">{product.name}</TableCell>
+                          <TableCell>{product.price.toFixed(0)} Kč</TableCell>
+                          <TableCell>{product.stock}</TableCell>
+                          <TableCell>
+                            <Switch
+                              checked={product.enabled !== false}
+                              onCheckedChange={() => handleToggleProductEnabled(product.id)}
+                            />
+                          </TableCell>
+                          <TableCell className="text-right space-x-2">
+                            <DialogTrigger asChild>
+                              <Button
+                                variant="ghost"
+                                size="icon"
+                                onClick={() => {
+                                  setEditingProduct(product);
+                                  setIsSheetOpen(true);
+                                }}
+                              >
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                            </DialogTrigger>
+                            <AlertDialog>
+                              <AlertDialogTrigger asChild>
+                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                                  <Trash2 className="h-4 w-4" />
+                                </Button>
+                              </AlertDialogTrigger>
+                              <AlertDialogContent>
+                                <AlertDialogHeader>
+                                  <AlertDialogTitle>Jste si jistí?</AlertDialogTitle>
+                                  <AlertDialogDescription>
+                                    Tuto akci nelze vrátit zpět. Tímto trvale smažete produkt.
+                                  </AlertDialogDescription>
+                                </AlertDialogHeader>
+                                <AlertDialogFooter>
+                                  <AlertDialogCancel>Zrušit</AlertDialogCancel>
+                                  <AlertDialogAction onClick={() => handleDeleteProduct(product.id)}>Smazat</AlertDialogAction>
+                                </AlertDialogFooter>
+                              </AlertDialogContent>
+                            </AlertDialog>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                    </TableBody>
+                  </Table>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="accountNumber">Číslo účtu (IBAN)</Label>
-                  <Input
-                    id="accountNumber"
-                    value={bankingDetails.accountNumber}
-                    onChange={(e) => setBankingDetails({ ...bankingDetails, accountNumber: e.target.value })}
-                    placeholder="např. CZ6508000000001234567890"
-                  />
+              </AccordionContent>
+            </Card>
+          </AccordionItem>
+          
+          <AccordionItem value="item-3" className="border-none">
+            <Card>
+              <AccordionTrigger className="p-6">
+                <CardHeader className="p-0">
+                  <CardTitle>QR Platba</CardTitle>
+                  <CardDescription>
+                    Spravujte bankovní údaje a zprávu pro QR platby.
+                  </CardDescription>
+                </CardHeader>
+              </AccordionTrigger>
+              <AccordionContent className="px-6 pb-6">
+                <div className="space-y-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="recipientName">Jméno příjemce</Label>
+                    <Input
+                      id="recipientName"
+                      value={bankingDetails.recipientName}
+                      onChange={(e) => setBankingDetails({ ...bankingDetails, recipientName: e.target.value })}
+                      placeholder="napr. Jan Novak"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="accountNumber">Číslo účtu (IBAN)</Label>
+                    <Input
+                      id="accountNumber"
+                      value={bankingDetails.accountNumber}
+                      onChange={(e) => setBankingDetails({ ...bankingDetails, accountNumber: e.target.value })}
+                      placeholder="např. CZ6508000000001234567890"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="paymentMessage">Zpráva pro platbu</Label>
+                    <Textarea
+                      id="paymentMessage"
+                      value={message}
+                      onChange={(e) => setMessage(e.target.value)}
+                      placeholder="např. Děkujeme za Váš nákup!"
+                      rows={3}
+                    />
+                  </div>
+                  <Button onClick={handleSaveQrSettings}>Uložit nastavení QR</Button>
                 </div>
-                 <div className="space-y-2">
-                  <Label htmlFor="paymentMessage">Zpráva pro platbu</Label>
-                  <Textarea
-                    id="paymentMessage"
-                    value={message}
-                    onChange={(e) => setMessage(e.target.value)}
-                    placeholder="např. Děkujeme za Váš nákup!"
-                    rows={3}
-                  />
+              </AccordionContent>
+            </Card>
+          </AccordionItem>
+          
+          <AccordionItem value="item-4" className="border-none">
+            <Card>
+              <AccordionTrigger className="p-6">
+                <CardHeader className="p-0">
+                  <CardTitle>Správa Dat</CardTitle>
+                  <CardDescription>
+                    Exportujte historii, mažte data a obnovujte nastavení.
+                  </CardDescription>
+                </CardHeader>
+              </AccordionTrigger>
+              <AccordionContent className="px-6 pb-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Button variant="outline" onClick={handleExportHistory}>
+                    <Download className="mr-2 h-4 w-4" /> Exportovat historii (Excel)
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive">
+                        <Trash className="mr-2 h-4 w-4" /> Vymazat historii transakcí
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Jste si absolutně jistí?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Tato akce je nevratná a trvale smaže veškerou vaši historii transakcí.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Zrušit</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleClearHistory}>
+                          Ano, smazat historii
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                  <Button variant="outline" onClick={() => setShowInstallPrompt(true)}>
+                    Zobrazit instalační dialog
+                  </Button>
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline">
+                        <RefreshCcw className="mr-2 h-4 w-4" /> Obnovit výchozí produkty
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Obnovit výchozí produkty?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          Tímto nahradíte váš současný seznam produktů výchozí sadou. Vaše vlastní produkty budou smazány.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Zrušit</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleRestoreDefaultProducts}>
+                          Ano, obnovit
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </div>
-                <Button onClick={handleSaveQrSettings}>Uložit nastavení QR</Button>
-              </div>
-            </AccordionContent>
-          </Card>
-        </AccordionItem>
-        
-        <AccordionItem value="item-4" className="border-none">
-          <Card>
-            <AccordionTrigger className="p-6">
-              <CardHeader className="p-0">
-                <CardTitle>Správa Dat</CardTitle>
-                <CardDescription>
-                  Exportujte historii, mažte data a obnovujte nastavení.
-                </CardDescription>
-              </CardHeader>
-            </AccordionTrigger>
-            <AccordionContent className="px-6 pb-6">
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Button variant="outline" onClick={handleExportHistory}>
-                  <Download className="mr-2 h-4 w-4" /> Exportovat historii (Excel)
-                </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="destructive">
-                      <Trash className="mr-2 h-4 w-4" /> Vymazat historii transakcí
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Jste si absolutně jistí?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Tato akce je nevratná a trvale smaže veškerou vaši historii transakcí.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Zrušit</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleClearHistory}>
-                        Ano, smazat historii
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-                <Button variant="outline" onClick={() => setShowInstallPrompt(true)}>
-                  Zobrazit instalační dialog
-                </Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild>
-                    <Button variant="outline">
-                      <RefreshCcw className="mr-2 h-4 w-4" /> Obnovit výchozí produkty
-                    </Button>
-                  </AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader>
-                      <AlertDialogTitle>Obnovit výchozí produkty?</AlertDialogTitle>
-                      <AlertDialogDescription>
-                        Tímto nahradíte váš současný seznam produktů výchozí sadou. Vaše vlastní produkty budou smazány.
-                      </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Zrušit</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleRestoreDefaultProducts}>
-                        Ano, obnovit
-                      </AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-              </div>
-            </AccordionContent>
-          </Card>
-        </AccordionItem>
-      </Accordion>
+              </AccordionContent>
+            </Card>
+          </AccordionItem>
+        </Accordion>
+        <DialogContent className="max-h-[90vh]">
+          <DialogHeader>
+            <DialogTitle>{editingProduct ? 'Upravit produkt' : 'Přidat nový produkt'}</DialogTitle>
+          </DialogHeader>
+          <ScrollArea className="max-h-[calc(90vh-10rem)] -mx-6 pr-6 pl-6">
+            <ProductForm
+              onSubmit={editingProduct ? handleEditProduct : handleAddProduct}
+              product={editingProduct}
+            />
+          </ScrollArea>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
+
+    
