@@ -256,14 +256,14 @@ export default function Home() {
         <div className="flex flex-col gap-4 mb-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <Landmark className="text-muted-foreground" />
+              <Wallet className="text-muted-foreground" />
               <Switch
                 id="payment-mode"
                 checked={!isCashMode}
                 onCheckedChange={(checked) => setPaymentMode(checked ? 'qr' : 'cash')}
                 aria-label="Přepnout režim platby"
               />
-              <Wallet className="text-muted-foreground" />
+              <Landmark className="text-muted-foreground" />
               <Label htmlFor="payment-mode" className="text-lg">
                 {isCashMode ? "Hotovost" : "QR platba"}
               </Label>
