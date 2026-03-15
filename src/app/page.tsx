@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -22,11 +21,13 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Minus, ShoppingCart, Loader2, Landmark, Wallet, Package, Tag, Search } from "lucide-react";
+import { Minus, ShoppingCart, Loader2, Landmark, Wallet, Package, Tag } from "lucide-react";
 import type { Product, BankingDetails, Transaction, CartItem } from "@/lib/types";
 import { 
   DEFAULT_PRODUCTS, 
   PRODUCTS_STORAGE_KEY, 
+  CATEGORIES_STORAGE_KEY,
+  DEFAULT_CATEGORIES,
   MESSAGE_STORAGE_KEY, 
   DEFAULT_MESSAGE,
   BANKING_DETAILS_STORAGE_KEY,
@@ -74,6 +75,7 @@ export default function Home() {
   const { toast } = useToast();
   const { paymentMode, setPaymentMode, columnView } = useAppContext();
   const [products, setProducts] = useState<Product[]>(DEFAULT_PRODUCTS);
+  const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
   const [paymentMessage, setPaymentMessage] = useState<string>(DEFAULT_MESSAGE);
   const [bankingDetails, setBankingDetails] = useState<BankingDetails>(DEFAULT_BANKING_DETAILS);
   const [cart, setCart] = useState<Record<string, number>>({});
@@ -82,7 +84,6 @@ export default function Home() {
   const [cashReceived, setCashReceived] = useState<number | null>(null);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
-  const [searchQuery, setSearchQuery] = useState("");
 
   const isCashMode = paymentMode === 'cash';
 
@@ -91,6 +92,10 @@ export default function Home() {
       const storedProducts = localStorage.getItem(PRODUCTS_STORAGE_KEY);
       if (storedProducts) {
         setProducts(JSON.parse(storedProducts));
+      }
+      const storedCategories = localStorage.getItem(CATEGORIES_STORAGE_KEY);
+      if (storedCategories) {
+        setCategories(JSON.parse(storedCategories));
       }
       const storedMessage = localStorage.getItem(MESSAGE_STORAGE_KEY);
       if (storedMessage) {
@@ -102,14 +107,6 @@ export default function Home() {
       }
     }
   }, [isMounted]);
-
-  const categories = useMemo(() => {
-    const cats = new Set<string>();
-    products.forEach(p => {
-      if (p.category) cats.add(p.category);
-    });
-    return ["all", ...Array.from(cats)];
-  }, [products]);
 
   const handleQuantityChange = (productId: string, amount: number) => {
     const product = products.find((p) => p.id === productId);
@@ -241,10 +238,9 @@ export default function Home() {
     return products.filter(p => {
       if (p.enabled === false) return false;
       if (selectedCategory !== "all" && p.category !== selectedCategory) return false;
-      if (searchQuery.trim() !== "" && !p.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
       return true;
     });
-  }, [products, selectedCategory, searchQuery]);
+  }, [products, selectedCategory]);
 
   if (!isMounted) {
     return (
@@ -258,7 +254,7 @@ export default function Home() {
     <>
       <div className="container mx-auto max-w-7xl p-4 sm:p-6 md:p-8 pb-32">
         <div className="flex flex-col gap-4 mb-6">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
               <Landmark className="text-muted-foreground" />
               <Switch
@@ -272,19 +268,18 @@ export default function Home() {
                 {isCashMode ? "Hotovost" : "QR platba"}
               </Label>
             </div>
-            <div className="relative w-full sm:w-64">
-              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-              <Input
-                placeholder="Hledat produkt..."
-                className="pl-8 h-10"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
           </div>
 
           <ScrollArea className="w-full">
             <div className="flex space-x-2 pb-2">
+              <Button
+                variant={selectedCategory === "all" ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSelectedCategory("all")}
+                className="whitespace-nowrap rounded-full"
+              >
+                Vše
+              </Button>
               {categories.map((cat) => (
                 <Button
                   key={cat}
@@ -294,7 +289,7 @@ export default function Home() {
                   className="whitespace-nowrap rounded-full"
                 >
                   <Tag className="mr-1.5 h-3.5 w-3.5" />
-                  {cat === "all" ? "Vše" : cat}
+                  {cat}
                 </Button>
               ))}
             </div>

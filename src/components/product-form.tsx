@@ -18,6 +18,13 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import type { Product } from "@/lib/types";
 import { useToast } from "@/hooks/use-toast";
 
@@ -34,9 +41,10 @@ type ProductFormValues = z.infer<typeof productFormSchema>;
 interface ProductFormProps {
   onSubmit: (data: Omit<Product, 'id'> | Product) => void;
   product?: Product | null;
+  categories: string[];
 }
 
-export default function ProductForm({ onSubmit, product }: ProductFormProps) {
+export default function ProductForm({ onSubmit, product, categories }: ProductFormProps) {
   const { toast } = useToast();
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
@@ -167,10 +175,21 @@ export default function ProductForm({ onSubmit, product }: ProductFormProps) {
           render={({ field }) => (
             <FormItem>
               <FormLabel>Kategorie</FormLabel>
-              <FormControl>
-                <Input placeholder="např. Nápoje, Jídlo..." {...field} />
-              </FormControl>
-              <FormDescription>Slouží pro filtrování na hlavní stránce.</FormDescription>
+              <Select onValueChange={field.onChange} defaultValue={field.value}>
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Vyberte kategorii" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="none">Žádná</SelectItem>
+                  {categories.map((cat) => (
+                    <SelectItem key={cat} value={cat}>
+                      {cat}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
               <FormMessage />
             </FormItem>
           )}

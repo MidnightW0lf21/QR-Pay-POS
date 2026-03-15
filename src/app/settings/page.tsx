@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -54,6 +53,8 @@ import type { Product, BankingDetails, Transaction } from "@/lib/types";
 import {
   DEFAULT_PRODUCTS,
   PRODUCTS_STORAGE_KEY,
+  CATEGORIES_STORAGE_KEY,
+  DEFAULT_CATEGORIES,
   MESSAGE_STORAGE_KEY,
   DEFAULT_MESSAGE,
   BANKING_DETAILS_STORAGE_KEY,
@@ -64,7 +65,7 @@ import {
 import { useIsMounted } from "@/hooks/use-is-mounted";
 import { useAppContext } from "@/context/AppContext";
 import ProductForm from "@/components/product-form";
-import { Plus, Edit, Trash2, Loader2, Sun, Moon, Laptop, Upload, Download, Trash, RefreshCcw, Smartphone, X, LayoutGrid, Rows, BarChart3, PieChart as PieChartIcon } from "lucide-react";
+import { Plus, Edit, Trash2, Loader2, Sun, Moon, Laptop, Upload, Download, Trash, RefreshCcw, Smartphone, X, LayoutGrid, Rows, BarChart3, PieChart as PieChartIcon, Tag } from "lucide-react";
 import { deleteImage, getAllImageKeys, getImage } from "@/lib/db";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -99,6 +100,8 @@ export default function SettingsPage() {
   const { theme, setTheme } = useTheme();
   const { columnView, setColumnView } = useAppContext();
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<string[]>([]);
+  const [newCategoryName, setNewCategoryName] = useState("");
   const [message, setMessage] = useState("");
   const [bankingDetails, setBankingDetails] = useState<BankingDetails>(DEFAULT_BANKING_DETAILS);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -106,7 +109,7 @@ export default function SettingsPage() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(true);
-  const [openAccordions, setOpenAccordions] = useState<string[]>(['item-1', 'item-2', 'item-5']);
+  const [openAccordions, setOpenAccordions] = useState<string[]>(['item-1', 'item-2', 'item-category']);
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -121,6 +124,10 @@ export default function SettingsPage() {
     if (isMounted) {
       const storedProducts = localStorage.getItem(PRODUCTS_STORAGE_KEY);
       setProducts(storedProducts ? JSON.parse(storedProducts) : DEFAULT_PRODUCTS);
+      
+      const storedCategories = localStorage.getItem(CATEGORIES_STORAGE_KEY);
+      setCategories(storedCategories ? JSON.parse(storedCategories) : DEFAULT_CATEGORIES);
+
       const storedMessage = localStorage.getItem(MESSAGE_STORAGE_KEY);
       setMessage(storedMessage ? JSON.parse(storedMessage) : DEFAULT_MESSAGE);
       const storedBankingDetails = localStorage.getItem(BANKING_DETAILS_STORAGE_KEY);
@@ -135,7 +142,6 @@ export default function SettingsPage() {
     const storedTransactions = localStorage.getItem(TRANSACTIONS_STORAGE_KEY);
     const transactions: Transaction[] = storedTransactions ? JSON.parse(storedTransactions) : [];
     
-    // Last 30 days
     const last30Days = Array.from({ length: 30 }, (_, i) => {
       const d = subDays(new Date(), i);
       return d.toISOString().split('T')[0];
@@ -183,6 +189,27 @@ export default function SettingsPage() {
   const handleSaveProducts = (newProducts: Product[]) => {
     setProducts(newProducts);
     localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(newProducts));
+  };
+
+  const handleSaveCategories = (newCategories: string[]) => {
+    setCategories(newCategories);
+    localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(newCategories));
+  };
+
+  const handleAddCategory = () => {
+    if (!newCategoryName.trim()) return;
+    if (categories.includes(newCategoryName.trim())) {
+      toast({ variant: "destructive", title: "Chyba", description: "Kategorie již existuje." });
+      return;
+    }
+    handleSaveCategories([...categories, newCategoryName.trim()]);
+    setNewCategoryName("");
+    toast({ title: "Úspěch", description: "Kategorie přidána." });
+  };
+
+  const handleDeleteCategory = (cat: string) => {
+    handleSaveCategories(categories.filter(c => c !== cat));
+    toast({ title: "Úspěch", description: "Kategorie smazána." });
   };
 
   const handleAddProduct = (product: Omit<Product, "id">) => {
@@ -269,7 +296,8 @@ export default function SettingsPage() {
     const currentImageKeys = await getAllImageKeys();
     for (const key of currentImageKeys) await deleteImage(key);
     handleSaveProducts(DEFAULT_PRODUCTS);
-    toast({ title: "Úspěch", description: "Výchozí produkty obnoveny." });
+    handleSaveCategories(DEFAULT_CATEGORIES);
+    toast({ title: "Úspěch", description: "Výchozí stav obnoven." });
   };
 
   if (!isMounted) {
@@ -350,6 +378,38 @@ export default function SettingsPage() {
             </Card>
           </AccordionItem>
           
+          <AccordionItem value="item-category" className="border-none">
+            <Card>
+              <AccordionTrigger className="p-6">
+                <CardHeader className="p-0 text-left">
+                  <CardTitle>Správa kategorií</CardTitle>
+                  <CardDescription>Definujte seznam kategorií pro produkty.</CardDescription>
+                </CardHeader>
+              </AccordionTrigger>
+              <AccordionContent className="px-6 pb-6 space-y-4">
+                <div className="flex gap-2">
+                  <Input 
+                    placeholder="Název kategorie" 
+                    value={newCategoryName} 
+                    onChange={(e) => setNewCategoryName(e.target.value)} 
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
+                  />
+                  <Button onClick={handleAddCategory}><Plus className="h-4 w-4" /></Button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {categories.map((cat) => (
+                    <div key={cat} className="flex items-center gap-1 bg-secondary text-secondary-foreground px-3 py-1 rounded-full text-sm">
+                      {cat}
+                      <Button variant="ghost" size="icon" className="h-5 w-5 hover:text-destructive" onClick={() => handleDeleteCategory(cat)}>
+                        <X className="h-3 w-3" />
+                      </Button>
+                    </div>
+                  ))}
+                </div>
+              </AccordionContent>
+            </Card>
+          </AccordionItem>
+
           <AccordionItem value="item-2" className="border-none">
             <Card>
               <AccordionTrigger className="p-6">
@@ -529,7 +589,11 @@ export default function SettingsPage() {
         <DialogContent className="max-h-[90vh] sm:max-w-lg">
           <DialogHeader><DialogTitle>{editingProduct ? 'Upravit produkt' : 'Nový produkt'}</DialogTitle></DialogHeader>
           <ScrollArea className="max-h-[calc(90vh-8rem)] -mx-6 px-6">
-            <ProductForm onSubmit={editingProduct ? handleEditProduct : handleAddProduct} product={editingProduct} />
+            <ProductForm 
+              onSubmit={editingProduct ? handleEditProduct : handleAddProduct} 
+              product={editingProduct} 
+              categories={categories}
+            />
           </ScrollArea>
         </DialogContent>
       </Dialog>
