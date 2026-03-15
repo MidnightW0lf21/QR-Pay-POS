@@ -32,10 +32,7 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
-  Cell,
 } from "recharts";
-
-const COLORS = ['#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#6366f1', '#ec4899', '#f97316'];
 
 export default function InventoryPage() {
   const isMounted = useIsMounted();
@@ -65,13 +62,19 @@ export default function InventoryPage() {
 
   const productProfitability = useMemo(() => {
     return products.map(p => {
-      const profit = p.price - (p.costPrice || 0);
-      const margin = p.price > 0 ? (profit / p.price) * 100 : 0;
+      const price = p.price || 0;
+      const cost = p.costPrice || 0;
+      const stock = p.stock || 0;
+      const profit = price - cost;
+      const margin = price > 0 ? (profit / price) * 100 : 0;
+      
       return {
         ...p,
+        price,
+        costPrice: cost,
         profitPerUnit: profit,
         marginPercent: margin,
-        totalPotentialProfit: profit * p.stock
+        totalPotentialProfit: profit * stock
       };
     }).sort((a, b) => b.profitPerUnit - a.profitPerUnit);
   }, [products]);
@@ -80,7 +83,7 @@ export default function InventoryPage() {
     return productProfitability.slice(0, 10).map(p => ({
       name: p.name,
       'Prodejní cena': p.price,
-      'Nákupní cena': p.costPrice || 0,
+      'Nákupní cena': p.costPrice,
       'Zisk': p.profitPerUnit
     }));
   }, [productProfitability]);
@@ -191,15 +194,15 @@ export default function InventoryPage() {
                           {p.stock} ks
                         </Badge>
                       </TableCell>
-                      <TableCell className="text-right text-muted-foreground">{p.costPrice.toFixed(0)} Kč</TableCell>
-                      <TableCell className="text-right font-semibold">{p.price.toFixed(0)} Kč</TableCell>
+                      <TableCell className="text-right text-muted-foreground">{(p.costPrice || 0).toFixed(0)} Kč</TableCell>
+                      <TableCell className="text-right font-semibold">{(p.price || 0).toFixed(0)} Kč</TableCell>
                       <TableCell className="text-right text-success font-bold">
-                        +{p.profitPerUnit.toFixed(0)} Kč
+                        +{(p.profitPerUnit || 0).toFixed(0)} Kč
                       </TableCell>
                       <TableCell className="text-right">
                         <span className="flex items-center justify-end gap-1">
                           <Percent className="h-3 w-3" />
-                          {p.marginPercent.toFixed(1)}%
+                          {(p.marginPercent || 0).toFixed(1)}%
                         </span>
                       </TableCell>
                     </TableRow>
