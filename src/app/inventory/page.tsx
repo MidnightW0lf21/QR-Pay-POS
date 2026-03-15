@@ -17,11 +17,11 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, TrendingUp, DollarSign, Package, Percent, ArrowLeft } from "lucide-react";
+import { Loader2, TrendingUp, DollarSign, Package, Percent, ArrowLeft, Receipt, PiggyBank, BarChart3 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import type { Product } from "@/lib/types";
-import { PRODUCTS_STORAGE_KEY } from "@/lib/constants";
+import type { Product, Transaction } from "@/lib/types";
+import { PRODUCTS_STORAGE_KEY, TRANSACTIONS_STORAGE_KEY } from "@/lib/constants";
 import { useIsMounted } from "@/hooks/use-is-mounted";
 import {
   BarChart,
@@ -33,16 +33,23 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import { format, subDays } from "date-fns";
+import { cs } from "date-fns/locale";
 
 export default function InventoryPage() {
   const isMounted = useIsMounted();
   const [products, setProducts] = useState<Product[]>([]);
+  const [transactions, setTransactions] = useState<Transaction[]>([]);
 
   useEffect(() => {
     if (isMounted) {
       const storedProducts = localStorage.getItem(PRODUCTS_STORAGE_KEY);
       if (storedProducts) {
         setProducts(JSON.parse(storedProducts));
+      }
+      const storedTransactions = localStorage.getItem(TRANSACTIONS_STORAGE_KEY);
+      if (storedTransactions) {
+        setTransactions(JSON.parse(storedTransactions));
       }
     }
   }, [isMounted]);
@@ -59,6 +66,51 @@ export default function InventoryPage() {
       return acc;
     }, { totalInvestment: 0, totalPotentialRevenue: 0, totalPotentialProfit: 0 });
   }, [products]);
+
+  const realizedStats = useMemo(() => {
+    return transactions.reduce((acc, tx) => {
+      acc.totalRevenue += tx.total;
+      
+      tx.items.forEach(item => {
+        const product = products.find(p => p.id === item.productId);
+        const costPrice = product?.costPrice || 0;
+        acc.totalProfit += (item.price - costPrice) * item.quantity;
+      });
+      
+      return acc;
+    }, { totalRevenue: 0, totalProfit: 0 });
+  }, [transactions, products]);
+
+  const dailyProfitData = useMemo(() => {
+    const last30Days = Array.from({ length: 30 }, (_, i) => {
+      const d = subDays(new Date(), i);
+      return d.toISOString().split('T')[0];
+    }).reverse();
+
+    const revenueMap: Record<string, number> = {};
+    const costMap: Record<string, number> = {};
+
+    transactions.forEach(tx => {
+      const dateKey = tx.date.split('T')[0];
+      revenueMap[dateKey] = (revenueMap[dateKey] || 0) + tx.total;
+      
+      tx.items.forEach(item => {
+        const product = products.find(p => p.id === item.productId);
+        const costPrice = product?.costPrice || 0;
+        costMap[dateKey] = (costMap[dateKey] || 0) + (costPrice * item.quantity);
+      });
+    });
+
+    return last30Days.map(dateStr => {
+      const revenue = Math.round(revenueMap[dateStr] || 0);
+      const cost = Math.round(costMap[dateStr] || 0);
+      return {
+        name: format(new Date(dateStr), 'd.M.', { locale: cs }),
+        cost: cost,
+        profit: Math.max(0, revenue - cost)
+      };
+    });
+  }, [transactions, products]);
 
   const productProfitability = useMemo(() => {
     return products.map(p => {
@@ -79,15 +131,6 @@ export default function InventoryPage() {
     }).sort((a, b) => b.profitPerUnit - a.profitPerUnit);
   }, [products]);
 
-  const chartData = useMemo(() => {
-    return productProfitability.slice(0, 10).map(p => ({
-      name: p.name,
-      'Prodejní cena': p.price,
-      'Nákupní cena': p.costPrice,
-      'Zisk': p.profitPerUnit
-    }));
-  }, [productProfitability]);
-
   if (!isMounted) {
     return (
       <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
@@ -106,39 +149,56 @@ export default function InventoryPage() {
             </Link>
           </Button>
           <h1 className="text-3xl font-bold">Inventura & Ziskovost</h1>
-          <p className="text-muted-foreground">Přehled o hodnotě vašeho skladu a ziscích.</p>
+          <p className="text-muted-foreground">Přehled o hodnotě skladu a reálných ziscích.</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <Card className="bg-primary/5">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <DollarSign className="h-4 w-4" /> Hodnota skladu (Investice)
+            <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-2 uppercase tracking-wider">
+              <DollarSign className="h-3.5 w-3.5" /> Hodnota skladu
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{inventoryStats.totalInvestment.toFixed(0)} Kč</p>
+            <p className="text-xs text-muted-foreground mt-1">Kapitál uložený v produktech</p>
           </CardContent>
         </Card>
+
         <Card className="bg-success/5">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" /> Potenciální zisk
+            <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-2 uppercase tracking-wider">
+              <TrendingUp className="h-3.5 w-3.5" /> Potenciální zisk
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-success">{inventoryStats.totalPotentialProfit.toFixed(0)} Kč</p>
+            <p className="text-xs text-muted-foreground mt-1">Zisk po doprodání zásob</p>
           </CardContent>
         </Card>
-        <Card className="bg-accent/5">
+
+        <Card className="bg-blue-500/5 border-blue-500/20">
           <CardHeader className="pb-2">
-            <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-2">
-              <Package className="h-4 w-4" /> Celková hodnota prodeje
+            <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-2 uppercase tracking-wider">
+              <Receipt className="h-3.5 w-3.5" /> Celková tržba
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <p className="text-2xl font-bold">{inventoryStats.totalPotentialRevenue.toFixed(0)} Kč</p>
+            <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{realizedStats.totalRevenue.toFixed(0)} Kč</p>
+            <p className="text-xs text-muted-foreground mt-1">Reálně utrženo z historie</p>
+          </CardContent>
+        </Card>
+
+        <Card className="bg-emerald-500/5 border-emerald-500/20">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-2 uppercase tracking-wider">
+              <PiggyBank className="h-3.5 w-3.5" /> Reálný zisk
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{realizedStats.totalProfit.toFixed(0)} Kč</p>
+            <p className="text-xs text-muted-foreground mt-1">Čistý výdělek po odečtení nákupu</p>
           </CardContent>
         </Card>
       </div>
@@ -146,12 +206,14 @@ export default function InventoryPage() {
       <div className="grid grid-cols-1 gap-8 mb-8">
         <Card>
           <CardHeader>
-            <CardTitle>Porovnání cen a zisku</CardTitle>
-            <CardDescription>Top 10 produktů podle zisku na jednotku.</CardDescription>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="h-5 w-5 text-primary" /> Denní ziskovost (30 dní)
+            </CardTitle>
+            <CardDescription>Vizualizace nákladů (šedá) a zisku (zelená) v čase.</CardDescription>
           </CardHeader>
-          <CardContent className="h-[400px]">
+          <CardContent className="h-[350px]">
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={chartData}>
+              <BarChart data={dailyProfitData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#88888844" />
                 <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
                 <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${v} Kč`} />
@@ -159,9 +221,8 @@ export default function InventoryPage() {
                   contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}
                 />
                 <Legend />
-                <Bar dataKey="Nákupní cena" fill="#94a3b8" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Prodejní cena" fill="#0ea5e9" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="Zisk" fill="#10b981" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="cost" name="Nákup" stackId="a" fill="#94a3b8" />
+                <Bar dataKey="profit" name="Zisk" stackId="a" fill="#10b981" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
