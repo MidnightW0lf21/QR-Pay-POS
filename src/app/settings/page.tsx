@@ -1,7 +1,7 @@
 
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useMemo } from "react";
 import Image from "next/image";
 import { useTheme } from "next-themes";
 import * as XLSX from "xlsx";
@@ -71,9 +71,23 @@ import {
 import { useIsMounted } from "@/hooks/use-is-mounted";
 import { useAppContext } from "@/context/AppContext";
 import ProductForm from "@/components/product-form";
-import { Plus, Edit, Trash2, Loader2, Sun, Moon, Laptop, Upload, Download, Trash, RefreshCcw, Smartphone, Info, X, LayoutGrid, Rows } from "lucide-react";
+import { Plus, Edit, Trash2, Loader2, Sun, Moon, Laptop, Upload, Download, Trash, RefreshCcw, Smartphone, Info, X, LayoutGrid, Rows, BarChart3, PieChart as PieChartIcon } from "lucide-react";
 import { getImage, saveImage, deleteImage, getAllImageKeys } from "@/lib/db";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip as RechartsTooltip,
+  ResponsiveContainer,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
+import { format } from "date-fns";
+import { cs } from "date-fns/locale";
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -113,6 +127,7 @@ const ProductImage = ({ product }: { product: Product }) => {
   );
 };
 
+const COLORS = ['#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
 
 export default function SettingsPage() {
   const isMounted = useIsMounted();
@@ -159,6 +174,45 @@ export default function SettingsPage() {
       }
     }
   }, [isMounted]);
+
+  const analyticsData = useMemo(() => {
+    if (!isMounted) return { revenueByDay: [], topProducts: [] };
+    
+    const storedTransactions = localStorage.getItem(TRANSACTIONS_STORAGE_KEY);
+    const transactions: Transaction[] = storedTransactions ? JSON.parse(storedTransactions) : [];
+    
+    // Revenue by day (last 7 days)
+    const last7Days = Array.from({ length: 7 }, (_, i) => {
+      const d = new Date();
+      d.setDate(d.getDate() - i);
+      return d.toISOString().split('T')[0];
+    }).reverse();
+
+    const revenueByDay = last7Days.map(dateStr => {
+      const dayTotal = transactions
+        .filter(tx => tx.date.startsWith(dateStr))
+        .reduce((acc, tx) => acc + tx.total, 0);
+      return { 
+        name: format(new Date(dateStr), 'd.M.', { locale: cs }), 
+        value: dayTotal 
+      };
+    });
+
+    // Top 5 products
+    const productSales: Record<string, number> = {};
+    transactions.forEach(tx => {
+      tx.items.forEach(item => {
+        productSales[item.name] = (productSales[item.name] || 0) + item.quantity;
+      });
+    });
+
+    const topProducts = Object.entries(productSales)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value)
+      .slice(0, 5);
+
+    return { revenueByDay, topProducts };
+  }, [isMounted, products]);
 
   const handleAccordionChange = (value: string[]) => {
     setOpenAccordions(value);
@@ -361,7 +415,7 @@ export default function SettingsPage() {
                 <CardHeader className="p-0">
                   <CardTitle>Instalace &amp; Vzhled</CardTitle>
                   <CardDescription>
-                    Nainstalujte si aplikaci, vyberte si světlý nebo tmavý režim a nastavte zobrazení.
+                    Nainstalujte si aplikaci, vyberte si motiv a nastavení zobrazení.
                   </CardDescription>
                 </CardHeader>
               </AccordionTrigger>
@@ -506,7 +560,7 @@ export default function SettingsPage() {
                     <Download className="mr-2 h-4 w-4" /> Exportovat (JSON)
                   </Button>
                 </div>
-                <div className="rounded-lg border">
+                <div className="rounded-lg border overflow-hidden">
                   <Table>
                     <TableHeader>
                       <TableRow>
@@ -575,6 +629,91 @@ export default function SettingsPage() {
             </Card>
           </AccordionItem>
           
+          <AccordionItem value="item-5" className="border-none">
+            <Card>
+              <AccordionTrigger className="p-6">
+                <CardHeader className="p-0">
+                  <CardTitle>Analýza prodejů</CardTitle>
+                  <CardDescription>
+                    Vizualizace vašich příjmů a oblíbených produktů.
+                  </CardDescription>
+                </CardHeader>
+              </AccordionTrigger>
+              <AccordionContent className="px-6 pb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-medium flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4" /> Tržby za posledních 7 dní
+                    </h4>
+                    <div className="h-[250px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={analyticsData.revenueByDay}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#88888844" />
+                          <XAxis 
+                            dataKey="name" 
+                            stroke="#888888" 
+                            fontSize={12} 
+                            tickLine={false} 
+                            axisLine={false} 
+                          />
+                          <YAxis 
+                            stroke="#888888" 
+                            fontSize={12} 
+                            tickLine={false} 
+                            axisLine={false} 
+                            tickFormatter={(value) => `${value} Kč`}
+                          />
+                          <RechartsTooltip 
+                            contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}
+                            itemStyle={{ color: 'hsl(var(--primary))' }}
+                            formatter={(value) => [`${value} Kč`, 'Tržba']}
+                          />
+                          <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-medium flex items-center gap-2">
+                      <PieChartIcon className="h-4 w-4" /> Top 5 produktů (dle kusů)
+                    </h4>
+                    <div className="h-[250px] w-full">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={analyticsData.topProducts}
+                            cx="50%"
+                            cy="50%"
+                            innerRadius={60}
+                            outerRadius={80}
+                            paddingAngle={5}
+                            dataKey="value"
+                          >
+                            {analyticsData.topProducts.map((entry, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <RechartsTooltip 
+                            contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}
+                          />
+                        </PieChart>
+                      </ResponsiveContainer>
+                      <div className="flex flex-wrap justify-center gap-4 mt-2">
+                        {analyticsData.topProducts.map((entry, index) => (
+                          <div key={entry.name} className="flex items-center gap-1.5">
+                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                            <span className="text-xs text-muted-foreground">{entry.name} ({entry.value} ks)</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </AccordionContent>
+            </Card>
+          </AccordionItem>
+          
           <AccordionItem value="item-3" className="border-none">
             <Card>
               <AccordionTrigger className="p-6">
@@ -593,7 +732,7 @@ export default function SettingsPage() {
                       id="recipientName"
                       value={bankingDetails.recipientName}
                       onChange={(e) => setBankingDetails({ ...bankingDetails, recipientName: e.target.value })}
-                      placeholder="napr. Jan Novak"
+                      placeholder="např. Jan Novák"
                     />
                   </div>
                   <div className="space-y-2">
@@ -701,5 +840,3 @@ export default function SettingsPage() {
     </div>
   );
 }
-
-    
