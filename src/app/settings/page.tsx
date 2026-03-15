@@ -66,7 +66,7 @@ import {
 import { useIsMounted } from "@/hooks/use-is-mounted";
 import { useAppContext } from "@/context/AppContext";
 import ProductForm from "@/components/product-form";
-import { Plus, Edit, Trash2, Loader2, Sun, Moon, Laptop, Upload, Download, Trash, RefreshCcw, Smartphone, X, LayoutGrid, Rows, BarChart3, PieChart as PieChartIcon, Tag, Boxes } from "lucide-react";
+import { Plus, Edit, Trash2, Loader2, Sun, Moon, Laptop, Upload, Download, Trash, RefreshCcw, Smartphone, X, LayoutGrid, Rows, BarChart3, PieChart as PieChartIcon, Tag, Boxes, TrendingUp } from "lucide-react";
 import { deleteImage, getAllImageKeys, getImage } from "@/lib/db";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -80,6 +80,7 @@ import {
   PieChart,
   Pie,
   Cell,
+  Legend,
 } from "recharts";
 import { format, subDays, startOfDay } from "date-fns";
 import { cs } from "date-fns/locale";
@@ -150,6 +151,7 @@ export default function SettingsPage() {
     }).reverse();
 
     const revenueMap: Record<string, number> = {};
+    const costMap: Record<string, number> = {};
     const productSales: Record<string, number> = {};
 
     transactions.forEach(tx => {
@@ -158,13 +160,24 @@ export default function SettingsPage() {
       
       tx.items.forEach(item => {
         productSales[item.name] = (productSales[item.name] || 0) + item.quantity;
+        
+        // Try to find the cost price of the product to calculate profit
+        const product = products.find(p => p.id === item.productId);
+        const costPrice = product?.costPrice || 0;
+        costMap[dateKey] = (costMap[dateKey] || 0) + (costPrice * item.quantity);
       });
     });
 
-    const revenueByDay = last30Days.map(dateStr => ({
-      name: format(new Date(dateStr), 'd.M.', { locale: cs }),
-      value: Math.round(revenueMap[dateStr] || 0)
-    }));
+    const revenueByDay = last30Days.map(dateStr => {
+      const revenue = Math.round(revenueMap[dateStr] || 0);
+      const cost = Math.round(costMap[dateStr] || 0);
+      return {
+        name: format(new Date(dateStr), 'd.M.', { locale: cs }),
+        revenue: revenue,
+        cost: cost,
+        profit: Math.max(0, revenue - cost)
+      };
+    });
 
     const topProducts = Object.entries(productSales)
       .map(([name, value]) => ({ name, value }))
@@ -172,7 +185,7 @@ export default function SettingsPage() {
       .slice(0, 8);
 
     return { revenueByDay, topProducts };
-  }, [isMounted]);
+  }, [isMounted, products]);
 
   const handleAccordionChange = (value: string[]) => {
     setOpenAccordions(value);
@@ -533,7 +546,39 @@ export default function SettingsPage() {
                             contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }} 
                             formatter={(v) => [`${v} Kč`, 'Tržba']} 
                           />
-                          <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                          <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  <div className="space-y-4">
+                    <h4 className="text-sm font-medium flex items-center gap-2"><TrendingUp className="h-4 w-4 text-primary" /> Denní ziskovost (Nákup vs. Zisk)</h4>
+                    <div className="h-[350px] w-full bg-muted/20 p-4 rounded-xl">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={analyticsData.revenueByDay}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#88888844" />
+                          <XAxis 
+                            dataKey="name" 
+                            stroke="#888888" 
+                            fontSize={10} 
+                            tickLine={false} 
+                            axisLine={false} 
+                            interval={4} 
+                          />
+                          <YAxis 
+                            stroke="#888888" 
+                            fontSize={12} 
+                            tickLine={false} 
+                            axisLine={false} 
+                            tickFormatter={(v) => `${v} Kč`} 
+                          />
+                          <RechartsTooltip 
+                            contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }} 
+                          />
+                          <Legend />
+                          <Bar dataKey="cost" name="Nákup" stackId="a" fill="#94a3b8" />
+                          <Bar dataKey="profit" name="Zisk" stackId="a" fill="#10b981" radius={[4, 4, 0, 0]} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
