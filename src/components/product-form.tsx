@@ -31,6 +31,7 @@ import { useToast } from "@/hooks/use-toast";
 const productFormSchema = z.object({
   name: z.string().min(2, { message: "Název musí mít alespoň 2 znaky." }),
   price: z.coerce.number().int({ message: "Cena musí být celé číslo." }).positive({ message: "Cena musí být kladné číslo." }),
+  costPrice: z.coerce.number().int({ message: "Nákupní cena musí být celé číslo." }).min(0, { message: "Nákupní cena musí být nezáporné číslo." }),
   stock: z.coerce.number().int({ message: "Sklad musí být celé číslo." }).min(0, { message: "Sklad musí být nezáporné číslo." }),
   category: z.string().optional(),
   imageUrl: z.string().optional(),
@@ -54,6 +55,7 @@ export default function ProductForm({ onSubmit, product, categories }: ProductFo
     defaultValues: {
       name: product?.name || "",
       price: product?.price || 0,
+      costPrice: product?.costPrice || 0,
       stock: product?.stock || 0,
       category: product?.category || "",
       imageUrl: product?.imageUrl || "",
@@ -147,7 +149,7 @@ export default function ProductForm({ onSubmit, product, categories }: ProductFo
             name="price"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Cena (Kč)</FormLabel>
+                <FormLabel>Prodejní cena (Kč)</FormLabel>
                 <FormControl>
                   <Input type="number" step="1" placeholder="85" {...field} />
                 </FormControl>
@@ -157,18 +159,31 @@ export default function ProductForm({ onSubmit, product, categories }: ProductFo
           />
           <FormField
             control={form.control}
-            name="stock"
+            name="costPrice"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Skladem (ks)</FormLabel>
+                <FormLabel>Nákupní cena (Kč)</FormLabel>
                 <FormControl>
-                  <Input type="number" step="1" placeholder="20" {...field} />
+                  <Input type="number" step="1" placeholder="25" {...field} />
                 </FormControl>
                 <FormMessage />
               </FormItem>
             )}
           />
         </div>
+        <FormField
+          control={form.control}
+          name="stock"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Skladem (ks)</FormLabel>
+              <FormControl>
+                <Input type="number" step="1" placeholder="20" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
         <FormField
           control={form.control}
           name="category"

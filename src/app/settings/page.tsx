@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useMemo } from "react";
 import Image from "next/image";
+import Link from "next/link";
 import { useTheme } from "next-themes";
 import * as XLSX from "xlsx";
 import { Button } from "@/components/ui/button";
@@ -65,7 +66,7 @@ import {
 import { useIsMounted } from "@/hooks/use-is-mounted";
 import { useAppContext } from "@/context/AppContext";
 import ProductForm from "@/components/product-form";
-import { Plus, Edit, Trash2, Loader2, Sun, Moon, Laptop, Upload, Download, Trash, RefreshCcw, Smartphone, X, LayoutGrid, Rows, BarChart3, PieChart as PieChartIcon, Tag } from "lucide-react";
+import { Plus, Edit, Trash2, Loader2, Sun, Moon, Laptop, Upload, Download, Trash, RefreshCcw, Smartphone, X, LayoutGrid, Rows, BarChart3, PieChart as PieChartIcon, Tag, Boxes } from "lucide-react";
 import { deleteImage, getAllImageKeys, getImage } from "@/lib/db";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -137,20 +138,17 @@ export default function SettingsPage() {
     }
   }, [isMounted]);
 
-  // Optimalizovaný výpočet analytiky - proběhne jen jednou při načtení
   const analyticsData = useMemo(() => {
     if (!isMounted) return { revenueByDay: [], topProducts: [] };
     
     const storedTransactions = localStorage.getItem(TRANSACTIONS_STORAGE_KEY);
     const transactions: Transaction[] = storedTransactions ? JSON.parse(storedTransactions) : [];
     
-    // 1. Připravíme si pole posledních 30 dnů
     const last30Days = Array.from({ length: 30 }, (_, i) => {
       const d = subDays(new Date(), i);
       return d.toISOString().split('T')[0];
     }).reverse();
 
-    // 2. Jedním průchodem seskupíme tržby a prodeje produktů
     const revenueMap: Record<string, number> = {};
     const productSales: Record<string, number> = {};
 
@@ -163,13 +161,11 @@ export default function SettingsPage() {
       });
     });
 
-    // 3. Namapujeme tržby na konkrétní dny pro graf
     const revenueByDay = last30Days.map(dateStr => ({
       name: format(new Date(dateStr), 'd.M.', { locale: cs }),
       value: Math.round(revenueMap[dateStr] || 0)
     }));
 
-    // 4. Seřadíme top produkty
     const topProducts = Object.entries(productSales)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value)
@@ -282,6 +278,7 @@ export default function SettingsPage() {
             id: p.id || crypto.randomUUID(),
             name: p.name,
             price: p.price,
+            costPrice: p.costPrice || 0,
             category: p.category || "",
             imageUrl: p.imageUrl || "",
             enabled: p.enabled !== false,
@@ -316,6 +313,27 @@ export default function SettingsPage() {
 
   return (
     <div className="container mx-auto max-w-4xl p-4 sm:p-6 md:p-8">
+      <div className="mb-6 flex flex-col gap-2">
+         <h1 className="text-3xl font-bold">Nastavení</h1>
+         <p className="text-muted-foreground">Správa systému, vzhledu a dat.</p>
+      </div>
+
+      <Card className="mb-8 border-primary bg-primary/5">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Boxes className="h-5 w-5 text-primary" /> Inventura a Ziskovost
+          </CardTitle>
+          <CardDescription>
+            Podívejte se na podrobnou analýzu marží a hodnotu vašeho skladu.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Button asChild className="w-full sm:w-auto h-12 text-lg">
+            <Link href="/inventory">Otevřít Inventuru</Link>
+          </Button>
+        </CardContent>
+      </Card>
+
       <Dialog open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <Accordion 
           type="multiple" 

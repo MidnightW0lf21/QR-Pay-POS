@@ -4,6 +4,7 @@ export interface Product {
   id: string;
   name: string;
   price: number;
+  costPrice: number;
   category?: string;
   icon?: keyof typeof icons;
   imageUrl?: string;
