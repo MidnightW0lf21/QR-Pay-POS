@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -22,7 +21,8 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
-import { Minus, ShoppingCart, Loader2, Landmark, Wallet, Package } from "lucide-react";
+import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
+import { Minus, ShoppingCart, Loader2, Landmark, Wallet, Package, Tag } from "lucide-react";
 import type { Product, BankingDetails, Transaction, CartItem } from "@/lib/types";
 import { 
   DEFAULT_PRODUCTS, 
@@ -81,6 +81,7 @@ export default function Home() {
   const [isCashDialogOpen, setIsCashDialogOpen] = useState(false);
   const [cashReceived, setCashReceived] = useState<number | null>(null);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
   const isCashMode = paymentMode === 'cash';
 
@@ -101,6 +102,14 @@ export default function Home() {
     }
   }, [isMounted]);
 
+  const categories = useMemo(() => {
+    const cats = new Set<string>();
+    products.forEach(p => {
+      if (p.category) cats.add(p.category);
+    });
+    return ["all", ...Array.from(cats)];
+  }, [products]);
+
   const handleQuantityChange = (productId: string, amount: number) => {
     const product = products.find((p) => p.id === productId);
     if (!product) return;
@@ -108,7 +117,8 @@ export default function Home() {
     const currentQuantity = cart[productId] || 0;
 
     if (amount > 0 && currentQuantity >= product.stock) {
-       toast({
+      // Toast notification is handled in response to user click, not during render
+      toast({
         variant: "destructive",
         title: "Nedostatek zboží",
         description: `Na skladě je pouze ${product.stock} kusů produktu ${product.name}.`,
@@ -168,7 +178,6 @@ export default function Home() {
       };
     });
 
-    // Deduct stock
     const newProducts = products.map(product => {
       if (cart[product.id]) {
         return { ...product, stock: product.stock - cart[product.id] };
@@ -177,7 +186,6 @@ export default function Home() {
     });
     setProducts(newProducts);
     localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(newProducts));
-
 
     const newTransaction: Transaction = {
       id: crypto.randomUUID(),
@@ -224,10 +232,18 @@ export default function Home() {
       })
       .catch(err => {
         console.error("Failed to generate QR code", err);
-        setQrCodeDataUrl(''); // Clear on error
+        setQrCodeDataUrl('');
       });
     }
   }, [isQrDialogOpen, qrCodeData]);
+
+  const visibleProducts = useMemo(() => {
+    return products.filter(p => {
+      if (p.enabled === false) return false;
+      if (selectedCategory !== "all" && p.category !== selectedCategory) return false;
+      return true;
+    });
+  }, [products, selectedCategory]);
 
   if (!isMounted) {
     return (
@@ -237,24 +253,43 @@ export default function Home() {
     );
   }
 
-  const visibleProducts = products.filter(p => p.enabled !== false);
-
   return (
     <>
       <div className="container mx-auto max-w-7xl p-4 sm:p-6 md:p-8 pb-32">
-        <div className="flex items-center space-x-2 mb-6">
-          <Landmark className="text-muted-foreground" />
-          <Switch
-            id="payment-mode"
-            checked={!isCashMode}
-            onCheckedChange={(checked) => setPaymentMode(checked ? 'qr' : 'cash')}
-            aria-label="Přepnout režim platby"
-          />
-          <Wallet className="text-muted-foreground" />
-          <Label htmlFor="payment-mode" className="text-lg">
-            {isCashMode ? "Režim hotovosti" : "Režim QR platby"}
-          </Label>
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+          <div className="flex items-center space-x-2">
+            <Landmark className="text-muted-foreground" />
+            <Switch
+              id="payment-mode"
+              checked={!isCashMode}
+              onCheckedChange={(checked) => setPaymentMode(checked ? 'qr' : 'cash')}
+              aria-label="Přepnout režim platby"
+            />
+            <Wallet className="text-muted-foreground" />
+            <Label htmlFor="payment-mode" className="text-lg">
+              {isCashMode ? "Hotovost" : "QR platba"}
+            </Label>
+          </div>
+
+          <ScrollArea className="w-full sm:w-auto">
+            <div className="flex space-x-2 pb-2">
+              {categories.map((cat) => (
+                <Button
+                  key={cat}
+                  variant={selectedCategory === cat ? "default" : "outline"}
+                  size="sm"
+                  onClick={() => setSelectedCategory(cat)}
+                  className="whitespace-nowrap rounded-full"
+                >
+                  <Tag className="mr-1.5 h-3.5 w-3.5" />
+                  {cat === "all" ? "Vše" : cat}
+                </Button>
+              ))}
+            </div>
+            <ScrollBar orientation="horizontal" className="hidden" />
+          </ScrollArea>
         </div>
+
         <div className={cn(
           "grid gap-4",
           columnView === '2-col' ? "grid-cols-2" : "grid-cols-3",
@@ -294,10 +329,16 @@ export default function Home() {
                     </div>
                   )}
                   {isOutOfStock && inCart === 0 ? (
-                    <Badge variant="destructive" className="absolute bottom-2 left-2 text-sm">Vyprodáno</Badge>
+                    <Badge variant="destructive" className="absolute bottom-2 left-2 text-md px-3 py-1">Vyprodáno</Badge>
                   ) : (
-                    <Badge variant={remainingStock <= 0 ? "destructive" : "secondary"} className="absolute bottom-2 left-2 flex items-center text-sm">
-                      <Package className="mr-1.5 h-3 w-3" /> {product.stock} ks
+                    <Badge 
+                      variant={remainingStock <= 0 ? "destructive" : "secondary"} 
+                      className={cn(
+                        "absolute bottom-2 left-2 flex items-center text-sm px-3 py-1",
+                        remainingStock <= 0 && "bg-destructive text-destructive-foreground"
+                      )}
+                    >
+                      <Package className="mr-1.5 h-4 w-4" /> {product.stock} ks
                     </Badge>
                   )}
                 </div>
@@ -312,7 +353,7 @@ export default function Home() {
       </div>
 
       {total > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-sm border-t p-4">
+        <div className="fixed bottom-0 left-0 right-0 bg-background/80 backdrop-blur-sm border-t p-4 z-40">
           <div className="container mx-auto max-w-7xl flex items-center justify-between">
             <div className="text-lg font-bold">
               Celkem: <span className="text-primary text-2xl">{total.toFixed(0)} Kč</span>
@@ -330,7 +371,7 @@ export default function Home() {
           <DialogHeader>
             <DialogTitle>Skenujte pro platbu</DialogTitle>
             <DialogDescription>
-              Předložte tento QR kód pro dokončení transakce. Po zavření bude košík vymazán.
+              Předložte tento QR kód pro dokončení transakce.
             </DialogDescription>
           </DialogHeader>
           <div className="flex flex-col items-center justify-center space-y-4 p-4">
@@ -350,8 +391,8 @@ export default function Home() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="secondary" onClick={handleCloseDialog}>
-              Zavřít
+            <Button variant="secondary" onClick={handleCloseDialog} className="w-full">
+              Zavřít a vymazat košík
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -393,8 +434,8 @@ export default function Home() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="secondary" onClick={handleCloseDialog}>
-              Zavřít
+            <Button variant="secondary" onClick={handleCloseDialog} className="w-full">
+              Dokončit prodej
             </Button>
           </DialogFooter>
         </DialogContent>

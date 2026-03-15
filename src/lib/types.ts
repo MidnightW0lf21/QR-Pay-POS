@@ -4,6 +4,7 @@ export interface Product {
   id: string;
   name: string;
   price: number;
+  category?: string;
   icon?: keyof typeof icons;
   imageUrl?: string;
   enabled?: boolean;
@@ -30,4 +31,5 @@ export interface Transaction {
   total: number;
   items: CartItem[];
   paymentMethod: PaymentMethod;
+  note?: string;
 }

@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -86,7 +85,7 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import { format } from "date-fns";
+import { format, subDays } from "date-fns";
 import { cs } from "date-fns/locale";
 
 interface BeforeInstallPromptEvent extends Event {
@@ -127,7 +126,7 @@ const ProductImage = ({ product }: { product: Product }) => {
   );
 };
 
-const COLORS = ['#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
+const COLORS = ['#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#6366f1', '#ec4899', '#f97316'];
 
 export default function SettingsPage() {
   const isMounted = useIsMounted();
@@ -142,7 +141,7 @@ export default function SettingsPage() {
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(true);
-  const [openAccordions, setOpenAccordions] = useState<string[]>(['item-1', 'item-2']);
+  const [openAccordions, setOpenAccordions] = useState<string[]>(['item-1', 'item-2', 'item-5']);
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -181,14 +180,13 @@ export default function SettingsPage() {
     const storedTransactions = localStorage.getItem(TRANSACTIONS_STORAGE_KEY);
     const transactions: Transaction[] = storedTransactions ? JSON.parse(storedTransactions) : [];
     
-    // Revenue by day (last 7 days)
-    const last7Days = Array.from({ length: 7 }, (_, i) => {
-      const d = new Date();
-      d.setDate(d.getDate() - i);
+    // Revenue by day (last 30 days)
+    const last30Days = Array.from({ length: 30 }, (_, i) => {
+      const d = subDays(new Date(), i);
       return d.toISOString().split('T')[0];
     }).reverse();
 
-    const revenueByDay = last7Days.map(dateStr => {
+    const revenueByDay = last30Days.map(dateStr => {
       const dayTotal = transactions
         .filter(tx => tx.date.startsWith(dateStr))
         .reduce((acc, tx) => acc + tx.total, 0);
@@ -198,7 +196,7 @@ export default function SettingsPage() {
       };
     });
 
-    // Top 5 products
+    // Top 8 products
     const productSales: Record<string, number> = {};
     transactions.forEach(tx => {
       tx.items.forEach(item => {
@@ -209,10 +207,10 @@ export default function SettingsPage() {
     const topProducts = Object.entries(productSales)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value)
-      .slice(0, 5);
+      .slice(0, 8);
 
     return { revenueByDay, topProducts };
-  }, [isMounted, products]);
+  }, [isMounted]);
 
   const handleAccordionChange = (value: string[]) => {
     setOpenAccordions(value);
@@ -330,6 +328,7 @@ export default function SettingsPage() {
                 id: p.id || crypto.randomUUID(),
                 name: p.name,
                 price: p.price,
+                category: p.category || "",
                 imageUrl: imageUrl,
                 enabled: p.enabled !== false,
                 stock: p.stock ?? 0,
@@ -346,7 +345,7 @@ export default function SettingsPage() {
       }
     };
     reader.readAsText(file);
-    event.target.value = ''; // Reset input
+    event.target.value = '';
   };
   
   const handleExportProducts = async () => {
@@ -355,12 +354,12 @@ export default function SettingsPage() {
       return;
     }
     const exportableProducts = await Promise.all(
-        products.map(async ({ name, price, imageUrl, enabled, stock }) => {
+        products.map(async ({ name, price, imageUrl, enabled, stock, category }) => {
             let finalImageUrl = imageUrl || "";
             if (imageUrl?.startsWith('img_')) {
                 finalImageUrl = await getImage(imageUrl) || "";
             }
-            return { name, price, imageUrl: finalImageUrl, enabled, stock };
+            return { name, price, imageUrl: finalImageUrl, enabled, stock, category };
         })
     );
     const data = JSON.stringify(exportableProducts, null, 2);
@@ -413,9 +412,9 @@ export default function SettingsPage() {
             <Card>
               <AccordionTrigger className="p-6">
                 <CardHeader className="p-0">
-                  <CardTitle>Instalace &amp; Vzhled</CardTitle>
+                  <CardTitle>Vzhled & Instalace</CardTitle>
                   <CardDescription>
-                    Nainstalujte si aplikaci, vyberte si motiv a nastavení zobrazení.
+                    Nainstalujte si aplikaci a přizpůsobte si její vzhled.
                   </CardDescription>
                 </CardHeader>
               </AccordionTrigger>
@@ -429,7 +428,6 @@ export default function SettingsPage() {
                         onClick={() => setShowInstallPrompt(false)}
                       >
                         <X className="h-4 w-4" />
-                        <span className="sr-only">Zavřít</span>
                       </Button>
                       <CardHeader>
                         <div className="flex items-center gap-2">
@@ -440,79 +438,62 @@ export default function SettingsPage() {
                                 <Info className="h-4 w-4 text-muted-foreground cursor-help" />
                               </TooltipTrigger>
                               <TooltipContent side="top" className="max-w-xs">
-                                <p className="font-bold mb-2">Jak nainstalovat na iOS:</p>
+                                <p className="font-bold mb-2">Instalace na iOS:</p>
                                 <ol className="list-decimal list-inside space-y-1">
-                                  <li>Otevřete tuto stránku v Safari.</li>
-                                  <li>Klepněte na ikonu 'Sdílet'.</li>
-                                  <li>Sjeďte dolů a vyberte 'Přidat na plochu'.</li>
+                                  <li>V Safari klepněte na 'Sdílet'.</li>
+                                  <li>Vyberte 'Přidat na plochu'.</li>
                                 </ol>
                               </TooltipContent>
                             </Tooltip>
                           </TooltipProvider>
                         </div>
                         <CardDescription>
-                          Nainstalujte si tuto aplikaci na své zařízení pro rychlý přístup a offline použití.
+                          Aplikace funguje 100% offline po instalaci na plochu.
                         </CardDescription>
                       </CardHeader>
                       <CardContent>
                         <Button onClick={handleInstallClick} className="w-full" disabled={!deferredPrompt}>
-                          <Smartphone className="mr-2 h-4 w-4" /> Instalovat aplikaci (Android)
+                          <Smartphone className="mr-2 h-4 w-4" /> Instalovat (PWA)
                         </Button>
                       </CardContent>
                     </Card>
                   )}
-                  <div className="space-y-4">
+                  <div className="space-y-6">
                     <div>
-                      <Label className="text-base font-medium">Motiv</Label>
+                      <Label className="text-base font-medium">Motiv aplikace</Label>
                       <RadioGroup
                         value={theme}
                         onValueChange={setTheme}
-                        className="grid grid-cols-3 gap-4 mt-2"
+                        className="grid grid-cols-3 gap-4 mt-3"
                       >
-                        <div>
-                          <RadioGroupItem value="light" id="light" className="peer sr-only" />
-                          <Label
-                            htmlFor="light"
-                            className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                          >
-                            <Sun className="h-6 w-6 mb-2" />
-                            Světlý
-                          </Label>
-                        </div>
-                        <div>
-                          <RadioGroupItem value="dark" id="dark" className="peer sr-only" />
-                          <Label
-                            htmlFor="dark"
-                            className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                          >
-                            <Moon className="h-6 w-6 mb-2" />
-                            Tmavý
-                          </Label>
-                        </div>
-                        <div>
-                          <RadioGroupItem value="system" id="system" className="peer sr-only" />
-                          <Label
-                            htmlFor="system"
-                            className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
-                          >
-                            <Laptop className="h-6 w-6 mb-2" />
-                            Systém
-                          </Label>
-                        </div>
+                        {['light', 'dark', 'system'].map((t) => (
+                          <div key={t}>
+                            <RadioGroupItem value={t} id={t} className="peer sr-only" />
+                            <Label
+                              htmlFor={t}
+                              className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary capitalize cursor-pointer"
+                            >
+                              {t === 'light' && <Sun className="h-6 w-6 mb-2" />}
+                              {t === 'dark' && <Moon className="h-6 w-6 mb-2" />}
+                              {t === 'system' && <Laptop className="h-6 w-6 mb-2" />}
+                              {t === 'light' ? 'Světlý' : t === 'dark' ? 'Tmavý' : 'Systém'}
+                            </Label>
+                          </div>
+                        ))}
                       </RadioGroup>
                     </div>
                     <div>
-                      <Label className="text-base font-medium">Zobrazení na mobilu</Label>
+                      <Label className="text-base font-medium">Počet sloupců na mobilu</Label>
                       <RadioGroup
                         value={columnView}
                         onValueChange={(value) => setColumnView(value as '2-col' | '3-col')}
-                        className="grid grid-cols-2 gap-4 mt-2"
+                        className="grid grid-cols-2 gap-4 mt-3"
                       >
                         <div>
                           <RadioGroupItem value="2-col" id="2-col" className="peer sr-only" />
                           <Label
                             htmlFor="2-col"
-                            className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                            className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
                           >
                             <Rows className="h-6 w-6 mb-2" />
                             2 Sloupce
@@ -522,7 +503,7 @@ export default function SettingsPage() {
                           <RadioGroupItem value="3-col" id="3-col" className="peer sr-only" />
                           <Label
                             htmlFor="3-col"
-                            className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary"
+                            className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent hover:text-accent-foreground peer-data-[state=checked]:border-primary [&:has([data-state=checked])]:border-primary cursor-pointer"
                           >
                             <LayoutGrid className="h-6 w-6 mb-2" />
                             3 Sloupce
@@ -539,36 +520,36 @@ export default function SettingsPage() {
             <Card>
               <AccordionTrigger className="p-6">
                 <CardHeader className="p-0">
-                  <CardTitle>Spravovat produkty</CardTitle>
+                  <CardTitle>Správa produktů</CardTitle>
                   <CardDescription>
-                    Přidávejte, upravujte, mažte, importujte a exportujte své produkty.
+                    Upravujte sortiment, skladové zásoby a kategorie.
                   </CardDescription>
                 </CardHeader>
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-6">
-                <div className="flex flex-wrap gap-2 mb-4">
+                <div className="flex flex-wrap gap-2 mb-6">
                   <DialogTrigger asChild>
                     <Button onClick={() => { setEditingProduct(null); setIsSheetOpen(true); }}>
                       <Plus className="mr-2 h-4 w-4" /> Přidat produkt
                     </Button>
                   </DialogTrigger>
                   <Button variant="outline" onClick={handleImportClick}>
-                    <Upload className="mr-2 h-4 w-4" /> Importovat (JSON)
+                    <Upload className="mr-2 h-4 w-4" /> Importovat
                   </Button>
                   <input type="file" ref={fileInputRef} onChange={handleFileImport} className="hidden" accept=".json" />
                   <Button variant="outline" onClick={handleExportProducts}>
-                    <Download className="mr-2 h-4 w-4" /> Exportovat (JSON)
+                    <Download className="mr-2 h-4 w-4" /> Exportovat
                   </Button>
                 </div>
                 <div className="rounded-lg border overflow-hidden">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead className="w-[80px]">Obrázek</TableHead>
+                        <TableHead className="w-[80px]">Foto</TableHead>
                         <TableHead>Název</TableHead>
+                        <TableHead>Kategorie</TableHead>
                         <TableHead>Cena</TableHead>
-                        <TableHead>Skladem</TableHead>
-                        <TableHead>Povoleno</TableHead>
+                        <TableHead>Sklad</TableHead>
                         <TableHead className="text-right">Akce</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -579,15 +560,10 @@ export default function SettingsPage() {
                             <ProductImage product={product} />
                           </TableCell>
                           <TableCell className="font-medium">{product.name}</TableCell>
+                          <TableCell className="text-muted-foreground">{product.category || "-"}</TableCell>
                           <TableCell>{product.price.toFixed(0)} Kč</TableCell>
                           <TableCell>{product.stock}</TableCell>
-                          <TableCell>
-                            <Switch
-                              checked={product.enabled !== false}
-                              onCheckedChange={() => handleToggleProductEnabled(product.id)}
-                            />
-                          </TableCell>
-                          <TableCell className="text-right space-x-2">
+                          <TableCell className="text-right space-x-1">
                             <DialogTrigger asChild>
                               <Button
                                 variant="ghost"
@@ -602,15 +578,15 @@ export default function SettingsPage() {
                             </DialogTrigger>
                             <AlertDialog>
                               <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="text-destructive hover:text-destructive">
+                                <Button variant="ghost" size="icon" className="text-destructive">
                                   <Trash2 className="h-4 w-4" />
                                 </Button>
                               </AlertDialogTrigger>
                               <AlertDialogContent>
                                 <AlertDialogHeader>
-                                  <AlertDialogTitle>Jste si jistí?</AlertDialogTitle>
+                                  <AlertDialogTitle>Smazat produkt?</AlertDialogTitle>
                                   <AlertDialogDescription>
-                                    Tuto akci nelze vrátit zpět. Tímto trvale smažete produkt.
+                                    Tato akce trvale odstraní produkt ze systému.
                                   </AlertDialogDescription>
                                 </AlertDialogHeader>
                                 <AlertDialogFooter>
@@ -635,26 +611,27 @@ export default function SettingsPage() {
                 <CardHeader className="p-0">
                   <CardTitle>Analýza prodejů</CardTitle>
                   <CardDescription>
-                    Vizualizace vašich příjmů a oblíbených produktů.
+                    Lokální statistiky tržeb a oblíbených položek.
                   </CardDescription>
                 </CardHeader>
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-6">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                <div className="flex flex-col gap-12">
                   <div className="space-y-4">
                     <h4 className="text-sm font-medium flex items-center gap-2">
-                      <BarChart3 className="h-4 w-4" /> Tržby za posledních 7 dní
+                      <BarChart3 className="h-4 w-4 text-primary" /> Tržby za posledních 30 dní
                     </h4>
-                    <div className="h-[250px] w-full">
+                    <div className="h-[300px] w-full bg-muted/20 p-4 rounded-xl">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={analyticsData.revenueByDay}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#88888844" />
                           <XAxis 
                             dataKey="name" 
                             stroke="#888888" 
-                            fontSize={12} 
+                            fontSize={10} 
                             tickLine={false} 
                             axisLine={false} 
+                            interval={4}
                           />
                           <YAxis 
                             stroke="#888888" 
@@ -676,36 +653,45 @@ export default function SettingsPage() {
 
                   <div className="space-y-4">
                     <h4 className="text-sm font-medium flex items-center gap-2">
-                      <PieChartIcon className="h-4 w-4" /> Top 5 produktů (dle kusů)
+                      <PieChartIcon className="h-4 w-4 text-primary" /> Nejoblíbenější produkty (TOP 8)
                     </h4>
-                    <div className="h-[250px] w-full">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <PieChart>
-                          <Pie
-                            data={analyticsData.topProducts}
-                            cx="50%"
-                            cy="50%"
-                            innerRadius={60}
-                            outerRadius={80}
-                            paddingAngle={5}
-                            dataKey="value"
-                          >
-                            {analyticsData.topProducts.map((entry, index) => (
-                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-                            ))}
-                          </Pie>
-                          <RechartsTooltip 
-                            contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}
-                          />
-                        </PieChart>
-                      </ResponsiveContainer>
-                      <div className="flex flex-wrap justify-center gap-4 mt-2">
+                    <div className="grid grid-cols-1 md:grid-cols-2 items-center gap-4 bg-muted/20 p-6 rounded-xl">
+                      <div className="h-[250px]">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={analyticsData.topProducts}
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={60}
+                              outerRadius={90}
+                              paddingAngle={5}
+                              dataKey="value"
+                            >
+                              {analyticsData.topProducts.map((entry, index) => (
+                                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                              ))}
+                            </Pie>
+                            <RechartsTooltip 
+                              contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}
+                              formatter={(value) => [`${value} ks`, 'Prodaných']}
+                            />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                      <div className="flex flex-col gap-2">
                         {analyticsData.topProducts.map((entry, index) => (
-                          <div key={entry.name} className="flex items-center gap-1.5">
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
-                            <span className="text-xs text-muted-foreground">{entry.name} ({entry.value} ks)</span>
+                          <div key={entry.name} className="flex items-center justify-between gap-3 text-sm">
+                            <div className="flex items-center gap-2">
+                              <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[index % COLORS.length] }} />
+                              <span className="truncate max-w-[150px]">{entry.name}</span>
+                            </div>
+                            <span className="font-bold">{entry.value} ks</span>
                           </div>
                         ))}
+                        {analyticsData.topProducts.length === 0 && (
+                          <p className="text-muted-foreground text-center italic">Zatím žádné prodeje</p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -720,9 +706,9 @@ export default function SettingsPage() {
                 <CardHeader className="p-0">
                   <CardTitle>QR Platba</CardTitle>
                   <CardDescription>
-                    Spravujte bankovní údaje a zprávu pro QR platby.
+                    Nastavení bankovních údajů pro generování QR kódů.
                   </CardDescription>
-                </CardHeader>
+                </AccordionTrigger>
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-6">
                 <div className="space-y-6">
@@ -736,12 +722,12 @@ export default function SettingsPage() {
                     />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="accountNumber">Číslo účtu (IBAN)</Label>
+                    <Label htmlFor="accountNumber">IBAN (pro QR platbu)</Label>
                     <Input
                       id="accountNumber"
                       value={bankingDetails.accountNumber}
                       onChange={(e) => setBankingDetails({ ...bankingDetails, accountNumber: e.target.value })}
-                      placeholder="např. CZ6508000000001234567890"
+                      placeholder="CZ6508000000001234567890"
                     />
                   </div>
                   <div className="space-y-2">
@@ -750,11 +736,11 @@ export default function SettingsPage() {
                       id="paymentMessage"
                       value={message}
                       onChange={(e) => setMessage(e.target.value)}
-                      placeholder="např. Děkujeme za Váš nákup!"
+                      placeholder="Děkujeme za nákup!"
                       rows={3}
                     />
                   </div>
-                  <Button onClick={handleSaveQrSettings}>Uložit nastavení QR</Button>
+                  <Button onClick={handleSaveQrSettings} className="w-full">Uložit nastavení QR</Button>
                 </div>
               </AccordionContent>
             </Card>
@@ -764,59 +750,55 @@ export default function SettingsPage() {
             <Card>
               <AccordionTrigger className="p-6">
                 <CardHeader className="p-0">
-                  <CardTitle>Správa Dat</CardTitle>
+                  <CardTitle>Údržba dat</CardTitle>
                   <CardDescription>
-                    Exportujte historii, mažte data a obnovujte nastavení.
+                    Export historie a resetování aplikace.
                   </CardDescription>
                 </CardHeader>
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-6">
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Button variant="outline" onClick={handleExportHistory}>
-                    <Download className="mr-2 h-4 w-4" /> Exportovat historii (Excel)
+                    <Download className="mr-2 h-4 w-4" /> Export historie (Excel)
                   </Button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="destructive">
-                        <Trash className="mr-2 h-4 w-4" /> Vymazat historii transakcí
+                        <Trash className="mr-2 h-4 w-4" /> Vymazat historii
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Jste si absolutně jistí?</AlertDialogTitle>
+                        <AlertDialogTitle>Smazat celou historii?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Tato akce je nevratná a trvale smaže veškerou vaši historii transakcí.
+                          Tuto akci nelze vrátit. Dojde k trvalému odstranění všech transakcí.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Zrušit</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleClearHistory}>
-                          Ano, smazat historii
-                        </AlertDialogAction>
+                        <AlertDialogAction onClick={handleClearHistory}>Vymazat</AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
                   <Button variant="outline" onClick={() => setShowInstallPrompt(true)}>
-                    Zobrazit instalační dialog
+                    Instalační dialog
                   </Button>
                   <AlertDialog>
                     <AlertDialogTrigger asChild>
                       <Button variant="outline">
-                        <RefreshCcw className="mr-2 h-4 w-4" /> Obnovit výchozí produkty
+                        <RefreshCcw className="mr-2 h-4 w-4" /> Výchozí produkty
                       </Button>
                     </AlertDialogTrigger>
                     <AlertDialogContent>
                       <AlertDialogHeader>
-                        <AlertDialogTitle>Obnovit výchozí produkty?</AlertDialogTitle>
+                        <AlertDialogTitle>Obnovit výchozí?</AlertDialogTitle>
                         <AlertDialogDescription>
-                          Tímto nahradíte váš současný seznam produktů výchozí sadou. Vaše vlastní produkty budou smazány.
+                          Váš současný seznam bude nahrazen ukázkovými produkty.
                         </AlertDialogDescription>
                       </AlertDialogHeader>
                       <AlertDialogFooter>
                         <AlertDialogCancel>Zrušit</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleRestoreDefaultProducts}>
-                          Ano, obnovit
-                        </AlertDialogAction>
+                        <AlertDialogAction onClick={handleRestoreDefaultProducts}>Obnovit</AlertDialogAction>
                       </AlertDialogFooter>
                     </AlertDialogContent>
                   </AlertDialog>
@@ -825,11 +807,11 @@ export default function SettingsPage() {
             </Card>
           </AccordionItem>
         </Accordion>
-        <DialogContent className="max-h-[90vh]">
+        <DialogContent className="max-h-[90vh] sm:max-w-lg">
           <DialogHeader>
-            <DialogTitle>{editingProduct ? 'Upravit produkt' : 'Přidat nový produkt'}</DialogTitle>
+            <DialogTitle>{editingProduct ? 'Upravit produkt' : 'Nový produkt'}</DialogTitle>
           </DialogHeader>
-          <ScrollArea className="max-h-[calc(90vh-10rem)] -mx-6 pr-6 pl-6">
+          <ScrollArea className="max-h-[calc(90vh-8rem)] -mx-6 px-6">
             <ProductForm
               onSubmit={editingProduct ? handleEditProduct : handleAddProduct}
               product={editingProduct}

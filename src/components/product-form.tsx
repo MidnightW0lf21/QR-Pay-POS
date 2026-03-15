@@ -25,6 +25,7 @@ const productFormSchema = z.object({
   name: z.string().min(2, { message: "Název musí mít alespoň 2 znaky." }),
   price: z.coerce.number().int({ message: "Cena musí být celé číslo." }).positive({ message: "Cena musí být kladné číslo." }),
   stock: z.coerce.number().int({ message: "Sklad musí být celé číslo." }).min(0, { message: "Sklad musí být nezáporné číslo." }),
+  category: z.string().optional(),
   imageUrl: z.string().optional(),
 });
 
@@ -46,6 +47,7 @@ export default function ProductForm({ onSubmit, product }: ProductFormProps) {
       name: product?.name || "",
       price: product?.price || 0,
       stock: product?.stock || 0,
+      category: product?.category || "",
       imageUrl: product?.imageUrl || "",
     },
   });
@@ -95,20 +97,16 @@ export default function ProductForm({ onSubmit, product }: ProductFormProps) {
     let imageUrl = product?.imageUrl || "";
 
     if (imageDataUrl && (!product?.imageUrl || imageDataUrl !== imagePreview)) {
-      // New or changed image
       const imageKey = `img_${crypto.randomUUID()}`;
       await saveImage(imageKey, imageDataUrl);
-imageUrl = imageKey;
+      imageUrl = imageKey;
     } else if (imagePreview && !imagePreview.startsWith('http') && !imagePreview.startsWith('img_')) {
-      // Handle legacy base64 data from older versions
       const imageKey = `img_${crypto.randomUUID()}`;
       await saveImage(imageKey, imagePreview);
       imageUrl = imageKey;
     } else if (data.imageUrl && !imageDataUrl) {
-      // URL was typed in
       imageUrl = data.imageUrl;
     }
-
 
     const finalData = { ...data, imageUrl };
     
@@ -121,7 +119,7 @@ imageUrl = imageKey;
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-8 py-6">
+      <form onSubmit={form.handleSubmit(handleSubmit)} className="space-y-6 py-4">
         <FormField
           control={form.control}
           name="name"
@@ -135,28 +133,44 @@ imageUrl = imageKey;
             </FormItem>
           )}
         />
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
+            name="price"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Cena (Kč)</FormLabel>
+                <FormControl>
+                  <Input type="number" step="1" placeholder="85" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+          <FormField
+            control={form.control}
+            name="stock"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Skladem (ks)</FormLabel>
+                <FormControl>
+                  <Input type="number" step="1" placeholder="20" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
         <FormField
           control={form.control}
-          name="price"
+          name="category"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Cena</FormLabel>
+              <FormLabel>Kategorie</FormLabel>
               <FormControl>
-                <Input type="number" step="1" placeholder="např. 85" {...field} />
+                <Input placeholder="např. Nápoje, Jídlo..." {...field} />
               </FormControl>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
-         <FormField
-          control={form.control}
-          name="stock"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Počet kusů skladem</FormLabel>
-              <FormControl>
-                <Input type="number" step="1" placeholder="např. 20" {...field} />
-              </FormControl>
+              <FormDescription>Slouží pro filtrování na hlavní stránce.</FormDescription>
               <FormMessage />
             </FormItem>
           )}
@@ -184,30 +198,26 @@ imageUrl = imageKey;
               />
             <FormControl>
               <Button asChild variant="outline" className="shrink-0">
-                <label>
+                <label className="cursor-pointer">
                   Nahrát...
                   <Input type="file" accept="image/*" onChange={handleImageUpload} className="hidden" />
                 </label>
               </Button>
             </FormControl>
            </div>
-          <FormDescription>
-            Zadejte URL nebo nahrajte soubor (max 2MB).
-          </FormDescription>
           {imagePreview && (
-            <div className="mt-4">
+            <div className="mt-4 flex justify-center">
               <Image 
                 src={imagePreview} 
                 alt="Náhled obrázku" 
-                width={100} 
-                height={100} 
-                className="rounded-md object-cover" 
+                width={120} 
+                height={120} 
+                className="rounded-lg object-cover border" 
               />
             </div>
           )}
-          <FormMessage />
         </FormItem>
-        <Button type="submit" className="w-full">
+        <Button type="submit" className="w-full h-12 text-lg">
           {product ? "Uložit změny" : "Vytvořit produkt"}
         </Button>
       </form>
