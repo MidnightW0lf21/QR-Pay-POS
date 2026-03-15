@@ -80,7 +80,7 @@ import {
   Pie,
   Cell,
 } from "recharts";
-import { format, subDays } from "date-fns";
+import { format, subDays, startOfDay } from "date-fns";
 import { cs } from "date-fns/locale";
 
 interface BeforeInstallPromptEvent extends Event {
@@ -137,33 +137,39 @@ export default function SettingsPage() {
     }
   }, [isMounted]);
 
+  // Optimalizovaný výpočet analytiky - proběhne jen jednou při načtení
   const analyticsData = useMemo(() => {
     if (!isMounted) return { revenueByDay: [], topProducts: [] };
+    
     const storedTransactions = localStorage.getItem(TRANSACTIONS_STORAGE_KEY);
     const transactions: Transaction[] = storedTransactions ? JSON.parse(storedTransactions) : [];
     
+    // 1. Připravíme si pole posledních 30 dnů
     const last30Days = Array.from({ length: 30 }, (_, i) => {
       const d = subDays(new Date(), i);
       return d.toISOString().split('T')[0];
     }).reverse();
 
-    const revenueByDay = last30Days.map(dateStr => {
-      const dayTotal = transactions
-        .filter(tx => tx.date.startsWith(dateStr))
-        .reduce((acc, tx) => acc + tx.total, 0);
-      return { 
-        name: format(new Date(dateStr), 'd.M.', { locale: cs }), 
-        value: dayTotal 
-      };
-    });
-
+    // 2. Jedním průchodem seskupíme tržby a prodeje produktů
+    const revenueMap: Record<string, number> = {};
     const productSales: Record<string, number> = {};
+
     transactions.forEach(tx => {
+      const dateKey = tx.date.split('T')[0];
+      revenueMap[dateKey] = (revenueMap[dateKey] || 0) + tx.total;
+      
       tx.items.forEach(item => {
         productSales[item.name] = (productSales[item.name] || 0) + item.quantity;
       });
     });
 
+    // 3. Namapujeme tržby na konkrétní dny pro graf
+    const revenueByDay = last30Days.map(dateStr => ({
+      name: format(new Date(dateStr), 'd.M.', { locale: cs }),
+      value: Math.round(revenueMap[dateStr] || 0)
+    }));
+
+    // 4. Seřadíme top produkty
     const topProducts = Object.entries(productSales)
       .map(([name, value]) => ({ name, value }))
       .sort((a, b) => b.value - a.value)
@@ -383,13 +389,13 @@ export default function SettingsPage() {
               <AccordionTrigger className="p-6">
                 <CardHeader className="p-0 text-left">
                   <CardTitle>Správa kategorií</CardTitle>
-                  <CardDescription>Definujte seznam kategorií pro produkty.</CardDescription>
+                  <CardDescription>Definujte seznam kategorií pro vaše produkty.</CardDescription>
                 </CardHeader>
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-6 space-y-4">
                 <div className="flex gap-2">
                   <Input 
-                    placeholder="Název kategorie" 
+                    placeholder="Název nové kategorie" 
                     value={newCategoryName} 
                     onChange={(e) => setNewCategoryName(e.target.value)} 
                     onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
@@ -426,7 +432,7 @@ export default function SettingsPage() {
                     </Button>
                   </DialogTrigger>
                   <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
-                    <Upload className="mr-2 h-4 w-4" /> Importovat
+                    <Upload className="mr-2 h-4 w-4" /> Importovat (.json)
                   </Button>
                   <input type="file" ref={fileInputRef} onChange={handleFileImport} className="hidden" accept=".json" />
                 </div>
@@ -445,7 +451,7 @@ export default function SettingsPage() {
                         <TableRow key={p.id}>
                           <TableCell className="font-medium">{p.name}</TableCell>
                           <TableCell className="text-muted-foreground">{p.category || "-"}</TableCell>
-                          <TableCell>{p.stock}</TableCell>
+                          <TableCell>{p.stock} ks</TableCell>
                           <TableCell className="text-right space-x-1">
                             <DialogTrigger asChild>
                               <Button variant="ghost" size="icon" onClick={() => { setEditingProduct(p); setIsSheetOpen(true); }}>
@@ -457,7 +463,7 @@ export default function SettingsPage() {
                                 <Button variant="ghost" size="icon" className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
                               </AlertDialogTrigger>
                               <AlertDialogContent>
-                                <AlertDialogHeader><AlertDialogTitle>Smazat?</AlertDialogTitle></AlertDialogHeader>
+                                <AlertDialogHeader><AlertDialogTitle>Smazat produkt?</AlertDialogTitle></AlertDialogHeader>
                                 <AlertDialogFooter>
                                   <AlertDialogCancel>Zrušit</AlertDialogCancel>
                                   <AlertDialogAction onClick={() => handleDeleteProduct(p.id)}>Smazat</AlertDialogAction>
@@ -479,43 +485,72 @@ export default function SettingsPage() {
               <AccordionTrigger className="p-6">
                 <CardHeader className="p-0 text-left">
                   <CardTitle>Analýza prodejů</CardTitle>
-                  <CardDescription>Lokální statistiky tržeb za 30 dní.</CardDescription>
+                  <CardDescription>Vizualizace vašich lokálních dat za posledních 30 dní.</CardDescription>
                 </CardHeader>
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-6">
                 <div className="flex flex-col gap-12">
                   <div className="space-y-4">
-                    <h4 className="text-sm font-medium flex items-center gap-2"><BarChart3 className="h-4 w-4 text-primary" /> Tržby (30 dní)</h4>
-                    <div className="h-[300px] w-full bg-muted/20 p-4 rounded-xl">
+                    <h4 className="text-sm font-medium flex items-center gap-2"><BarChart3 className="h-4 w-4 text-primary" /> Denní tržby (30 dní)</h4>
+                    <div className="h-[350px] w-full bg-muted/20 p-4 rounded-xl">
                       <ResponsiveContainer width="100%" height="100%">
                         <BarChart data={analyticsData.revenueByDay}>
                           <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#88888844" />
-                          <XAxis dataKey="name" stroke="#888888" fontSize={10} tickLine={false} axisLine={false} interval={4} />
-                          <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${v} Kč`} />
-                          <RechartsTooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px' }} formatter={(v) => [`${v} Kč`, 'Tržba']} />
+                          <XAxis 
+                            dataKey="name" 
+                            stroke="#888888" 
+                            fontSize={10} 
+                            tickLine={false} 
+                            axisLine={false} 
+                            interval={4} 
+                          />
+                          <YAxis 
+                            stroke="#888888" 
+                            fontSize={12} 
+                            tickLine={false} 
+                            axisLine={false} 
+                            tickFormatter={(v) => `${v} Kč`} 
+                          />
+                          <RechartsTooltip 
+                            contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }} 
+                            formatter={(v) => [`${v} Kč`, 'Tržba']} 
+                          />
                           <Bar dataKey="value" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
                   </div>
+                  
                   <div className="space-y-4">
-                    <h4 className="text-sm font-medium flex items-center gap-2"><PieChartIcon className="h-4 w-4 text-primary" /> TOP 8 Produktů</h4>
+                    <h4 className="text-sm font-medium flex items-center gap-2"><PieChartIcon className="h-4 w-4 text-primary" /> TOP 8 nejprodávanějších produktů</h4>
                     <div className="flex flex-col md:flex-row items-center gap-8 bg-muted/20 p-6 rounded-xl">
                       <div className="h-[250px] w-full md:w-1/2">
                         <ResponsiveContainer width="100%" height="100%">
                           <PieChart>
-                            <Pie data={analyticsData.topProducts} cx="50%" cy="50%" innerRadius={60} outerRadius={90} paddingAngle={5} dataKey="value">
-                              {analyticsData.topProducts.map((_, i) => <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />)}
+                            <Pie 
+                              data={analyticsData.topProducts} 
+                              cx="50%" 
+                              cy="50%" 
+                              innerRadius={60} 
+                              outerRadius={90} 
+                              paddingAngle={5} 
+                              dataKey="value"
+                            >
+                              {analyticsData.topProducts.map((_, i) => (
+                                <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />
+                              ))}
                             </Pie>
-                            <RechartsTooltip />
+                            <RechartsTooltip 
+                               contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}
+                            />
                           </PieChart>
                         </ResponsiveContainer>
                       </div>
-                      <div className="w-full md:w-1/2 grid grid-cols-2 gap-2">
+                      <div className="w-full md:w-1/2 grid grid-cols-2 gap-x-4 gap-y-2">
                         {analyticsData.topProducts.map((e, i) => (
                           <div key={e.name} className="flex items-center gap-2 text-sm">
-                            <div className="w-3 h-3 rounded-full" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                            <span className="truncate">{e.name}: {e.value} ks</span>
+                            <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                            <span className="truncate">{e.name}: <strong>{e.value} ks</strong></span>
                           </div>
                         ))}
                       </div>
@@ -531,7 +566,7 @@ export default function SettingsPage() {
               <AccordionTrigger className="p-6">
                 <CardHeader className="p-0 text-left">
                   <CardTitle>QR Platba</CardTitle>
-                  <CardDescription>Bankovní údaje pro QR kódy.</CardDescription>
+                  <CardDescription>Bankovní údaje pro generování QR kódů.</CardDescription>
                 </CardHeader>
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-6 space-y-4">
@@ -540,14 +575,14 @@ export default function SettingsPage() {
                   <Input value={bankingDetails.recipientName} onChange={(e) => setBankingDetails({ ...bankingDetails, recipientName: e.target.value })} />
                 </div>
                 <div className="space-y-2">
-                  <Label>IBAN</Label>
+                  <Label>Číslo účtu / IBAN</Label>
                   <Input value={bankingDetails.accountNumber} onChange={(e) => setBankingDetails({ ...bankingDetails, accountNumber: e.target.value })} />
                 </div>
                 <div className="space-y-2">
-                  <Label>Zpráva</Label>
+                  <Label>Zpráva pro příjemce</Label>
                   <Textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={2} />
                 </div>
-                <Button onClick={handleSaveQrSettings} className="w-full">Uložit</Button>
+                <Button onClick={handleSaveQrSettings} className="w-full">Uložit nastavení</Button>
               </AccordionContent>
             </Card>
           </AccordionItem>
@@ -557,25 +592,25 @@ export default function SettingsPage() {
               <AccordionTrigger className="p-6">
                 <CardHeader className="p-0 text-left">
                   <CardTitle>Údržba dat</CardTitle>
-                  <CardDescription>Exporty a resety.</CardDescription>
+                  <CardDescription>Exporty, importy a resety databáze.</CardDescription>
                 </CardHeader>
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Button variant="outline" onClick={handleExportHistory}><Download className="mr-2 h-4 w-4" /> Export historie</Button>
+                <Button variant="outline" onClick={handleExportHistory}><Download className="mr-2 h-4 w-4" /> Export historie (Excel)</Button>
                 <AlertDialog>
                   <AlertDialogTrigger asChild><Button variant="destructive"><Trash className="mr-2 h-4 w-4" /> Reset historie</Button></AlertDialogTrigger>
                   <AlertDialogContent>
-                    <AlertDialogHeader><AlertDialogTitle>Smazat vše?</AlertDialogTitle></AlertDialogHeader>
+                    <AlertDialogHeader><AlertDialogTitle>Smazat celou historii?</AlertDialogTitle><AlertDialogDescription>Tato akce je nevratná a smaže všechny záznamy o prodejích.</AlertDialogDescription></AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Zrušit</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleClearHistory}>Smazat</AlertDialogAction>
+                      <AlertDialogAction onClick={handleClearHistory}>Smazat vše</AlertDialogAction>
                     </AlertDialogFooter>
                   </AlertDialogContent>
                 </AlertDialog>
                 <AlertDialog>
-                  <AlertDialogTrigger asChild><Button variant="outline"><RefreshCcw className="mr-2 h-4 w-4" /> Výchozí produkty</Button></AlertDialogTrigger>
+                  <AlertDialogTrigger asChild><Button variant="outline"><RefreshCcw className="mr-2 h-4 w-4" /> Výchozí stav</Button></AlertDialogTrigger>
                   <AlertDialogContent>
-                    <AlertDialogHeader><AlertDialogTitle>Obnovit výchozí?</AlertDialogTitle></AlertDialogHeader>
+                    <AlertDialogHeader><AlertDialogTitle>Obnovit výchozí produkty?</AlertDialogTitle><AlertDialogDescription>Smaže vaše stávající produkty a nahradí je ukázkovými daty.</AlertDialogDescription></AlertDialogHeader>
                     <AlertDialogFooter>
                       <AlertDialogCancel>Zrušit</AlertDialogCancel>
                       <AlertDialogAction onClick={handleRestoreDefaultProducts}>Obnovit</AlertDialogAction>
@@ -586,8 +621,9 @@ export default function SettingsPage() {
             </Card>
           </AccordionItem>
         </Accordion>
+        
         <DialogContent className="max-h-[90vh] sm:max-w-lg">
-          <DialogHeader><DialogTitle>{editingProduct ? 'Upravit produkt' : 'Nový produkt'}</DialogTitle></DialogHeader>
+          <DialogHeader><DialogTitle>{editingProduct ? 'Upravit produkt' : 'Přidat nový produkt'}</DialogTitle></DialogHeader>
           <ScrollArea className="max-h-[calc(90vh-8rem)] -mx-6 px-6">
             <ProductForm 
               onSubmit={editingProduct ? handleEditProduct : handleAddProduct} 
