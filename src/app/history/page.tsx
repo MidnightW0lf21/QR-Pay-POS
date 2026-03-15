@@ -51,6 +51,7 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
 import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
 import { useToast } from "@/hooks/use-toast";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -63,6 +64,7 @@ import {
   Boxes,
   Receipt,
   TrendingUp,
+  Search,
 } from "lucide-react";
 import type { Transaction, PaymentMethod, Product } from "@/lib/types";
 import { TRANSACTIONS_STORAGE_KEY, PRODUCTS_STORAGE_KEY } from "@/lib/constants";
@@ -82,6 +84,7 @@ export default function HistoryPage() {
   );
   const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined);
   const [productFilter, setProductFilter] = useState<"all" | string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
   const [selectedTransactions, setSelectedTransactions] = useState<Set<string>>(
     new Set()
   );
@@ -114,8 +117,16 @@ export default function HistoryPage() {
         tx.items.some((item) => item.productId === productFilter)
       );
     }
+    if (searchQuery.trim() !== "") {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter((tx) => 
+        tx.id.toLowerCase().includes(query) ||
+        tx.items.some(item => item.name.toLowerCase().includes(query)) ||
+        (tx.note && tx.note.toLowerCase().includes(query))
+      );
+    }
     return filtered;
-  }, [transactions, paymentFilter, dateFilter, productFilter]);
+  }, [transactions, paymentFilter, dateFilter, productFilter, searchQuery]);
 
   const stats = useMemo(() => {
     return filteredTransactions.reduce(
@@ -123,7 +134,6 @@ export default function HistoryPage() {
         acc.totalRevenue += tx.total;
 
         let itemsToSum = tx.items;
-        // If a product filter is active, only sum quantities of that specific product
         if (productFilter !== "all") {
           itemsToSum = tx.items.filter(
             (item) => item.productId === productFilter
@@ -150,7 +160,7 @@ export default function HistoryPage() {
 
   const handleDeleteLastTransaction = () => {
     const newTransactions = [...transactions];
-    newTransactions.shift(); // Remove the first (most recent) transaction
+    newTransactions.shift(); 
     setTransactions(newTransactions);
     localStorage.setItem(
       TRANSACTIONS_STORAGE_KEY,
@@ -226,6 +236,7 @@ export default function HistoryPage() {
     setPaymentFilter("all");
     setDateFilter(undefined);
     setProductFilter("all");
+    setSearchQuery("");
   };
 
   return (
@@ -298,39 +309,53 @@ export default function HistoryPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4 mb-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 items-center">
-              <div>
-                <Label>Platba</Label>
-                <RadioGroup
-                  value={paymentFilter}
-                  onValueChange={(v) =>
-                    setPaymentFilter(v as "all" | PaymentMethod)
-                  }
-                  className="flex items-center space-x-2 mt-1"
-                >
-                  <div className="flex items-center space-x-1">
-                    <RadioGroupItem value="all" id="r-all" />
-                    <Label htmlFor="r-all">Vše</Label>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <RadioGroupItem value="cash" id="r-cash" />
-                    <Label htmlFor="r-cash">Hotově</Label>
-                  </div>
-                  <div className="flex items-center space-x-1">
-                    <RadioGroupItem value="qr" id="r-qr" />
-                    <Label htmlFor="r-qr">QR</Label>
-                  </div>
-                </RadioGroup>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="relative">
+                <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                <Input
+                  type="search"
+                  placeholder="Hledat v historii..."
+                  className="pl-8"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
               </div>
+              <div className="flex items-center gap-4">
+                <div className="flex-1">
+                   <Label className="sr-only">Platba</Label>
+                   <RadioGroup
+                    value={paymentFilter}
+                    onValueChange={(v) =>
+                      setPaymentFilter(v as "all" | PaymentMethod)
+                    }
+                    className="flex items-center space-x-2"
+                  >
+                    <div className="flex items-center space-x-1">
+                      <RadioGroupItem value="all" id="r-all" />
+                      <Label htmlFor="r-all">Vše</Label>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <RadioGroupItem value="cash" id="r-cash" />
+                      <Label htmlFor="r-cash">Hotově</Label>
+                    </div>
+                    <div className="flex items-center space-x-1">
+                      <RadioGroupItem value="qr" id="r-qr" />
+                      <Label htmlFor="r-qr">QR</Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+              </div>
+            </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-center">
               <div>
-                <Label>Datum</Label>
+                <Label className="sr-only">Datum</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
                       variant={"outline"}
                       className={cn(
-                        "w-full justify-start text-left font-normal mt-1",
+                        "w-full justify-start text-left font-normal",
                         !dateFilter && "text-muted-foreground"
                       )}
                     >
@@ -355,9 +380,9 @@ export default function HistoryPage() {
               </div>
               
               <div>
-                <Label htmlFor="product-filter">Produkt</Label>
+                <Label htmlFor="product-filter" className="sr-only">Produkt</Label>
                 <Select value={productFilter} onValueChange={setProductFilter}>
-                  <SelectTrigger id="product-filter" className="mt-1">
+                  <SelectTrigger id="product-filter">
                     <SelectValue placeholder="Vyberte produkt" />
                   </SelectTrigger>
                   <SelectContent>
@@ -371,7 +396,7 @@ export default function HistoryPage() {
                 </Select>
               </div>
               
-              <div className="self-end">
+              <div>
                 <Button onClick={clearFilters} variant="ghost" className="w-full">
                   <FilterX className="mr-2 h-4 w-4" />
                   Zrušit filtry

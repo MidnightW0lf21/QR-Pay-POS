@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -6,7 +7,6 @@ import QRCode from "qrcode";
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardContent,
   CardFooter,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -22,7 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Minus, ShoppingCart, Loader2, Landmark, Wallet, Package, Tag } from "lucide-react";
+import { Minus, ShoppingCart, Loader2, Landmark, Wallet, Package, Tag, Search } from "lucide-react";
 import type { Product, BankingDetails, Transaction, CartItem } from "@/lib/types";
 import { 
   DEFAULT_PRODUCTS, 
@@ -82,6 +82,7 @@ export default function Home() {
   const [cashReceived, setCashReceived] = useState<number | null>(null);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [searchQuery, setSearchQuery] = useState("");
 
   const isCashMode = paymentMode === 'cash';
 
@@ -117,7 +118,6 @@ export default function Home() {
     const currentQuantity = cart[productId] || 0;
 
     if (amount > 0 && currentQuantity >= product.stock) {
-      // Toast notification is handled in response to user click, not during render
       toast({
         variant: "destructive",
         title: "Nedostatek zboží",
@@ -162,7 +162,7 @@ export default function Home() {
     setIsQrDialogOpen(false);
     setIsCashDialogOpen(false);
     setCashReceived(null);
-    setCart({}); // Clear cart after transaction
+    setCart({}); 
   };
 
   const saveTransaction = () => {
@@ -241,9 +241,10 @@ export default function Home() {
     return products.filter(p => {
       if (p.enabled === false) return false;
       if (selectedCategory !== "all" && p.category !== selectedCategory) return false;
+      if (searchQuery.trim() !== "" && !p.name.toLowerCase().includes(searchQuery.toLowerCase())) return false;
       return true;
     });
-  }, [products, selectedCategory]);
+  }, [products, selectedCategory, searchQuery]);
 
   if (!isMounted) {
     return (
@@ -256,22 +257,33 @@ export default function Home() {
   return (
     <>
       <div className="container mx-auto max-w-7xl p-4 sm:p-6 md:p-8 pb-32">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-          <div className="flex items-center space-x-2">
-            <Landmark className="text-muted-foreground" />
-            <Switch
-              id="payment-mode"
-              checked={!isCashMode}
-              onCheckedChange={(checked) => setPaymentMode(checked ? 'qr' : 'cash')}
-              aria-label="Přepnout režim platby"
-            />
-            <Wallet className="text-muted-foreground" />
-            <Label htmlFor="payment-mode" className="text-lg">
-              {isCashMode ? "Hotovost" : "QR platba"}
-            </Label>
+        <div className="flex flex-col gap-4 mb-6">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-center space-x-2">
+              <Landmark className="text-muted-foreground" />
+              <Switch
+                id="payment-mode"
+                checked={!isCashMode}
+                onCheckedChange={(checked) => setPaymentMode(checked ? 'qr' : 'cash')}
+                aria-label="Přepnout režim platby"
+              />
+              <Wallet className="text-muted-foreground" />
+              <Label htmlFor="payment-mode" className="text-lg">
+                {isCashMode ? "Hotovost" : "QR platba"}
+              </Label>
+            </div>
+            <div className="relative w-full sm:w-64">
+              <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+              <Input
+                placeholder="Hledat produkt..."
+                className="pl-8 h-10"
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+            </div>
           </div>
 
-          <ScrollArea className="w-full sm:w-auto">
+          <ScrollArea className="w-full">
             <div className="flex space-x-2 pb-2">
               {categories.map((cat) => (
                 <Button
@@ -304,7 +316,7 @@ export default function Home() {
               <Card 
                 key={product.id} 
                 className={cn(
-                  "flex flex-col overflow-hidden transition-all duration-300 group",
+                  "flex flex-col overflow-hidden transition-all duration-300 group relative",
                   inCart > 0 && "ring-4 ring-primary ring-offset-2 ring-offset-background scale-[.98]",
                   isOutOfStock && inCart === 0 ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:shadow-lg"
                 )}
@@ -313,7 +325,7 @@ export default function Home() {
                 <div className="relative w-full aspect-square">
                   <ProductImage product={product} fill />
                    {inCart > 0 && (
-                    <div className="absolute top-2 right-2 flex items-center bg-background/80 backdrop-blur-sm rounded-full p-1 shadow-md">
+                    <div className="absolute top-2 right-2 flex items-center bg-background/80 backdrop-blur-sm rounded-full p-1 shadow-md z-10">
                       <Button 
                         variant="ghost" 
                         size="icon" 
@@ -329,12 +341,12 @@ export default function Home() {
                     </div>
                   )}
                   {isOutOfStock && inCart === 0 ? (
-                    <Badge variant="destructive" className="absolute bottom-2 left-2 text-md px-3 py-1">Vyprodáno</Badge>
+                    <Badge variant="destructive" className="absolute bottom-2 left-2 text-md px-3 py-1 z-10">Vyprodáno</Badge>
                   ) : (
                     <Badge 
                       variant={remainingStock <= 0 ? "destructive" : "secondary"} 
                       className={cn(
-                        "absolute bottom-2 left-2 flex items-center text-sm px-3 py-1",
+                        "absolute bottom-2 left-2 flex items-center text-sm px-3 py-1 z-10",
                         remainingStock <= 0 && "bg-destructive text-destructive-foreground"
                       )}
                     >
