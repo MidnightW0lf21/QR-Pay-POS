@@ -36,7 +36,11 @@ import {
   PiggyBank, 
   BarChart3, 
   Calendar as CalendarIcon,
-  FilterX
+  FilterX,
+  LayoutGrid,
+  Rows,
+  Eye,
+  EyeOff
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -46,6 +50,9 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { Label } from "@/components/ui/label";
 import type { Product, Transaction } from "@/lib/types";
 import { PRODUCTS_STORAGE_KEY, TRANSACTIONS_STORAGE_KEY } from "@/lib/constants";
 import { useIsMounted } from "@/hooks/use-is-mounted";
@@ -72,6 +79,11 @@ export default function InventoryPage() {
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [selectedYear, setSelectedYear] = useState<string>("all");
+
+  // Chart interactivity states
+  const [chartMode, setChartMode] = useState<"stacked" | "grouped">("stacked");
+  const [showCost, setShowCost] = useState(true);
+  const [showProfit, setShowProfit] = useState(true);
 
   useEffect(() => {
     if (isMounted) {
@@ -351,29 +363,104 @@ export default function InventoryPage() {
 
       <div className="grid grid-cols-1 gap-8 mb-8">
         <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-primary" /> Denní aktivita
-            </CardTitle>
-            <CardDescription>Zobrazuje pouze dny s aktivními prodeji v rámci filtru.</CardDescription>
+          <CardHeader className="pb-4">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div>
+                <CardTitle className="flex items-center gap-2">
+                  <BarChart3 className="h-5 w-5 text-primary" /> Denní aktivita
+                </CardTitle>
+                <CardDescription>Zobrazuje pouze dny s aktivními prodeji v rámci filtru.</CardDescription>
+              </div>
+              
+              <div className="flex flex-wrap items-center gap-4 bg-muted/30 p-2 rounded-lg border">
+                <Tabs value={chartMode} onValueChange={(v) => setChartMode(v as any)} className="w-auto">
+                  <TabsList className="h-8">
+                    <TabsTrigger value="stacked" className="text-xs py-1">
+                      <Rows className="h-3 w-3 mr-1.5" /> Skládaný
+                    </TabsTrigger>
+                    <TabsTrigger value="grouped" className="text-xs py-1">
+                      <LayoutGrid className="h-3 w-3 mr-1.5" /> Vedle sebe
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+                
+                <div className="flex items-center gap-4 px-2 border-l">
+                  <div className="flex items-center space-x-2">
+                    <Switch id="show-cost" checked={showCost} onCheckedChange={setShowCost} />
+                    <Label htmlFor="show-cost" className="text-xs cursor-pointer flex items-center gap-1.5">
+                      {showCost ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                      Nákup
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch id="show-profit" checked={showProfit} onCheckedChange={setShowProfit} />
+                    <Label htmlFor="show-profit" className="text-xs cursor-pointer flex items-center gap-1.5">
+                      {showProfit ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />}
+                      Zisk
+                    </Label>
+                  </div>
+                </div>
+              </div>
+            </div>
           </CardHeader>
-          <CardContent className="h-[350px]">
+          <CardContent className="h-[400px]">
             {dailyProfitData.length > 0 ? (
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={dailyProfitData}>
+                <BarChart data={dailyProfitData} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
                   <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#88888844" />
-                  <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
-                  <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${v} Kč`} />
-                  <Tooltip 
-                    contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}
+                  <XAxis 
+                    dataKey="name" 
+                    fontSize={12} 
+                    tickLine={false} 
+                    axisLine={false} 
+                    tick={{ fill: 'hsl(var(--muted-foreground))' }}
                   />
-                  <Legend />
-                  <Bar dataKey="cost" name="Nákup" stackId="a" fill="#94a3b8" />
-                  <Bar dataKey="profit" name="Zisk" stackId="a" fill="#10b981" radius={[4, 4, 0, 0]} />
+                  <YAxis 
+                    fontSize={12} 
+                    tickLine={false} 
+                    axisLine={false} 
+                    tickFormatter={(v) => `${v} Kč`} 
+                    tick={{ fill: 'hsl(var(--muted-foreground))' }}
+                  />
+                  <Tooltip 
+                    cursor={{ fill: 'hsl(var(--muted))', opacity: 0.1 }}
+                    contentStyle={{ 
+                      backgroundColor: 'hsl(var(--card))', 
+                      borderRadius: '8px', 
+                      border: '1px solid hsl(var(--border))',
+                      boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
+                    }}
+                    itemStyle={{ fontSize: '12px', fontWeight: 600 }}
+                  />
+                  <Legend 
+                    verticalAlign="top" 
+                    align="right" 
+                    height={36}
+                    iconType="circle"
+                    formatter={(value) => <span className="text-xs font-medium text-muted-foreground uppercase tracking-wider">{value === 'cost' ? 'Nákup' : 'Zisk'}</span>}
+                  />
+                  {showCost && (
+                    <Bar 
+                      dataKey="cost" 
+                      name="cost" 
+                      stackId={chartMode === 'stacked' ? 'a' : undefined} 
+                      fill="#94a3b8" 
+                      radius={chartMode === 'grouped' ? [4, 4, 0, 0] : [0, 0, 0, 0]} 
+                    />
+                  )}
+                  {showProfit && (
+                    <Bar 
+                      dataKey="profit" 
+                      name="profit" 
+                      stackId={chartMode === 'stacked' ? 'a' : undefined} 
+                      fill="#10b981" 
+                      radius={[4, 4, 0, 0]} 
+                    />
+                  )}
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <div className="flex h-full items-center justify-center text-muted-foreground">
+              <div className="flex h-full items-center justify-center text-muted-foreground bg-muted/10 rounded-xl border border-dashed">
                 Pro vybraný rozsah neexistují žádná data.
               </div>
             )}
