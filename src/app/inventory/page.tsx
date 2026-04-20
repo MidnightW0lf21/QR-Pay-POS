@@ -17,6 +17,13 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { 
   Loader2, 
@@ -29,8 +36,7 @@ import {
   PiggyBank, 
   BarChart3, 
   Calendar as CalendarIcon,
-  FilterX,
-  X
+  FilterX
 } from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -65,6 +71,7 @@ export default function InventoryPage() {
   // Date range filters
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  const [selectedYear, setSelectedYear] = useState<string>("all");
 
   useEffect(() => {
     if (isMounted) {
@@ -79,17 +86,33 @@ export default function InventoryPage() {
     }
   }, [isMounted]);
 
-  const filteredTransactions = useMemo(() => {
-    if (!dateFrom && !dateTo) return transactions;
-    
-    return transactions.filter(tx => {
-      const txDate = new Date(tx.date);
-      const start = dateFrom ? startOfDay(dateFrom) : new Date(0);
-      const end = dateTo ? endOfDay(dateTo) : new Date(8640000000000000);
-      
-      return isWithinInterval(txDate, { start, end });
+  const availableYears = useMemo(() => {
+    const years = new Set<string>();
+    transactions.forEach(tx => {
+      years.add(new Date(tx.date).getFullYear().toString());
     });
-  }, [transactions, dateFrom, dateTo]);
+    return Array.from(years).sort((a, b) => b.localeCompare(a));
+  }, [transactions]);
+
+  const filteredTransactions = useMemo(() => {
+    let result = transactions;
+
+    if (selectedYear !== "all") {
+      result = result.filter(tx => new Date(tx.date).getFullYear().toString() === selectedYear);
+    }
+
+    if (dateFrom || dateTo) {
+      result = result.filter(tx => {
+        const txDate = new Date(tx.date);
+        const start = dateFrom ? startOfDay(dateFrom) : new Date(0);
+        const end = dateTo ? endOfDay(dateTo) : new Date(8640000000000000);
+        
+        return isWithinInterval(txDate, { start, end });
+      });
+    }
+    
+    return result;
+  }, [transactions, dateFrom, dateTo, selectedYear]);
 
   const inventoryStats = useMemo(() => {
     return products.reduce((acc, p) => {
@@ -133,7 +156,6 @@ export default function InventoryPage() {
       });
     });
 
-    // Sort active dates chronologically
     const activeDates = Object.keys(revenueMap).sort();
 
     return activeDates.map(dateStr => {
@@ -143,7 +165,7 @@ export default function InventoryPage() {
         name: format(new Date(dateStr), 'd.M.', { locale: cs }),
         cost: cost,
         profit: Math.max(0, revenue - cost),
-        date: dateStr // keeping for sorting if needed
+        date: dateStr 
       };
     });
   }, [filteredTransactions, products]);
@@ -170,6 +192,7 @@ export default function InventoryPage() {
   const resetFilters = () => {
     setDateFrom(undefined);
     setDateTo(undefined);
+    setSelectedYear("all");
   };
 
   if (!isMounted) {
@@ -198,7 +221,7 @@ export default function InventoryPage() {
         <div className="flex flex-wrap items-center gap-3 bg-card p-4 rounded-xl border">
           <div className="flex items-center gap-2">
             <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-            <span className="text-sm font-medium">Rozsah:</span>
+            <span className="text-sm font-medium">Filtry:</span>
           </div>
           
           <div className="flex items-center gap-2">
@@ -253,7 +276,21 @@ export default function InventoryPage() {
             </Popover>
           </div>
 
-          {(dateFrom || dateTo) && (
+          <div className="w-[120px]">
+            <Select value={selectedYear} onValueChange={setSelectedYear}>
+              <SelectTrigger size="sm" className="h-9">
+                <SelectValue placeholder="Rok" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">Všechny roky</SelectItem>
+                {availableYears.map(year => (
+                  <SelectItem key={year} value={year}>{year}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+
+          {(dateFrom || dateTo || selectedYear !== "all") && (
             <Button variant="ghost" size="sm" onClick={resetFilters} className="text-muted-foreground hover:text-foreground">
               <FilterX className="h-4 w-4 mr-2" />
               Zrušit filtry
