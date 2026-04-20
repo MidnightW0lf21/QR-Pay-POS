@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -17,9 +18,28 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, TrendingUp, DollarSign, Package, Percent, ArrowLeft, Receipt, PiggyBank, BarChart3 } from "lucide-react";
+import { 
+  Loader2, 
+  TrendingUp, 
+  DollarSign, 
+  Package, 
+  Percent, 
+  ArrowLeft, 
+  Receipt, 
+  PiggyBank, 
+  BarChart3, 
+  Calendar as CalendarIcon,
+  FilterX,
+  X
+} from "lucide-react";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
+import { Calendar } from "@/components/ui/calendar";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import type { Product, Transaction } from "@/lib/types";
 import { PRODUCTS_STORAGE_KEY, TRANSACTIONS_STORAGE_KEY } from "@/lib/constants";
 import { useIsMounted } from "@/hooks/use-is-mounted";
@@ -33,13 +53,18 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import { format, subDays } from "date-fns";
+import { format, startOfDay, endOfDay, isWithinInterval } from "date-fns";
 import { cs } from "date-fns/locale";
+import { cn } from "@/lib/utils";
 
 export default function InventoryPage() {
   const isMounted = useIsMounted();
   const [products, setProducts] = useState<Product[]>([]);
   const [transactions, setTransactions] = useState<Transaction[]>([]);
+  
+  // Date range filters
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
 
   useEffect(() => {
     if (isMounted) {
@@ -53,6 +78,18 @@ export default function InventoryPage() {
       }
     }
   }, [isMounted]);
+
+  const filteredTransactions = useMemo(() => {
+    if (!dateFrom && !dateTo) return transactions;
+    
+    return transactions.filter(tx => {
+      const txDate = new Date(tx.date);
+      const start = dateFrom ? startOfDay(dateFrom) : new Date(0);
+      const end = dateTo ? endOfDay(dateTo) : new Date(8640000000000000);
+      
+      return isWithinInterval(txDate, { start, end });
+    });
+  }, [transactions, dateFrom, dateTo]);
 
   const inventoryStats = useMemo(() => {
     return products.reduce((acc, p) => {
@@ -68,7 +105,7 @@ export default function InventoryPage() {
   }, [products]);
 
   const realizedStats = useMemo(() => {
-    return transactions.reduce((acc, tx) => {
+    return filteredTransactions.reduce((acc, tx) => {
       acc.totalRevenue += tx.total;
       
       tx.items.forEach(item => {
@@ -79,18 +116,13 @@ export default function InventoryPage() {
       
       return acc;
     }, { totalRevenue: 0, totalProfit: 0 });
-  }, [transactions, products]);
+  }, [filteredTransactions, products]);
 
   const dailyProfitData = useMemo(() => {
-    const last30Days = Array.from({ length: 30 }, (_, i) => {
-      const d = subDays(new Date(), i);
-      return d.toISOString().split('T')[0];
-    }).reverse();
-
     const revenueMap: Record<string, number> = {};
     const costMap: Record<string, number> = {};
 
-    transactions.forEach(tx => {
+    filteredTransactions.forEach(tx => {
       const dateKey = tx.date.split('T')[0];
       revenueMap[dateKey] = (revenueMap[dateKey] || 0) + tx.total;
       
@@ -101,16 +133,20 @@ export default function InventoryPage() {
       });
     });
 
-    return last30Days.map(dateStr => {
+    // Sort active dates chronologically
+    const activeDates = Object.keys(revenueMap).sort();
+
+    return activeDates.map(dateStr => {
       const revenue = Math.round(revenueMap[dateStr] || 0);
       const cost = Math.round(costMap[dateStr] || 0);
       return {
         name: format(new Date(dateStr), 'd.M.', { locale: cs }),
         cost: cost,
-        profit: Math.max(0, revenue - cost)
+        profit: Math.max(0, revenue - cost),
+        date: dateStr // keeping for sorting if needed
       };
     });
-  }, [transactions, products]);
+  }, [filteredTransactions, products]);
 
   const productProfitability = useMemo(() => {
     return products.map(p => {
@@ -131,6 +167,11 @@ export default function InventoryPage() {
     }).sort((a, b) => b.profitPerUnit - a.profitPerUnit);
   }, [products]);
 
+  const resetFilters = () => {
+    setDateFrom(undefined);
+    setDateTo(undefined);
+  };
+
   if (!isMounted) {
     return (
       <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
@@ -141,15 +182,83 @@ export default function InventoryPage() {
 
   return (
     <div className="container mx-auto max-w-5xl p-4 sm:p-6 md:p-8">
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <Button variant="ghost" asChild className="mb-2 -ml-2">
-            <Link href="/settings">
-              <ArrowLeft className="mr-2 h-4 w-4" /> Zpět do nastavení
-            </Link>
-          </Button>
-          <h1 className="text-3xl font-bold">Inventura & Ziskovost</h1>
-          <p className="text-muted-foreground">Přehled o hodnotě skladu a reálných ziscích.</p>
+      <div className="mb-6 flex flex-col gap-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <Button variant="ghost" asChild className="mb-2 -ml-2">
+              <Link href="/settings">
+                <ArrowLeft className="mr-2 h-4 w-4" /> Zpět do nastavení
+              </Link>
+            </Button>
+            <h1 className="text-3xl font-bold text-foreground">Inventura & Ziskovost</h1>
+            <p className="text-muted-foreground">Přehled o hodnotě skladu a reálných ziscích.</p>
+          </div>
+        </div>
+
+        <div className="flex flex-wrap items-center gap-3 bg-card p-4 rounded-xl border">
+          <div className="flex items-center gap-2">
+            <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+            <span className="text-sm font-medium">Rozsah:</span>
+          </div>
+          
+          <div className="flex items-center gap-2">
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn(
+                    "w-[140px] justify-start text-left font-normal",
+                    !dateFrom && "text-muted-foreground"
+                  )}
+                >
+                  {dateFrom ? format(dateFrom, "d. M. yyyy") : "Od"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={dateFrom}
+                  onSelect={setDateFrom}
+                  initialFocus
+                  locale={cs}
+                />
+              </PopoverContent>
+            </Popover>
+
+            <span className="text-muted-foreground">–</span>
+
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className={cn(
+                    "w-[140px] justify-start text-left font-normal",
+                    !dateTo && "text-muted-foreground"
+                  )}
+                >
+                  {dateTo ? format(dateTo, "d. M. yyyy") : "Do"}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-auto p-0" align="start">
+                <Calendar
+                  mode="single"
+                  selected={dateTo}
+                  onSelect={setDateTo}
+                  initialFocus
+                  locale={cs}
+                />
+              </PopoverContent>
+            </Popover>
+          </div>
+
+          {(dateFrom || dateTo) && (
+            <Button variant="ghost" size="sm" onClick={resetFilters} className="text-muted-foreground hover:text-foreground">
+              <FilterX className="h-4 w-4 mr-2" />
+              Zrušit filtry
+            </Button>
+          )}
         </div>
       </div>
 
@@ -162,7 +271,7 @@ export default function InventoryPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold">{inventoryStats.totalInvestment.toFixed(0)} Kč</p>
-            <p className="text-xs text-muted-foreground mt-1">Kapitál uložený v produktech</p>
+            <p className="text-xs text-muted-foreground mt-1">Kapitál uložený v zásobách</p>
           </CardContent>
         </Card>
 
@@ -174,31 +283,31 @@ export default function InventoryPage() {
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-success">{inventoryStats.totalPotentialProfit.toFixed(0)} Kč</p>
-            <p className="text-xs text-muted-foreground mt-1">Zisk po doprodání zásob</p>
+            <p className="text-xs text-muted-foreground mt-1">Zisk po doprodání skladu</p>
           </CardContent>
         </Card>
 
         <Card className="bg-blue-500/5 border-blue-500/20">
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-2 uppercase tracking-wider">
-              <Receipt className="h-3.5 w-3.5" /> Celková tržba
+              <Receipt className="h-3.5 w-3.5" /> Tržba v období
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-blue-600 dark:text-blue-400">{realizedStats.totalRevenue.toFixed(0)} Kč</p>
-            <p className="text-xs text-muted-foreground mt-1">Reálně utrženo z historie</p>
+            <p className="text-xs text-muted-foreground mt-1">Reálně utrženo za vybraný čas</p>
           </CardContent>
         </Card>
 
         <Card className="bg-emerald-500/5 border-emerald-500/20">
           <CardHeader className="pb-2">
             <CardTitle className="text-xs font-medium text-muted-foreground flex items-center gap-2 uppercase tracking-wider">
-              <PiggyBank className="h-3.5 w-3.5" /> Reálný zisk
+              <PiggyBank className="h-3.5 w-3.5" /> Zisk v období
             </CardTitle>
           </CardHeader>
           <CardContent>
             <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">{realizedStats.totalProfit.toFixed(0)} Kč</p>
-            <p className="text-xs text-muted-foreground mt-1">Čistý výdělek po odečtení nákupu</p>
+            <p className="text-xs text-muted-foreground mt-1">Čistý výdělek po nákupu</p>
           </CardContent>
         </Card>
       </div>
@@ -207,30 +316,36 @@ export default function InventoryPage() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-primary" /> Denní ziskovost (30 dní)
+              <BarChart3 className="h-5 w-5 text-primary" /> Denní aktivita
             </CardTitle>
-            <CardDescription>Vizualizace nákladů (šedá) a zisku (zelená) v čase.</CardDescription>
+            <CardDescription>Zobrazuje pouze dny s aktivními prodeji v rámci filtru.</CardDescription>
           </CardHeader>
           <CardContent className="h-[350px]">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={dailyProfitData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#88888844" />
-                <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
-                <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${v} Kč`} />
-                <Tooltip 
-                  contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}
-                />
-                <Legend />
-                <Bar dataKey="cost" name="Nákup" stackId="a" fill="#94a3b8" />
-                <Bar dataKey="profit" name="Zisk" stackId="a" fill="#10b981" radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
+            {dailyProfitData.length > 0 ? (
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={dailyProfitData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#88888844" />
+                  <XAxis dataKey="name" fontSize={12} tickLine={false} axisLine={false} />
+                  <YAxis fontSize={12} tickLine={false} axisLine={false} tickFormatter={(v) => `${v} Kč`} />
+                  <Tooltip 
+                    contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}
+                  />
+                  <Legend />
+                  <Bar dataKey="cost" name="Nákup" stackId="a" fill="#94a3b8" />
+                  <Bar dataKey="profit" name="Zisk" stackId="a" fill="#10b981" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <div className="flex h-full items-center justify-center text-muted-foreground">
+                Pro vybraný rozsah neexistují žádná data.
+              </div>
+            )}
           </CardContent>
         </Card>
 
         <Card>
           <CardHeader>
-            <CardTitle>Tabulka ziskovosti</CardTitle>
+            <CardTitle>Tabulka produktové ziskovosti</CardTitle>
             <CardDescription>Podrobný rozpis nákladů a marží pro jednotlivé produkty.</CardDescription>
           </CardHeader>
           <CardContent>
