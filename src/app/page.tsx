@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -22,7 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Minus, ShoppingCart, Loader2, Landmark, Wallet, Package, Tag, AlertTriangle, StickyNote } from "lucide-react";
+import { Minus, ShoppingCart, Loader2, Landmark, Wallet, Package, Tag, AlertTriangle } from "lucide-react";
 import type { Product, BankingDetails, Transaction, CartItem } from "@/lib/types";
 import { 
   DEFAULT_PRODUCTS, 
@@ -83,7 +82,6 @@ export default function Home() {
   const [isQrDialogOpen, setIsQrDialogOpen] = useState(false);
   const [isCashDialogOpen, setIsCashDialogOpen] = useState(false);
   const [cashReceived, setCashReceived] = useState<number | null>(null);
-  const [transactionNote, setTransactionNote] = useState("");
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
@@ -158,7 +156,6 @@ export default function Home() {
   }, [cashReceived, total]);
 
   const handleOpenDialog = () => {
-    setTransactionNote("");
     if (isCashMode) {
       setIsCashDialogOpen(true);
     } else {
@@ -202,7 +199,6 @@ export default function Home() {
       total: total,
       items: transactionItems,
       paymentMethod: isCashMode ? 'cash' : 'qr',
-      note: transactionNote.trim() || undefined,
     };
 
     const storedTransactions = localStorage.getItem(TRANSACTIONS_STORAGE_KEY);
@@ -416,18 +412,6 @@ export default function Home() {
             <div className="text-center w-full">
               <p className="text-lg font-medium text-muted-foreground">Celková částka</p>
               <p className="text-4xl font-bold text-primary">{total.toFixed(0)} Kč</p>
-              
-              <div className="mt-6 space-y-2 text-left">
-                <Label htmlFor="qr-note" className="flex items-center gap-2">
-                  <StickyNote className="h-4 w-4" /> Poznámka k prodeji
-                </Label>
-                <Input 
-                  id="qr-note" 
-                  placeholder="Volitelné..." 
-                  value={transactionNote}
-                  onChange={(e) => setTransactionNote(e.target.value)}
-                />
-              </div>
             </div>
           </div>
           <DialogFooter>
@@ -462,18 +446,6 @@ export default function Home() {
                   value={cashReceived ?? ""}
                   onChange={(e) => setCashReceived(e.target.value === '' ? null : parseFloat(e.target.value))}
                   className="text-center text-lg h-12"
-                />
-              </div>
-              
-              <div className="space-y-2">
-                <Label htmlFor="cash-note" className="flex items-center gap-2">
-                  <StickyNote className="h-4 w-4" /> Poznámka k prodeji
-                </Label>
-                <Input 
-                  id="cash-note" 
-                  placeholder="Volitelné..." 
-                  value={transactionNote}
-                  onChange={(e) => setTransactionNote(e.target.value)}
                 />
               </div>
             </div>

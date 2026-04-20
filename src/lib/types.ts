@@ -32,5 +32,4 @@ export interface Transaction {
   total: number;
   items: CartItem[];
   paymentMethod: PaymentMethod;
-  note?: string;
 }

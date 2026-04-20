@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -327,7 +326,6 @@ export default function SettingsPage() {
       'Datum': new Date(tx.date).toLocaleString('cs-CZ'),
       'Celkem': tx.total,
       'Metoda': tx.paymentMethod === 'cash' ? 'Hotově' : 'QR',
-      'Poznámka': tx.note || "",
       'Produkt': item.name,
       'Množství': item.quantity,
       'Cena': item.price
