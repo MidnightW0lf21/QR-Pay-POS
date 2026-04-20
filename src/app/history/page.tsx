@@ -61,7 +61,9 @@ import {
   FilterX,
   Boxes,
   Receipt,
-  TrendingUp
+  TrendingUp,
+  MonitorSmartphone,
+  Tag
 } from "lucide-react";
 import type { Transaction, PaymentMethod, Product } from "@/lib/types";
 import { TRANSACTIONS_STORAGE_KEY, PRODUCTS_STORAGE_KEY } from "@/lib/constants";
@@ -76,14 +78,11 @@ export default function HistoryPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const { toast } = useToast();
 
-  const [paymentFilter, setPaymentFilter] = useState<"all" | PaymentMethod>(
-    "all"
-  );
+  const [paymentFilter, setPaymentFilter] = useState<"all" | PaymentMethod>("all");
   const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined);
   const [productFilter, setProductFilter] = useState<"all" | string>("all");
-  const [selectedTransactions, setSelectedTransactions] = useState<Set<string>>(
-    new Set()
-  );
+  const [posFilter, setPosFilter] = useState<"all" | string>("all");
+  const [selectedTransactions, setSelectedTransactions] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (isMounted) {
@@ -97,6 +96,14 @@ export default function HistoryPage() {
       }
     }
   }, [isMounted]);
+
+  const availablePosNames = useMemo(() => {
+    const names = new Set<string>();
+    transactions.forEach(tx => {
+      if (tx.posName) names.add(tx.posName);
+    });
+    return Array.from(names).sort();
+  }, [transactions]);
 
   const filteredTransactions = useMemo(() => {
     let filtered = transactions;
@@ -113,8 +120,11 @@ export default function HistoryPage() {
         tx.items.some((item) => item.productId === productFilter)
       );
     }
+    if (posFilter !== "all") {
+      filtered = filtered.filter((tx) => tx.posName === posFilter);
+    }
     return filtered;
-  }, [transactions, paymentFilter, dateFilter, productFilter]);
+  }, [transactions, paymentFilter, dateFilter, productFilter, posFilter]);
 
   const stats = useMemo(() => {
     return filteredTransactions.reduce(
@@ -197,14 +207,6 @@ export default function HistoryPage() {
     setSelectedTransactions(newSelection);
   };
 
-  if (!isMounted) {
-    return (
-      <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
-        <Loader2 className="h-16 w-16 animate-spin text-primary" />
-      </div>
-    );
-  }
-
   const getPaymentMethodInfo = (method: Transaction["paymentMethod"]) => {
     if (method === "cash") {
       return {
@@ -224,7 +226,16 @@ export default function HistoryPage() {
     setPaymentFilter("all");
     setDateFilter(undefined);
     setProductFilter("all");
+    setPosFilter("all");
   };
+
+  if (!isMounted) {
+    return (
+      <div className="flex h-[calc(100vh-4rem)] items-center justify-center">
+        <Loader2 className="h-16 w-16 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto max-w-4xl p-4 sm:p-6 md:p-8">
@@ -254,7 +265,7 @@ export default function HistoryPage() {
                       Tato akce je nevratná. Dojde k trvalému odstranění
                       vybraných transakcí.
                     </AlertDialogDescription>
-                  </AlertDialogHeader>
+                  </AccordionHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Zrušit</AlertDialogCancel>
                     <AlertDialogAction onClick={handleBatchDelete}>
@@ -296,9 +307,9 @@ export default function HistoryPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-4 mb-6">
-            <div className="flex items-center gap-4">
-              <div className="flex-1">
-                 <Label className="sr-only">Platba</Label>
+            <div className="flex flex-wrap items-center gap-4">
+              <div className="flex-1 min-w-[200px]">
+                 <Label className="text-xs font-bold uppercase text-muted-foreground mb-1 block">Platební metoda</Label>
                  <RadioGroup
                   value={paymentFilter}
                   onValueChange={(v) =>
@@ -320,17 +331,37 @@ export default function HistoryPage() {
                   </div>
                 </RadioGroup>
               </div>
+
+              {availablePosNames.length > 0 && (
+                <div className="flex-1 min-w-[200px]">
+                  <Label htmlFor="pos-filter" className="text-xs font-bold uppercase text-muted-foreground mb-1 block">Zdroj (Pokladna)</Label>
+                  <Select value={posFilter} onValueChange={setPosFilter}>
+                    <SelectTrigger id="pos-filter" className="h-9">
+                      <MonitorSmartphone className="mr-2 h-4 w-4 text-muted-foreground" />
+                      <SelectValue placeholder="Všechny pokladny" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Všechny pokladny</SelectItem>
+                      {availablePosNames.map((name) => (
+                        <SelectItem key={name} value={name}>
+                          {name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+              )}
             </div>
 
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-center">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 items-end">
               <div>
-                <Label className="sr-only">Datum</Label>
+                <Label className="text-xs font-bold uppercase text-muted-foreground mb-1 block">Datum transakce</Label>
                 <Popover>
                   <PopoverTrigger asChild>
                     <Button
                       variant={"outline"}
                       className={cn(
-                        "w-full justify-start text-left font-normal",
+                        "w-full h-9 justify-start text-left font-normal",
                         !dateFilter && "text-muted-foreground"
                       )}
                     >
@@ -355,9 +386,10 @@ export default function HistoryPage() {
               </div>
               
               <div>
-                <Label htmlFor="product-filter" className="sr-only">Produkt</Label>
+                <Label htmlFor="product-filter" className="text-xs font-bold uppercase text-muted-foreground mb-1 block">Obsahuje produkt</Label>
                 <Select value={productFilter} onValueChange={setProductFilter}>
-                  <SelectTrigger id="product-filter">
+                  <SelectTrigger id="product-filter" className="h-9">
+                    <Tag className="mr-2 h-4 w-4 text-muted-foreground" />
                     <SelectValue placeholder="Vyberte produkt" />
                   </SelectTrigger>
                   <SelectContent>
@@ -372,7 +404,7 @@ export default function HistoryPage() {
               </div>
               
               <div>
-                <Button onClick={clearFilters} variant="ghost" className="w-full">
+                <Button onClick={clearFilters} variant="ghost" className="w-full h-9 border border-dashed hover:bg-muted">
                   <FilterX className="mr-2 h-4 w-4" />
                   Zrušit filtry
                 </Button>
@@ -382,7 +414,7 @@ export default function HistoryPage() {
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <Card className="bg-primary/10 border-primary/20">
                 <CardContent className="p-4 text-center">
-                    <p className="text-sm text-primary/80 flex items-center justify-center gap-1.5">
+                    <p className="text-sm text-primary/80 flex items-center justify-center gap-1.5 font-medium uppercase tracking-wider">
                       <TrendingUp className="h-4 w-4"/>
                       Denní příjem
                     </p>
@@ -395,7 +427,7 @@ export default function HistoryPage() {
               <Card className="bg-muted/50">
                 <CardContent className="grid grid-cols-3 gap-4 p-4 text-center">
                   <div>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1">
                       Příjem (filtr)
                     </p>
                     <p className="text-xl font-bold">
@@ -403,16 +435,16 @@ export default function HistoryPage() {
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Transakcí</p>
+                    <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Transakcí</p>
                     <p className="text-xl font-bold flex items-center justify-center gap-1">
-                      <Receipt className="h-4 w-4" />{" "}
+                      <Receipt className="h-4 w-4 text-muted-foreground" />{" "}
                       {filteredTransactions.length}
                     </p>
                   </div>
                   <div>
-                    <p className="text-sm text-muted-foreground">Prodáno</p>
+                    <p className="text-[10px] font-bold uppercase text-muted-foreground mb-1">Prodáno</p>
                     <p className="text-xl font-bold flex items-center justify-center gap-1">
-                      <Boxes className="h-4 w-4" /> {stats.totalItemsSold}
+                      <Boxes className="h-4 w-4 text-muted-foreground" /> {stats.totalItemsSold}
                     </p>
                   </div>
                 </CardContent>
@@ -421,16 +453,16 @@ export default function HistoryPage() {
           </div>
 
           {transactions.length === 0 ? (
-            <p className="text-muted-foreground">
+            <p className="text-muted-foreground text-center py-8">
               Nebyly nalezeny žádné transakce.
             </p>
           ) : filteredTransactions.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8">
+            <p className="text-muted-foreground text-center py-8 bg-muted/20 rounded-lg border-2 border-dashed">
               Pro vybrané filtry nebyly nalezeny žádné transakce.
             </p>
           ) : (
             <Accordion type="single" collapsible className="w-full">
-              <div className="flex items-center px-4 py-2 border-b">
+              <div className="flex items-center px-4 py-3 border-b bg-muted/30">
                 <Checkbox
                   id="select-all"
                   checked={
@@ -442,9 +474,9 @@ export default function HistoryPage() {
                 />
                 <Label
                   htmlFor="select-all"
-                  className="ml-3 text-sm font-medium"
+                  className="ml-3 text-sm font-bold uppercase text-muted-foreground"
                 >
-                  Vybrat vše na této stránce
+                  Vybrat vše (zobrazeno {filteredTransactions.length})
                 </Label>
               </div>
               {filteredTransactions.map((transaction) => {
@@ -463,53 +495,71 @@ export default function HistoryPage() {
                           aria-label={`Vybrat transakci ${transaction.id}`}
                         />
                       </div>
-                      <AccordionTrigger className="flex-1">
+                      <AccordionTrigger className="flex-1 hover:no-underline">
                         <div className="flex justify-between items-end w-full pr-4">
                           <div className="flex flex-col items-start text-left">
-                            <span className="text-sm mb-1">
+                            <span className="text-sm font-medium text-muted-foreground">
                               {new Date(transaction.date).toLocaleString(
                                 "cs-CZ"
                               )}
                             </span>
-                            <Badge
-                              variant={paymentInfo.variant}
-                              className="mt-1"
-                            >
-                              {paymentInfo.icon}
-                              {paymentInfo.text}
-                            </Badge>
+                            <div className="flex flex-wrap items-center gap-2 mt-1.5">
+                                <Badge
+                                  variant={paymentInfo.variant}
+                                  className="h-6"
+                                >
+                                  {paymentInfo.icon}
+                                  {paymentInfo.text}
+                                </Badge>
+                                {transaction.posName && (
+                                  <Badge variant="outline" className="h-6 flex items-center gap-1.5 bg-background font-medium border-primary/20 text-primary">
+                                    <MonitorSmartphone className="h-3 w-3" />
+                                    {transaction.posName}
+                                  </Badge>
+                                )}
+                            </div>
                           </div>
-                          <span className="font-bold text-primary text-lg">
+                          <span className="font-bold text-primary text-xl">
                             {transaction.total.toFixed(0)} Kč
                           </span>
                         </div>
                       </AccordionTrigger>
                     </div>
-                    <AccordionContent className="pl-12 space-y-4">
-                      <Table>
-                        <TableHeader>
-                          <TableRow>
-                            <TableHead>Produkt</TableHead>
-                            <TableHead className="text-center">
-                              Množství
-                            </TableHead>
-                            <TableHead className="text-right">Cena</TableHead>
-                          </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                          {transaction.items.map((item) => (
-                            <TableRow key={item.productId}>
-                              <TableCell>{item.name}</TableCell>
-                              <TableCell className="text-center">
-                                {item.quantity}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                {(item.price * item.quantity).toFixed(0)} Kč
-                              </TableCell>
+                    <AccordionContent className="pl-12 space-y-4 pr-4 pb-6">
+                      <div className="rounded-md border overflow-hidden">
+                        <Table>
+                          <TableHeader className="bg-muted/50">
+                            <TableRow>
+                              <TableHead className="h-9 text-xs">Produkt</TableHead>
+                              <TableHead className="text-center h-9 text-xs">
+                                Množství
+                              </TableHead>
+                              <TableHead className="text-right h-9 text-xs">Cena</TableHead>
                             </TableRow>
-                          ))}
-                        </TableBody>
-                      </Table>
+                          </TableHeader>
+                          <TableBody>
+                            {transaction.items.map((item) => (
+                              <TableRow key={item.productId} className="hover:bg-transparent">
+                                <TableCell className="py-2.5 font-medium">{item.name}</TableCell>
+                                <TableCell className="text-center py-2.5">
+                                  {item.quantity} ks
+                                </TableCell>
+                                <TableCell className="text-right py-2.5 font-semibold">
+                                  {(item.price * item.quantity).toFixed(0)} Kč
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                            <TableRow className="bg-muted/20 border-t-2">
+                               <TableCell colSpan={2} className="py-3 font-bold">Celková hodnota</TableCell>
+                               <TableCell className="text-right py-3 font-bold text-primary text-lg">{transaction.total.toFixed(0)} Kč</TableCell>
+                            </TableRow>
+                          </TableBody>
+                        </Table>
+                      </div>
+                      <div className="text-[10px] text-muted-foreground flex justify-between items-center px-1 italic">
+                         <span>ID: {transaction.id}</span>
+                         {transaction.posName && <span>Zdroj: {transaction.posName}</span>}
+                      </div>
                     </AccordionContent>
                   </AccordionItem>
                 );

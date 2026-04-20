@@ -63,7 +63,9 @@ import {
   BANKING_DETAILS_STORAGE_KEY,
   DEFAULT_BANKING_DETAILS,
   TRANSACTIONS_STORAGE_KEY,
-  SETTINGS_ACCORDION_STATE_KEY
+  SETTINGS_ACCORDION_STATE_KEY,
+  POS_NAME_STORAGE_KEY,
+  DEFAULT_POS_NAME
 } from "@/lib/constants";
 import { useIsMounted } from "@/hooks/use-is-mounted";
 import { useAppContext } from "@/context/AppContext";
@@ -72,7 +74,7 @@ import {
   Plus, Edit, Trash2, Loader2, Sun, Moon, Laptop, Upload, Download, 
   Trash, RefreshCcw, Smartphone, X, LayoutGrid, Rows, BarChart3, 
   PieChart as PieChartIcon, Tag, Boxes, TrendingUp, Calendar as CalendarIcon, 
-  FilterX, Eye, EyeOff, FileJson, Files, AlertCircle 
+  FilterX, Eye, EyeOff, FileJson, Files, AlertCircle, MonitorSmartphone 
 } from "lucide-react";
 import { deleteImage, getAllImageKeys } from "@/lib/db";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -135,6 +137,7 @@ export default function SettingsPage() {
   const [categories, setCategories] = useState<string[]>([]);
   const [newCategoryName, setNewCategoryName] = useState("");
   const [message, setMessage] = useState("");
+  const [posName, setPosName] = useState(DEFAULT_POS_NAME);
   const [bankingDetails, setBankingDetails] = useState<BankingDetails>(DEFAULT_BANKING_DETAILS);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
@@ -177,8 +180,13 @@ export default function SettingsPage() {
 
       const storedMessage = localStorage.getItem(MESSAGE_STORAGE_KEY);
       setMessage(storedMessage ? JSON.parse(storedMessage) : DEFAULT_MESSAGE);
+      
+      const storedPosName = localStorage.getItem(POS_NAME_STORAGE_KEY);
+      setPosName(storedPosName ? JSON.parse(storedPosName) : DEFAULT_POS_NAME);
+
       const storedBankingDetails = localStorage.getItem(BANKING_DETAILS_STORAGE_KEY);
       setBankingDetails(storedBankingDetails ? JSON.parse(storedBankingDetails) : DEFAULT_BANKING_DETAILS);
+      
       const storedAccordionState = localStorage.getItem(SETTINGS_ACCORDION_STATE_KEY);
       if (storedAccordionState) setOpenAccordions(JSON.parse(storedAccordionState));
     }
@@ -237,6 +245,7 @@ export default function SettingsPage() {
     let revenueByDay = [];
 
     if (!isFiltered) {
+      // Last 30 days
       revenueByDay = Array.from({ length: 30 }, (_, i) => {
         const d = subDays(new Date(), i);
         const dateStr = d.toISOString().split('T')[0];
@@ -250,6 +259,7 @@ export default function SettingsPage() {
         };
       }).reverse();
     } else {
+      // Filtered mode: only days with activity
       const activeDates = Object.keys(revenueMap).sort();
       revenueByDay = activeDates.map(dateStr => {
         const revenue = Math.round(revenueMap[dateStr] || 0);
@@ -338,12 +348,18 @@ export default function SettingsPage() {
     toast({ title: "Úspěch", description: "Nastavení QR platby uloženo." });
   };
 
+  const handleSavePosName = () => {
+    localStorage.setItem(POS_NAME_STORAGE_KEY, JSON.stringify(posName));
+    toast({ title: "Úspěch", description: "Název pokladny uložen." });
+  };
+
   const handleExportHistory = () => {
     const storedTransactions = localStorage.getItem(TRANSACTIONS_STORAGE_KEY);
     const transactions: Transaction[] = storedTransactions ? JSON.parse(storedTransactions) : [];
     if (transactions.length === 0) return toast({ variant: "destructive", title: "Chyba", description: "Žádná historie k exportu." });
     const flattenedData = transactions.flatMap(tx => tx.items.map(item => ({
       'ID Transakce': tx.id,
+      'Pokladna': tx.posName || 'Neznámá',
       'Datum': new Date(tx.date).toLocaleString('cs-CZ'),
       'Celkem': tx.total,
       'Metoda': tx.paymentMethod === 'cash' ? 'Hotově' : 'QR',
@@ -363,7 +379,8 @@ export default function SettingsPage() {
       categories: JSON.parse(localStorage.getItem(CATEGORIES_STORAGE_KEY) || '[]'),
       transactions: JSON.parse(localStorage.getItem(TRANSACTIONS_STORAGE_KEY) || '[]'),
       banking: JSON.parse(localStorage.getItem(BANKING_DETAILS_STORAGE_KEY) || '{}'),
-      message: JSON.parse(localStorage.getItem(MESSAGE_STORAGE_KEY) || '""')
+      message: JSON.parse(localStorage.getItem(MESSAGE_STORAGE_KEY) || '""'),
+      posName: JSON.parse(localStorage.getItem(POS_NAME_STORAGE_KEY) || `"${DEFAULT_POS_NAME}"`)
     };
     const blob = new Blob([JSON.stringify(allData, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -388,12 +405,11 @@ export default function SettingsPage() {
         const text = await file.text();
         const data = JSON.parse(text);
         
-        // Handle both simple product array and full data object
         const importedProducts = Array.isArray(data) ? data : (data.products || []);
         const importedTransactions = Array.isArray(data) ? [] : (data.transactions || []);
         const importedCategories = Array.isArray(data) ? [] : (data.categories || []);
         
-        // Merge transactions (by ID deduplication)
+        // Merge transactions (preventing duplicates by ID)
         const txIds = new Set(mergedTransactions.map(tx => tx.id));
         importedTransactions.forEach((tx: Transaction) => {
           if (!txIds.has(tx.id)) {
@@ -405,7 +421,7 @@ export default function SettingsPage() {
         // Merge categories
         mergedCategories = Array.from(new Set([...mergedCategories, ...importedCategories]));
 
-        // Collect new products to check for conflicts
+        // Gather products for conflict checking
         newProducts = [...newProducts, ...importedProducts];
 
       } catch (err) {
@@ -413,7 +429,7 @@ export default function SettingsPage() {
       }
     }
 
-    // Filter duplicates within the import itself by name
+    // Filter out internal product duplicates from newProducts (if multiple files had same new products)
     const uniqueImportedProducts = newProducts.reduce((acc: Product[], current) => {
       const exists = acc.find(p => p.name.toLowerCase() === current.name.toLowerCase());
       if (!exists) acc.push(current);
@@ -449,13 +465,13 @@ export default function SettingsPage() {
       finalizeImport(nonConflictingProducts, mergedTransactions, mergedCategories);
     }
 
+    // Reset input
     event.target.value = '';
   };
 
   const finalizeImport = (newProds: Product[], newTxs: Transaction[], newCats: string[]) => {
     const finalProducts = [...products];
     
-    // Add non-conflicting new products
     newProds.forEach(p => {
       if (!finalProducts.find(fp => fp.id === p.id)) {
         finalProducts.push({ ...p, id: p.id || crypto.randomUUID() });
@@ -485,7 +501,6 @@ export default function SettingsPage() {
       } else if (c.resolution === 'rename') {
         resolvedProds.push({ ...c.imported, name: `${c.imported.name} (Imported)`, id: crypto.randomUUID() });
       }
-      // 'keep' resolution does nothing
     });
 
     handleSaveProducts(updatedExistingProducts);
@@ -549,6 +564,7 @@ export default function SettingsPage() {
           onValueChange={handleAccordionChange}
           className="w-full space-y-8"
         >
+          {/* Appearance & Installation */}
           <AccordionItem value="item-1" className="border-none">
             <Card>
               <AccordionTrigger className="p-6">
@@ -568,7 +584,7 @@ export default function SettingsPage() {
                       <CardDescription>Aplikace funguje 100% offline po instalaci.</CardDescription>
                     </CardHeader>
                     <CardContent>
-                      <Button onClick={handleInstallClick} className="w-full" disabled={!deferredPrompt}>
+                      <Button onClick={handleInstallClick} className="w-full h-12" disabled={!deferredPrompt}>
                         <Smartphone className="mr-2 h-4 w-4" /> Instalovat (PWA)
                       </Button>
                     </CardContent>
@@ -610,6 +626,7 @@ export default function SettingsPage() {
             </Card>
           </AccordionItem>
           
+          {/* Category Management */}
           <AccordionItem value="item-category" className="border-none">
             <Card>
               <AccordionTrigger className="p-6">
@@ -626,7 +643,7 @@ export default function SettingsPage() {
                     onChange={(e) => setNewCategoryName(e.target.value)} 
                     onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
                   />
-                  <Button onClick={handleAddCategory}><Plus className="h-4 w-4" /></Button>
+                  <Button onClick={handleAddCategory} className="h-10 px-3"><Plus className="h-4 w-4" /></Button>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {categories.map((cat) => (
@@ -642,6 +659,7 @@ export default function SettingsPage() {
             </Card>
           </AccordionItem>
 
+          {/* Product Management */}
           <AccordionItem value="item-2" className="border-none">
             <Card>
               <AccordionTrigger className="p-6">
@@ -653,7 +671,7 @@ export default function SettingsPage() {
               <AccordionContent className="px-6 pb-6">
                 <div className="flex flex-wrap gap-2 mb-6">
                   <DialogTrigger asChild>
-                    <Button onClick={() => { setEditingProduct(null); setIsSheetOpen(true); }}>
+                    <Button onClick={() => { setEditingProduct(null); setIsSheetOpen(true); }} className="h-10">
                       <Plus className="mr-2 h-4 w-4" /> Přidat produkt
                     </Button>
                   </DialogTrigger>
@@ -702,6 +720,7 @@ export default function SettingsPage() {
             </Card>
           </AccordionItem>
           
+          {/* Sales Analytics */}
           <AccordionItem value="item-5" className="border-none">
             <Card>
               <AccordionTrigger className="p-6">
@@ -877,6 +896,7 @@ export default function SettingsPage() {
             </Card>
           </AccordionItem>
           
+          {/* QR Payment Settings */}
           <AccordionItem value="item-3" className="border-none">
             <Card>
               <AccordionTrigger className="p-6">
@@ -898,20 +918,42 @@ export default function SettingsPage() {
                   <Label>Zpráva pro příjemce</Label>
                   <Textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={2} />
                 </div>
-                <Button onClick={handleSaveQrSettings} className="w-full">Uložit nastavení</Button>
+                <Button onClick={handleSaveQrSettings} className="w-full h-12">Uložit nastavení</Button>
               </AccordionContent>
             </Card>
           </AccordionItem>
           
+          {/* Data Maintenance & Sync */}
           <AccordionItem value="item-4" className="border-none">
             <Card>
               <AccordionTrigger className="p-6">
                 <CardHeader className="p-0 text-left">
-                  <CardTitle>Údržba dat</CardTitle>
-                  <CardDescription>Exporty, importy a resety databáze.</CardDescription>
+                  <CardTitle>Údržba dat & Synchronizace</CardTitle>
+                  <CardDescription>Identifikace pokladny a správa databáze.</CardDescription>
                 </CardHeader>
               </AccordionTrigger>
-              <AccordionContent className="px-6 pb-6 space-y-6">
+              <AccordionContent className="px-6 pb-6 space-y-8">
+                {/* POS Identification */}
+                <div className="space-y-4 p-4 bg-primary/5 rounded-xl border border-primary/20">
+                   <div className="flex items-center gap-2 text-primary">
+                      <MonitorSmartphone className="h-5 w-5" />
+                      <h4 className="font-bold">Identifikace tohoto zařízení</h4>
+                   </div>
+                   <div className="flex gap-2">
+                      <div className="flex-1 space-y-1.5">
+                        <Label htmlFor="pos-name">Název pokladny</Label>
+                        <Input 
+                          id="pos-name"
+                          value={posName} 
+                          onChange={(e) => setPosName(e.target.value)}
+                          placeholder="např. Pokladna 1"
+                        />
+                      </div>
+                      <Button onClick={handleSavePosName} className="mt-7 h-10">Uložit název</Button>
+                   </div>
+                   <p className="text-[11px] text-muted-foreground">Tento název bude připojen ke každé transakci. Užitečné při Master Importu do hlavního počítače.</p>
+                </div>
+
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                   <Button variant="outline" onClick={handleExportHistory} className="h-12">
                     <Download className="mr-2 h-4 w-4" /> Export historie (Excel)
@@ -985,6 +1027,7 @@ export default function SettingsPage() {
           </AccordionItem>
         </Accordion>
         
+        {/* Product Editor Modal */}
         <DialogContent className="max-h-[90vh] sm:max-w-lg">
           <DialogHeader><DialogTitle>{editingProduct ? 'Upravit produkt' : 'Přidat nový produkt'}</DialogTitle></DialogHeader>
           <ScrollArea className="max-h-[calc(90vh-8rem)] -mx-6 px-6">
@@ -1064,7 +1107,7 @@ export default function SettingsPage() {
 
           <DialogFooter className="pt-4 border-t">
             <Button variant="ghost" onClick={() => setIsConflictDialogOpen(false)}>Zrušit import</Button>
-            <Button onClick={handleResolveConflicts}>Dokončit import a sloučit data</Button>
+            <Button onClick={handleResolveConflicts} className="h-10">Dokončit import a sloučit data</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>

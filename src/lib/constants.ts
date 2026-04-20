@@ -6,6 +6,7 @@ export const MESSAGE_STORAGE_KEY = "qr-pay-message";
 export const BANKING_DETAILS_STORAGE_KEY = "qr-pay-banking-details";
 export const TRANSACTIONS_STORAGE_KEY = "qr-pay-transactions";
 export const SETTINGS_ACCORDION_STATE_KEY = "qr-pay-settings-accordion-state";
+export const POS_NAME_STORAGE_KEY = "qr-pay-pos-name";
 
 export const DEFAULT_CATEGORIES: string[] = ["Nápoje", "Jídlo", "Merch"];
 
@@ -22,3 +23,5 @@ export const DEFAULT_BANKING_DETAILS: BankingDetails = {
   accountNumber: "",
   recipientName: "",
 };
+
+export const DEFAULT_POS_NAME = "Hlavní pokladna";

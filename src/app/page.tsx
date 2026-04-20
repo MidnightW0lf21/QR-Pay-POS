@@ -33,6 +33,8 @@ import {
   BANKING_DETAILS_STORAGE_KEY,
   DEFAULT_BANKING_DETAILS,
   TRANSACTIONS_STORAGE_KEY,
+  POS_NAME_STORAGE_KEY,
+  DEFAULT_POS_NAME,
 } from "@/lib/constants";
 import { useIsMounted } from "@/hooks/use-is-mounted";
 import { useToast } from "@/hooks/use-toast";
@@ -58,15 +60,17 @@ const ProductImage = ({ product, fill }: { product: Product; fill?: boolean }) =
   }, [product.imageUrl]);
 
   return (
-    <Image 
-      src={imageUrl} 
-      alt={product.name} 
-      fill={fill}
-      width={fill ? undefined : 400}
-      height={fill ? undefined : 400}
-      className="object-cover transition-transform duration-300 group-hover:scale-105"
-      data-ai-hint="product image"
-    />
+    <div className={cn("relative overflow-hidden bg-muted", fill ? "h-full w-full" : "h-40 w-40 rounded-md")}>
+      <Image 
+        src={imageUrl} 
+        alt={product.name} 
+        fill={fill}
+        width={fill ? undefined : 400}
+        height={fill ? undefined : 400}
+        className="object-cover transition-transform duration-300 group-hover:scale-105"
+        data-ai-hint="product image"
+      />
+    </div>
   );
 };
 
@@ -193,12 +197,17 @@ export default function Home() {
     setProducts(newProducts);
     localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(newProducts));
 
+    // Get POS name from settings
+    const storedPosName = localStorage.getItem(POS_NAME_STORAGE_KEY);
+    const posName = storedPosName ? JSON.parse(storedPosName) : DEFAULT_POS_NAME;
+
     const newTransaction: Transaction = {
       id: crypto.randomUUID(),
       date: new Date().toISOString(),
       total: total,
       items: transactionItems,
       paymentMethod: isCashMode ? 'cash' : 'qr',
+      posName: posName,
     };
 
     const storedTransactions = localStorage.getItem(TRANSACTIONS_STORAGE_KEY);
@@ -265,14 +274,14 @@ export default function Home() {
         <div className="flex flex-col gap-4 mb-6">
           <div className="flex items-center justify-between">
             <div className="flex items-center space-x-2">
-              <Wallet className="text-muted-foreground" />
+              <Wallet className={cn(isCashMode ? "text-primary" : "text-muted-foreground")} />
               <Switch
                 id="payment-mode"
                 checked={!isCashMode}
                 onCheckedChange={(checked) => setPaymentMode(checked ? 'qr' : 'cash')}
                 aria-label="Přepnout režim platby"
               />
-              <Landmark className="text-muted-foreground" />
+              <Landmark className={cn(!isCashMode ? "text-primary" : "text-muted-foreground")} />
               <Label htmlFor="payment-mode" className="text-lg">
                 {isCashMode ? "Hotovost" : "QR platba"}
               </Label>
@@ -415,7 +424,7 @@ export default function Home() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="secondary" onClick={handleCloseDialog} className="w-full">
+            <Button variant="secondary" onClick={handleCloseDialog} className="w-full h-12">
               Zavřít a vymazat košík
             </Button>
           </DialogFooter>
@@ -462,7 +471,7 @@ export default function Home() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="secondary" onClick={handleCloseDialog} className="w-full">
+            <Button variant="secondary" onClick={handleCloseDialog} className="w-full h-12">
               Dokončit prodej
             </Button>
           </DialogFooter>
