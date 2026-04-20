@@ -30,6 +30,8 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -66,8 +68,13 @@ import {
 import { useIsMounted } from "@/hooks/use-is-mounted";
 import { useAppContext } from "@/context/AppContext";
 import ProductForm from "@/components/product-form";
-import { Plus, Edit, Trash2, Loader2, Sun, Moon, Laptop, Upload, Download, Trash, RefreshCcw, Smartphone, X, LayoutGrid, Rows, BarChart3, PieChart as PieChartIcon, Tag, Boxes, TrendingUp, Calendar as CalendarIcon, FilterX, Eye, EyeOff } from "lucide-react";
-import { deleteImage, getAllImageKeys, getImage } from "@/lib/db";
+import { 
+  Plus, Edit, Trash2, Loader2, Sun, Moon, Laptop, Upload, Download, 
+  Trash, RefreshCcw, Smartphone, X, LayoutGrid, Rows, BarChart3, 
+  PieChart as PieChartIcon, Tag, Boxes, TrendingUp, Calendar as CalendarIcon, 
+  FilterX, Eye, EyeOff, FileJson, Files, AlertCircle 
+} from "lucide-react";
+import { deleteImage, getAllImageKeys } from "@/lib/db";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   BarChart,
@@ -110,6 +117,13 @@ interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
 }
 
+interface ImportConflict {
+  name: string;
+  existing: Product;
+  imported: Product;
+  resolution: 'keep' | 'overwrite' | 'rename';
+}
+
 const COLORS = ['#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#6366f1', '#ec4899', '#f97316'];
 
 export default function SettingsPage() {
@@ -125,9 +139,16 @@ export default function SettingsPage() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const masterInputRef = useRef<HTMLInputElement>(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(true);
   const [openAccordions, setOpenAccordions] = useState<string[]>(['item-1', 'item-2', 'item-category']);
+
+  // Conflict state
+  const [conflicts, setConflicts] = useState<ImportConflict[]>([]);
+  const [isConflictDialogOpen, setIsConflictDialogOpen] = useState(false);
+  const [pendingProducts, setPendingProducts] = useState<Product[]>([]);
+  const [pendingTransactions, setPendingTransactions] = useState<Transaction[]>([]);
+  const [pendingCategories, setPendingCategories] = useState<string[]>([]);
 
   // Analytics Filters
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
@@ -336,39 +357,144 @@ export default function SettingsPage() {
     XLSX.writeFile(workbook, "historie-transakci.xlsx");
   };
 
+  const handleExportAllData = () => {
+    const allData = {
+      products: JSON.parse(localStorage.getItem(PRODUCTS_STORAGE_KEY) || '[]'),
+      categories: JSON.parse(localStorage.getItem(CATEGORIES_STORAGE_KEY) || '[]'),
+      transactions: JSON.parse(localStorage.getItem(TRANSACTIONS_STORAGE_KEY) || '[]'),
+      banking: JSON.parse(localStorage.getItem(BANKING_DETAILS_STORAGE_KEY) || '{}'),
+      message: JSON.parse(localStorage.getItem(MESSAGE_STORAGE_KEY) || '""')
+    };
+    const blob = new Blob([JSON.stringify(allData, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `quickpay-backup-${new Date().toISOString().split('T')[0]}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({ title: "Úspěch", description: "Záloha všech dat byla stažena." });
+  };
+
+  const handleMasterImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = event.target.files;
+    if (!files || files.length === 0) return;
+
+    let mergedTransactions: Transaction[] = [...JSON.parse(localStorage.getItem(TRANSACTIONS_STORAGE_KEY) || '[]')];
+    let mergedCategories: string[] = [...categories];
+    let newProducts: Product[] = [];
+    
+    for (const file of Array.from(files)) {
+      try {
+        const text = await file.text();
+        const data = JSON.parse(text);
+        
+        // Handle both simple product array and full data object
+        const importedProducts = Array.isArray(data) ? data : (data.products || []);
+        const importedTransactions = Array.isArray(data) ? [] : (data.transactions || []);
+        const importedCategories = Array.isArray(data) ? [] : (data.categories || []);
+        
+        // Merge transactions (by ID deduplication)
+        const txIds = new Set(mergedTransactions.map(tx => tx.id));
+        importedTransactions.forEach((tx: Transaction) => {
+          if (!txIds.has(tx.id)) {
+            mergedTransactions.push(tx);
+            txIds.add(tx.id);
+          }
+        });
+
+        // Merge categories
+        mergedCategories = Array.from(new Set([...mergedCategories, ...importedCategories]));
+
+        // Collect new products to check for conflicts
+        newProducts = [...newProducts, ...importedProducts];
+
+      } catch (err) {
+        toast({ variant: "destructive", title: `Chyba v souboru ${file.name}` });
+      }
+    }
+
+    // Filter duplicates within the import itself by name
+    const uniqueImportedProducts = newProducts.reduce((acc: Product[], current) => {
+      const exists = acc.find(p => p.name.toLowerCase() === current.name.toLowerCase());
+      if (!exists) acc.push(current);
+      return acc;
+    }, []);
+
+    // Check for conflicts with existing products
+    const newConflicts: ImportConflict[] = [];
+    const nonConflictingProducts: Product[] = [];
+
+    uniqueImportedProducts.forEach(imported => {
+      const existing = products.find(p => p.name.toLowerCase() === imported.name.toLowerCase());
+      if (existing) {
+        newConflicts.push({
+          name: existing.name,
+          existing,
+          imported,
+          resolution: 'overwrite'
+        });
+      } else {
+        nonConflictingProducts.push(imported);
+      }
+    });
+
+    setPendingProducts(nonConflictingProducts);
+    setPendingTransactions(mergedTransactions);
+    setPendingCategories(mergedCategories);
+
+    if (newConflicts.length > 0) {
+      setConflicts(newConflicts);
+      setIsConflictDialogOpen(true);
+    } else {
+      finalizeImport(nonConflictingProducts, mergedTransactions, mergedCategories);
+    }
+
+    event.target.value = '';
+  };
+
+  const finalizeImport = (newProds: Product[], newTxs: Transaction[], newCats: string[]) => {
+    const finalProducts = [...products];
+    
+    // Add non-conflicting new products
+    newProds.forEach(p => {
+      if (!finalProducts.find(fp => fp.id === p.id)) {
+        finalProducts.push({ ...p, id: p.id || crypto.randomUUID() });
+      }
+    });
+
+    handleSaveProducts(finalProducts);
+    handleSaveCategories(newCats);
+    localStorage.setItem(TRANSACTIONS_STORAGE_KEY, JSON.stringify(newTxs));
+    
+    toast({ 
+      title: "Import dokončen", 
+      description: `Importováno ${newProds.length} produktů a aktualizována historie (${newTxs.length} transakcí celkem).` 
+    });
+    
+    setIsConflictDialogOpen(false);
+  };
+
+  const handleResolveConflicts = () => {
+    const resolvedProds = [...pendingProducts];
+    const updatedExistingProducts = [...products];
+
+    conflicts.forEach(c => {
+      if (c.resolution === 'overwrite') {
+        const idx = updatedExistingProducts.findIndex(p => p.id === c.existing.id);
+        if (idx !== -1) updatedExistingProducts[idx] = { ...c.imported, id: c.existing.id };
+      } else if (c.resolution === 'rename') {
+        resolvedProds.push({ ...c.imported, name: `${c.imported.name} (Imported)`, id: crypto.randomUUID() });
+      }
+      // 'keep' resolution does nothing
+    });
+
+    handleSaveProducts(updatedExistingProducts);
+    finalizeImport(resolvedProds, pendingTransactions, pendingCategories);
+  };
+
   const handleClearHistory = () => {
     localStorage.removeItem(TRANSACTIONS_STORAGE_KEY);
     toast({ title: "Úspěch", description: "Historie vymazána." });
-  };
-  
-  const handleFileImport = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = async (e) => {
-      try {
-        const text = e.target?.result as string;
-        const importedData = JSON.parse(text);
-        if (Array.isArray(importedData)) {
-          const newProducts = importedData.map(p => ({
-            id: p.id || crypto.randomUUID(),
-            name: p.name,
-            price: p.price,
-            costPrice: p.costPrice || 0,
-            category: p.category || "",
-            imageUrl: p.imageUrl || "",
-            enabled: p.enabled !== false,
-            stock: p.stock ?? 0,
-          }));
-          handleSaveProducts(newProducts);
-          toast({ title: "Úspěch", description: `Importováno ${newProducts.length} produktů.` });
-        }
-      } catch (err) {
-        toast({ variant: "destructive", title: "Chyba importu" });
-      }
-    };
-    reader.readAsText(file);
-    event.target.value = '';
   };
   
   const handleRestoreDefaultProducts = async () => {
@@ -531,10 +657,6 @@ export default function SettingsPage() {
                       <Plus className="mr-2 h-4 w-4" /> Přidat produkt
                     </Button>
                   </DialogTrigger>
-                  <Button variant="outline" onClick={() => fileInputRef.current?.click()}>
-                    <Upload className="mr-2 h-4 w-4" /> Importovat (.json)
-                  </Button>
-                  <input type="file" ref={fileInputRef} onChange={handleFileImport} className="hidden" accept=".json" />
                 </div>
                 <div className="rounded-lg border overflow-hidden">
                   <Table>
@@ -789,28 +911,75 @@ export default function SettingsPage() {
                   <CardDescription>Exporty, importy a resety databáze.</CardDescription>
                 </CardHeader>
               </AccordionTrigger>
-              <AccordionContent className="px-6 pb-6 grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <Button variant="outline" onClick={handleExportHistory}><Download className="mr-2 h-4 w-4" /> Export historie (Excel)</Button>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild><Button variant="destructive"><Trash className="mr-2 h-4 w-4" /> Reset historie</Button></AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader><AlertDialogTitle>Smazat celou historii?</AlertDialogTitle><AlertDialogDescription>Tato akce je nevratná a smaže všechny záznamy o prodejích.</AlertDialogDescription></AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Zrušit</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleClearHistory}>Smazat vše</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
-                <AlertDialog>
-                  <AlertDialogTrigger asChild><Button variant="outline"><RefreshCcw className="mr-2 h-4 w-4" /> Výchozí stav</Button></AlertDialogTrigger>
-                  <AlertDialogContent>
-                    <AlertDialogHeader><AlertDialogTitle>Obnovit výchozí produkty?</AlertDialogTitle><AlertDialogDescription>Smaže vaše stávající produkty a nahradí je ukázkovými daty.</AlertDialogDescription></AlertDialogHeader>
-                    <AlertDialogFooter>
-                      <AlertDialogCancel>Zrušit</AlertDialogCancel>
-                      <AlertDialogAction onClick={handleRestoreDefaultProducts}>Obnovit</AlertDialogAction>
-                    </AlertDialogFooter>
-                  </AlertDialogContent>
-                </AlertDialog>
+              <AccordionContent className="px-6 pb-6 space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <Button variant="outline" onClick={handleExportHistory} className="h-12">
+                    <Download className="mr-2 h-4 w-4" /> Export historie (Excel)
+                  </Button>
+                  <Button variant="outline" onClick={handleExportAllData} className="h-12 border-primary/50 text-primary">
+                    <FileJson className="mr-2 h-4 w-4" /> Export všeho (Backup)
+                  </Button>
+                  
+                  <div className="sm:col-span-2 space-y-2">
+                    <Label className="text-xs font-bold uppercase text-muted-foreground">Konsolidace dat (Master Import)</Label>
+                    <div className="flex gap-2">
+                       <Button 
+                        variant="secondary" 
+                        onClick={() => masterInputRef.current?.click()} 
+                        className="flex-1 h-12"
+                      >
+                        <Files className="mr-2 h-4 w-4" /> Vybrat soubory k importu
+                      </Button>
+                      <input 
+                        type="file" 
+                        ref={masterInputRef} 
+                        onChange={handleMasterImport} 
+                        className="hidden" 
+                        accept=".json" 
+                        multiple 
+                      />
+                    </div>
+                    <p className="text-[10px] text-muted-foreground">Můžete vybrat více souborů najednou. Transakce budou sloučeny bez duplicit, u produktů dojde ke kontrole názvů.</p>
+                  </div>
+                </div>
+
+                <div className="pt-6 border-t grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="destructive" className="h-12">
+                        <Trash className="mr-2 h-4 w-4" /> Reset historie
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Smazat celou historii?</AlertDialogTitle>
+                        <AlertDialogDescription>Tato akce je nevratná a smaže všechny záznamy o prodejích.</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Zrušit</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleClearHistory}>Smazat vše</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                  
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button variant="outline" className="h-12 text-destructive border-destructive/20 hover:bg-destructive/5">
+                        <RefreshCcw className="mr-2 h-4 w-4" /> Výchozí stav
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Obnovit výchozí produkty?</AlertDialogTitle>
+                        <AlertDialogDescription>Smaže vaše stávající produkty a nahradí je ukázkovými daty.</AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Zrušit</AlertDialogCancel>
+                        <AlertDialogAction onClick={handleRestoreDefaultProducts}>Obnovit</AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
+                </div>
               </AccordionContent>
             </Card>
           </AccordionItem>
@@ -825,6 +994,78 @@ export default function SettingsPage() {
               categories={categories}
             />
           </ScrollArea>
+        </DialogContent>
+      </Dialog>
+
+      {/* Conflict Resolution Dialog */}
+      <Dialog open={isConflictDialogOpen} onOpenChange={setIsConflictDialogOpen}>
+        <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-orange-500" /> Nalezeny konflikty při importu
+            </DialogTitle>
+            <DialogDescription>
+              Následující produkty se již v systému nacházejí. Zvolte, jak chcete postupovat.
+            </DialogDescription>
+          </DialogHeader>
+          
+          <ScrollArea className="flex-1 -mx-6 px-6 py-4">
+            <div className="space-y-6">
+              {conflicts.map((conflict, idx) => (
+                <div key={idx} className="p-4 rounded-lg border bg-muted/30 space-y-4">
+                  <div className="flex justify-between items-start">
+                    <div>
+                      <h4 className="font-bold text-lg">{conflict.name}</h4>
+                      <p className="text-xs text-muted-foreground">Kategorie: {conflict.imported.category || 'Žádná'}</p>
+                    </div>
+                  </div>
+                  
+                  <div className="grid grid-cols-2 gap-4 text-xs">
+                    <div className="p-2 rounded bg-background border">
+                      <p className="font-semibold mb-1 text-primary">Stávající v systému:</p>
+                      <p>Cena: {conflict.existing.price} Kč</p>
+                      <p>Nákup: {conflict.existing.costPrice} Kč</p>
+                      <p>Sklad: {conflict.existing.stock} ks</p>
+                    </div>
+                    <div className="p-2 rounded bg-primary/5 border border-primary/20">
+                      <p className="font-semibold mb-1 text-success">Importovaná data:</p>
+                      <p>Cena: {conflict.imported.price} Kč</p>
+                      <p>Nákup: {conflict.imported.costPrice} Kč</p>
+                      <p>Sklad: {conflict.imported.stock} ks</p>
+                    </div>
+                  </div>
+
+                  <RadioGroup 
+                    value={conflict.resolution} 
+                    onValueChange={(val: any) => {
+                      const newConflicts = [...conflicts];
+                      newConflicts[idx].resolution = val;
+                      setConflicts(newConflicts);
+                    }}
+                    className="flex flex-wrap gap-4 pt-2"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="overwrite" id={`over-${idx}`} />
+                      <Label htmlFor={`over-${idx}`} className="text-xs cursor-pointer">Aktualizovat (Přepsat)</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="keep" id={`keep-${idx}`} />
+                      <Label htmlFor={`keep-${idx}`} className="text-xs cursor-pointer">Ponechat původní</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="rename" id={`rename-${idx}`} />
+                      <Label htmlFor={`rename-${idx}`} className="text-xs cursor-pointer">Importovat jako kopii</Label>
+                    </div>
+                  </RadioGroup>
+                </div>
+              ))}
+            </div>
+          </ScrollArea>
+
+          <DialogFooter className="pt-4 border-t">
+            <Button variant="ghost" onClick={() => setIsConflictDialogOpen(false)}>Zrušit import</Button>
+            <Button onClick={handleResolveConflicts}>Dokončit import a sloučit data</Button>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </div>
