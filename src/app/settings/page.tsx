@@ -66,7 +66,7 @@ import {
 import { useIsMounted } from "@/hooks/use-is-mounted";
 import { useAppContext } from "@/context/AppContext";
 import ProductForm from "@/components/product-form";
-import { Plus, Edit, Trash2, Loader2, Sun, Moon, Laptop, Upload, Download, Trash, RefreshCcw, Smartphone, X, LayoutGrid, Rows, BarChart3, PieChart as PieChartIcon, Tag, Boxes, TrendingUp } from "lucide-react";
+import { Plus, Edit, Trash2, Loader2, Sun, Moon, Laptop, Upload, Download, Trash, RefreshCcw, Smartphone, X, LayoutGrid, Rows, BarChart3, PieChart as PieChartIcon, Tag, Boxes, TrendingUp, Calendar as CalendarIcon, FilterX, Eye, EyeOff } from "lucide-react";
 import { deleteImage, getAllImageKeys, getImage } from "@/lib/db";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
@@ -82,8 +82,24 @@ import {
   Cell,
   Legend,
 } from "recharts";
-import { format, subDays, startOfDay } from "date-fns";
+import { format, subDays, startOfDay, endOfDay, isWithinInterval } from "date-fns";
 import { cs } from "date-fns/locale";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Switch } from "@/components/ui/switch";
+import { cn } from "@/lib/utils";
 
 interface BeforeInstallPromptEvent extends Event {
   readonly platforms: string[];
@@ -113,6 +129,14 @@ export default function SettingsPage() {
   const [showInstallPrompt, setShowInstallPrompt] = useState(true);
   const [openAccordions, setOpenAccordions] = useState<string[]>(['item-1', 'item-2', 'item-category']);
 
+  // Analytics Filters
+  const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
+  const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
+  const [selectedYear, setSelectedYear] = useState<string>("all");
+  const [chartMode, setChartMode] = useState<"stacked" | "grouped">("stacked");
+  const [showCost, setShowCost] = useState(true);
+  const [showProfit, setShowProfit] = useState(true);
+
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
       e.preventDefault();
@@ -139,45 +163,88 @@ export default function SettingsPage() {
     }
   }, [isMounted]);
 
+  const availableYears = useMemo(() => {
+    if (!isMounted) return [];
+    const storedTransactions = localStorage.getItem(TRANSACTIONS_STORAGE_KEY);
+    const transactions: Transaction[] = storedTransactions ? JSON.parse(storedTransactions) : [];
+    const years = new Set<string>();
+    transactions.forEach(tx => {
+      years.add(new Date(tx.date).getFullYear().toString());
+    });
+    return Array.from(years).sort((a, b) => b.localeCompare(a));
+  }, [isMounted]);
+
   const analyticsData = useMemo(() => {
     if (!isMounted) return { revenueByDay: [], topProducts: [] };
     
     const storedTransactions = localStorage.getItem(TRANSACTIONS_STORAGE_KEY);
     const transactions: Transaction[] = storedTransactions ? JSON.parse(storedTransactions) : [];
     
-    const last30Days = Array.from({ length: 30 }, (_, i) => {
-      const d = subDays(new Date(), i);
-      return d.toISOString().split('T')[0];
-    }).reverse();
+    let filtered = transactions;
+
+    // Apply Year Filter
+    if (selectedYear !== "all") {
+      filtered = filtered.filter(tx => new Date(tx.date).getFullYear().toString() === selectedYear);
+    }
+
+    // Apply Date Range Filter
+    if (dateFrom || dateTo) {
+      filtered = filtered.filter(tx => {
+        const txDate = new Date(tx.date);
+        const start = dateFrom ? startOfDay(dateFrom) : new Date(0);
+        const end = dateTo ? endOfDay(dateTo) : new Date(8640000000000000);
+        return isWithinInterval(txDate, { start, end });
+      });
+    }
+
+    const isFiltered = dateFrom || dateTo || selectedYear !== "all";
 
     const revenueMap: Record<string, number> = {};
     const costMap: Record<string, number> = {};
     const productSales: Record<string, number> = {};
 
-    transactions.forEach(tx => {
+    filtered.forEach(tx => {
       const dateKey = tx.date.split('T')[0];
       revenueMap[dateKey] = (revenueMap[dateKey] || 0) + tx.total;
       
       tx.items.forEach(item => {
         productSales[item.name] = (productSales[item.name] || 0) + item.quantity;
-        
-        // Try to find the cost price of the product to calculate profit
         const product = products.find(p => p.id === item.productId);
         const costPrice = product?.costPrice || 0;
         costMap[dateKey] = (costMap[dateKey] || 0) + (costPrice * item.quantity);
       });
     });
 
-    const revenueByDay = last30Days.map(dateStr => {
-      const revenue = Math.round(revenueMap[dateStr] || 0);
-      const cost = Math.round(costMap[dateStr] || 0);
-      return {
-        name: format(new Date(dateStr), 'd.M.', { locale: cs }),
-        revenue: revenue,
-        cost: cost,
-        profit: Math.max(0, revenue - cost)
-      };
-    });
+    let revenueByDay = [];
+
+    if (!isFiltered) {
+      // Default to last 30 days if no filter
+      revenueByDay = Array.from({ length: 30 }, (_, i) => {
+        const d = subDays(new Date(), i);
+        const dateStr = d.toISOString().split('T')[0];
+        const revenue = Math.round(revenueMap[dateStr] || 0);
+        const cost = Math.round(costMap[dateStr] || 0);
+        return {
+          name: format(d, 'd.M.', { locale: cs }),
+          revenue: revenue,
+          cost: cost,
+          profit: Math.max(0, revenue - cost)
+        };
+      }).reverse();
+    } else {
+      // Show only active days if filtered
+      const activeDates = Object.keys(revenueMap).sort();
+      revenueByDay = activeDates.map(dateStr => {
+        const revenue = Math.round(revenueMap[dateStr] || 0);
+        const cost = Math.round(costMap[dateStr] || 0);
+        return {
+          name: format(new Date(dateStr), 'd.M.', { locale: cs }),
+          revenue: revenue,
+          cost: cost,
+          profit: Math.max(0, revenue - cost)
+        };
+      });
+    }
 
     const topProducts = Object.entries(productSales)
       .map(([name, value]) => ({ name, value }))
@@ -185,7 +252,7 @@ export default function SettingsPage() {
       .slice(0, 8);
 
     return { revenueByDay, topProducts };
-  }, [isMounted, products]);
+  }, [isMounted, products, dateFrom, dateTo, selectedYear]);
 
   const handleAccordionChange = (value: string[]) => {
     setOpenAccordions(value);
@@ -314,6 +381,12 @@ export default function SettingsPage() {
     handleSaveProducts(DEFAULT_PRODUCTS);
     handleSaveCategories(DEFAULT_CATEGORIES);
     toast({ title: "Úspěch", description: "Výchozí stav obnoven." });
+  };
+
+  const resetFilters = () => {
+    setDateFrom(undefined);
+    setDateTo(undefined);
+    setSelectedYear("all");
   };
 
   if (!isMounted) {
@@ -516,106 +589,171 @@ export default function SettingsPage() {
               <AccordionTrigger className="p-6">
                 <CardHeader className="p-0 text-left">
                   <CardTitle>Analýza prodejů</CardTitle>
-                  <CardDescription>Vizualizace vašich lokálních dat za posledních 30 dní.</CardDescription>
+                  <CardDescription>Vizualizace vašich lokálních dat s pokročilými filtry.</CardDescription>
                 </CardHeader>
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-6">
-                <div className="flex flex-col gap-12">
-                  <div className="space-y-4">
-                    <h4 className="text-sm font-medium flex items-center gap-2"><BarChart3 className="h-4 w-4 text-primary" /> Denní tržby (30 dní)</h4>
-                    <div className="h-[350px] w-full bg-muted/20 p-4 rounded-xl">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={analyticsData.revenueByDay}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#88888844" />
-                          <XAxis 
-                            dataKey="name" 
-                            stroke="#888888" 
-                            fontSize={10} 
-                            tickLine={false} 
-                            axisLine={false} 
-                            interval={4} 
-                          />
-                          <YAxis 
-                            stroke="#888888" 
-                            fontSize={12} 
-                            tickLine={false} 
-                            axisLine={false} 
-                            tickFormatter={(v) => `${v} Kč`} 
-                          />
-                          <RechartsTooltip 
-                            contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }} 
-                            formatter={(v) => [`${v} Kč`, 'Tržba']} 
-                          />
-                          <Bar dataKey="revenue" fill="hsl(var(--primary))" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
+                <div className="flex flex-col gap-8">
+                  {/* Filters Bar */}
+                  <div className="flex flex-wrap items-center gap-3 bg-muted/30 p-4 rounded-xl border">
+                    <div className="flex items-center gap-2">
+                      <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Filtry</span>
+                    </div>
+                    
+                    <div className="flex items-center gap-2">
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" size="sm" className={cn("w-[120px] h-8 text-xs justify-start font-normal", !dateFrom && "text-muted-foreground")}>
+                            {dateFrom ? format(dateFrom, "d. M.") : "Od"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus locale={cs} />
+                        </PopoverContent>
+                      </Popover>
+                      <span className="text-muted-foreground">-</span>
+                      <Popover>
+                        <PopoverTrigger asChild>
+                          <Button variant="outline" size="sm" className={cn("w-[120px] h-8 text-xs justify-start font-normal", !dateTo && "text-muted-foreground")}>
+                            {dateTo ? format(dateTo, "d. M.") : "Do"}
+                          </Button>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-auto p-0" align="start">
+                          <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus locale={cs} />
+                        </PopoverContent>
+                      </Popover>
+                    </div>
+
+                    <div className="w-[100px]">
+                      <Select value={selectedYear} onValueChange={setSelectedYear}>
+                        <SelectTrigger className="h-8 text-xs">
+                          <SelectValue placeholder="Rok" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="all">Vše</SelectItem>
+                          {availableYears.map(year => (
+                            <SelectItem key={year} value={year}>{year}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+
+                    {(dateFrom || dateTo || selectedYear !== "all") && (
+                      <Button variant="ghost" size="sm" onClick={resetFilters} className="h-8 text-xs">
+                        <FilterX className="h-3 w-3 mr-1.5" /> Reset
+                      </Button>
+                    )}
+                  </div>
+
+                  {/* Chart Controls */}
+                  <div className="flex flex-wrap items-center justify-between gap-4 bg-muted/20 p-2 rounded-lg border border-dashed">
+                    <Tabs value={chartMode} onValueChange={(v) => setChartMode(v as any)} className="w-auto">
+                      <TabsList className="h-8">
+                        <TabsTrigger value="stacked" className="text-xs py-1 px-3">
+                          <Rows className="h-3 w-3 mr-1.5" /> Skládaný
+                        </TabsTrigger>
+                        <TabsTrigger value="grouped" className="text-xs py-1 px-3">
+                          <LayoutGrid className="h-3 w-3 mr-1.5" /> Vedle sebe
+                        </TabsTrigger>
+                      </TabsList>
+                    </Tabs>
+                    
+                    <div className="flex items-center gap-4 px-2">
+                      <div className="flex items-center space-x-2">
+                        <Switch id="s-show-cost" checked={showCost} onCheckedChange={setShowCost} className="scale-75" />
+                        <Label htmlFor="s-show-cost" className="text-xs cursor-pointer flex items-center gap-1.5">
+                          {showCost ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />} Nákup
+                        </Label>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Switch id="s-show-profit" checked={showProfit} onCheckedChange={setShowProfit} className="scale-75" />
+                        <Label htmlFor="s-show-profit" className="text-xs cursor-pointer flex items-center gap-1.5">
+                          {showProfit ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />} Zisk
+                        </Label>
+                      </div>
                     </div>
                   </div>
 
-                  <div className="space-y-4">
-                    <h4 className="text-sm font-medium flex items-center gap-2"><TrendingUp className="h-4 w-4 text-primary" /> Denní ziskovost (Nákup vs. Zisk)</h4>
-                    <div className="h-[350px] w-full bg-muted/20 p-4 rounded-xl">
-                      <ResponsiveContainer width="100%" height="100%">
-                        <BarChart data={analyticsData.revenueByDay}>
-                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#88888844" />
-                          <XAxis 
-                            dataKey="name" 
-                            stroke="#888888" 
-                            fontSize={10} 
-                            tickLine={false} 
-                            axisLine={false} 
-                            interval={4} 
-                          />
-                          <YAxis 
-                            stroke="#888888" 
-                            fontSize={12} 
-                            tickLine={false} 
-                            axisLine={false} 
-                            tickFormatter={(v) => `${v} Kč`} 
-                          />
-                          <RechartsTooltip 
-                            contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }} 
-                          />
-                          <Legend />
-                          <Bar dataKey="cost" name="Nákup" stackId="a" fill="#94a3b8" />
-                          <Bar dataKey="profit" name="Zisk" stackId="a" fill="#10b981" radius={[4, 4, 0, 0]} />
-                        </BarChart>
-                      </ResponsiveContainer>
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-4">
-                    <h4 className="text-sm font-medium flex items-center gap-2"><PieChartIcon className="h-4 w-4 text-primary" /> TOP 8 nejprodávanějších produktů</h4>
-                    <div className="flex flex-col md:flex-row items-center gap-8 bg-muted/20 p-6 rounded-xl">
-                      <div className="h-[250px] w-full md:w-1/2">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie 
-                              data={analyticsData.topProducts} 
-                              cx="50%" 
-                              cy="50%" 
-                              innerRadius={60} 
-                              outerRadius={90} 
-                              paddingAngle={5} 
-                              dataKey="value"
-                            >
-                              {analyticsData.topProducts.map((_, i) => (
-                                <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />
-                              ))}
-                            </Pie>
-                            <RechartsTooltip 
-                               contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}
-                            />
-                          </PieChart>
-                        </ResponsiveContainer>
-                      </div>
-                      <div className="w-full md:w-1/2 grid grid-cols-2 gap-x-4 gap-y-2">
-                        {analyticsData.topProducts.map((e, i) => (
-                          <div key={e.name} className="flex items-center gap-2 text-sm">
-                            <div className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                            <span className="truncate">{e.name}: <strong>{e.value} ks</strong></span>
+                  {/* Charts */}
+                  <div className="space-y-12">
+                    <div className="space-y-4">
+                      <h4 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground">
+                        <TrendingUp className="h-4 w-4 text-primary" /> Vývoj tržeb a zisku
+                      </h4>
+                      <div className="h-[400px] w-full bg-muted/10 p-4 rounded-xl border">
+                        {analyticsData.revenueByDay.length > 0 ? (
+                          <ResponsiveContainer width="100%" height="100%">
+                            <BarChart data={analyticsData.revenueByDay} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#88888822" />
+                              <XAxis dataKey="name" fontSize={10} tickLine={false} axisLine={false} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                              <YAxis fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => `${v} Kč`} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                              <RechartsTooltip 
+                                cursor={{ fill: 'hsl(var(--muted))', opacity: 0.1 }}
+                                contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}
+                              />
+                              <Legend verticalAlign="top" align="right" height={36} iconType="circle" />
+                              {showCost && (
+                                <Bar 
+                                  dataKey="cost" 
+                                  name="Nákup" 
+                                  stackId={chartMode === 'stacked' ? 'a' : undefined} 
+                                  fill="#94a3b8" 
+                                  radius={chartMode === 'grouped' ? [4, 4, 0, 0] : [0, 0, 0, 0]} 
+                                />
+                              )}
+                              {showProfit && (
+                                <Bar 
+                                  dataKey="profit" 
+                                  name="Zisk" 
+                                  stackId={chartMode === 'stacked' ? 'a' : undefined} 
+                                  fill="#10b981" 
+                                  radius={[4, 4, 0, 0]} 
+                                />
+                              )}
+                            </BarChart>
+                          </ResponsiveContainer>
+                        ) : (
+                          <div className="flex h-full items-center justify-center text-muted-foreground text-sm italic">
+                            Pro vybrané filtry neexistují žádná data.
                           </div>
-                        ))}
+                        )}
+                      </div>
+                    </div>
+                    
+                    <div className="space-y-4">
+                      <h4 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground">
+                        <PieChartIcon className="h-4 w-4 text-primary" /> TOP Produkty
+                      </h4>
+                      <div className="flex flex-col md:flex-row items-center gap-8 bg-muted/10 p-6 rounded-xl border">
+                        <div className="h-[250px] w-full md:w-1/2">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie 
+                                data={analyticsData.topProducts} 
+                                cx="50%" 
+                                cy="50%" 
+                                innerRadius={60} 
+                                outerRadius={90} 
+                                paddingAngle={5} 
+                                dataKey="value"
+                              >
+                                {analyticsData.topProducts.map((_, i) => (
+                                  <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />
+                                ))}
+                              </Pie>
+                              <RechartsTooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }} />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
+                        <div className="w-full md:w-1/2 grid grid-cols-2 gap-x-4 gap-y-2">
+                          {analyticsData.topProducts.map((e, i) => (
+                            <div key={e.name} className="flex items-center gap-2 text-xs">
+                              <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
+                              <span className="truncate">{e.name}: <strong>{e.value} ks</strong></span>
+                            </div>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </div>
