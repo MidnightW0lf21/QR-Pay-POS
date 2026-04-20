@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -21,7 +22,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Minus, ShoppingCart, Loader2, Landmark, Wallet, Package, Tag } from "lucide-react";
+import { Minus, ShoppingCart, Loader2, Landmark, Wallet, Package, Tag, AlertTriangle, StickyNote } from "lucide-react";
 import type { Product, BankingDetails, Transaction, CartItem } from "@/lib/types";
 import { 
   DEFAULT_PRODUCTS, 
@@ -82,6 +83,7 @@ export default function Home() {
   const [isQrDialogOpen, setIsQrDialogOpen] = useState(false);
   const [isCashDialogOpen, setIsCashDialogOpen] = useState(false);
   const [cashReceived, setCashReceived] = useState<number | null>(null);
+  const [transactionNote, setTransactionNote] = useState("");
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
@@ -108,20 +110,29 @@ export default function Home() {
     }
   }, [isMounted]);
 
+  const triggerHapticFeedback = () => {
+    if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
+      window.navigator.vibrate(50);
+    }
+  };
+
   const handleQuantityChange = (productId: string, amount: number) => {
     const product = products.find((p) => p.id === productId);
     if (!product) return;
 
     const currentQuantity = cart[productId] || 0;
 
-    if (amount > 0 && currentQuantity >= product.stock) {
-      toast({
-        variant: "destructive",
-        title: "Nedostatek zboží",
-        description: `Na skladě je pouze ${product.stock} kusů produktu ${product.name}.`,
-        duration: 2000,
-      });
-      return;
+    if (amount > 0) {
+      if (currentQuantity >= product.stock) {
+        toast({
+          variant: "destructive",
+          title: "Nedostatek zboží",
+          description: `Na skladě je pouze ${product.stock} kusů produktu ${product.name}.`,
+          duration: 2000,
+        });
+        return;
+      }
+      triggerHapticFeedback();
     }
     
     setCart((prevCart) => {
@@ -147,6 +158,7 @@ export default function Home() {
   }, [cashReceived, total]);
 
   const handleOpenDialog = () => {
+    setTransactionNote("");
     if (isCashMode) {
       setIsCashDialogOpen(true);
     } else {
@@ -190,6 +202,7 @@ export default function Home() {
       total: total,
       items: transactionItems,
       paymentMethod: isCashMode ? 'cash' : 'qr',
+      note: transactionNote.trim() || undefined,
     };
 
     const storedTransactions = localStorage.getItem(TRANSACTIONS_STORAGE_KEY);
@@ -304,6 +317,7 @@ export default function Home() {
         )}>
           {visibleProducts.map((product) => {
             const isOutOfStock = product.stock <= 0;
+            const isLowStock = product.stock > 0 && product.stock <= 3;
             const inCart = cart[product.id] || 0;
             const remainingStock = product.stock - inCart;
 
@@ -313,7 +327,8 @@ export default function Home() {
                 className={cn(
                   "flex flex-col overflow-hidden transition-all duration-300 group relative",
                   inCart > 0 && "ring-4 ring-primary ring-offset-2 ring-offset-background scale-[.98]",
-                  isOutOfStock && inCart === 0 ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:shadow-lg"
+                  isOutOfStock && inCart === 0 ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:shadow-lg",
+                  isLowStock && !inCart && "border-orange-500/50"
                 )}
                 onClick={() => !isOutOfStock && handleQuantityChange(product.id, 1)}
               >
@@ -335,6 +350,13 @@ export default function Home() {
                       <span className="text-xl font-bold w-8 text-center">{inCart}</span>
                     </div>
                   )}
+
+                  {isLowStock && !inCart && (
+                    <Badge variant="outline" className="absolute top-2 left-2 bg-orange-500/90 text-white border-none animate-pulse z-10">
+                      <AlertTriangle className="mr-1 h-3 w-3" /> Dochází
+                    </Badge>
+                  )}
+
                   {isOutOfStock && inCart === 0 ? (
                     <Badge variant="destructive" className="absolute bottom-2 left-2 text-md px-3 py-1 z-10">Vyprodáno</Badge>
                   ) : (
@@ -391,10 +413,21 @@ export default function Home() {
                 </div>
               )}
             </div>
-            <div className="text-center">
+            <div className="text-center w-full">
               <p className="text-lg font-medium text-muted-foreground">Celková částka</p>
               <p className="text-4xl font-bold text-primary">{total.toFixed(0)} Kč</p>
-              <p className="text-sm text-muted-foreground mt-2">{paymentMessage}</p>
+              
+              <div className="mt-6 space-y-2 text-left">
+                <Label htmlFor="qr-note" className="flex items-center gap-2">
+                  <StickyNote className="h-4 w-4" /> Poznámka k prodeji
+                </Label>
+                <Input 
+                  id="qr-note" 
+                  placeholder="Volitelné..." 
+                  value={transactionNote}
+                  onChange={(e) => setTransactionNote(e.target.value)}
+                />
+              </div>
             </div>
           </div>
           <DialogFooter>
@@ -418,17 +451,33 @@ export default function Home() {
               <p className="text-lg font-medium text-muted-foreground">Celková částka</p>
               <p className="text-4xl font-bold text-primary">{total.toFixed(0)} Kč</p>
             </div>
-            <div className="space-y-2">
-              <Label htmlFor="cash-received">Přijatá hotovost (Kč)</Label>
-              <Input
-                id="cash-received"
-                type="number"
-                placeholder="0"
-                value={cashReceived ?? ""}
-                onChange={(e) => setCashReceived(e.target.value === '' ? null : parseFloat(e.target.value))}
-                className="text-center text-lg h-12"
-              />
+            
+            <div className="grid grid-cols-1 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="cash-received">Přijatá hotovost (Kč)</Label>
+                <Input
+                  id="cash-received"
+                  type="number"
+                  placeholder="0"
+                  value={cashReceived ?? ""}
+                  onChange={(e) => setCashReceived(e.target.value === '' ? null : parseFloat(e.target.value))}
+                  className="text-center text-lg h-12"
+                />
+              </div>
+              
+              <div className="space-y-2">
+                <Label htmlFor="cash-note" className="flex items-center gap-2">
+                  <StickyNote className="h-4 w-4" /> Poznámka k prodeji
+                </Label>
+                <Input 
+                  id="cash-note" 
+                  placeholder="Volitelné..." 
+                  value={transactionNote}
+                  onChange={(e) => setTransactionNote(e.target.value)}
+                />
+              </div>
             </div>
+
             {change !== null && (
               <div className="text-center p-4 bg-muted rounded-lg">
                 <p className="text-lg font-medium text-muted-foreground">

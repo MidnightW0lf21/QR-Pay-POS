@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -182,12 +183,10 @@ export default function SettingsPage() {
     
     let filtered = transactions;
 
-    // Apply Year Filter
     if (selectedYear !== "all") {
       filtered = filtered.filter(tx => new Date(tx.date).getFullYear().toString() === selectedYear);
     }
 
-    // Apply Date Range Filter
     if (dateFrom || dateTo) {
       filtered = filtered.filter(tx => {
         const txDate = new Date(tx.date);
@@ -218,7 +217,6 @@ export default function SettingsPage() {
     let revenueByDay = [];
 
     if (!isFiltered) {
-      // Default to last 30 days if no filter
       revenueByDay = Array.from({ length: 30 }, (_, i) => {
         const d = subDays(new Date(), i);
         const dateStr = d.toISOString().split('T')[0];
@@ -232,7 +230,6 @@ export default function SettingsPage() {
         };
       }).reverse();
     } else {
-      // Show only active days if filtered
       const activeDates = Object.keys(revenueMap).sort();
       revenueByDay = activeDates.map(dateStr => {
         const revenue = Math.round(revenueMap[dateStr] || 0);
@@ -330,6 +327,7 @@ export default function SettingsPage() {
       'Datum': new Date(tx.date).toLocaleString('cs-CZ'),
       'Celkem': tx.total,
       'Metoda': tx.paymentMethod === 'cash' ? 'Hotově' : 'QR',
+      'Poznámka': tx.note || "",
       'Produkt': item.name,
       'Množství': item.quantity,
       'Cena': item.price
@@ -594,7 +592,6 @@ export default function SettingsPage() {
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-6">
                 <div className="flex flex-col gap-8">
-                  {/* Filters Bar */}
                   <div className="flex flex-wrap items-center gap-3 bg-muted/30 p-4 rounded-xl border">
                     <div className="flex items-center gap-2">
                       <CalendarIcon className="h-4 w-4 text-muted-foreground" />
@@ -646,7 +643,6 @@ export default function SettingsPage() {
                     )}
                   </div>
 
-                  {/* Chart Controls */}
                   <div className="flex flex-wrap items-center justify-between gap-4 bg-muted/20 p-2 rounded-lg border border-dashed">
                     <Tabs value={chartMode} onValueChange={(v) => setChartMode(v as any)} className="w-auto">
                       <TabsList className="h-8">
@@ -675,7 +671,6 @@ export default function SettingsPage() {
                     </div>
                   </div>
 
-                  {/* Charts */}
                   <div className="space-y-12">
                     <div className="space-y-4">
                       <h4 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground">

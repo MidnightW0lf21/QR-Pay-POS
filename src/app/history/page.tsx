@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -62,6 +63,7 @@ import {
   Boxes,
   Receipt,
   TrendingUp,
+  StickyNote
 } from "lucide-react";
 import type { Transaction, PaymentMethod, Product } from "@/lib/types";
 import { TRANSACTIONS_STORAGE_KEY, PRODUCTS_STORAGE_KEY } from "@/lib/constants";
@@ -485,7 +487,16 @@ export default function HistoryPage() {
                         </div>
                       </AccordionTrigger>
                     </div>
-                    <AccordionContent className="pl-12">
+                    <AccordionContent className="pl-12 space-y-4">
+                      {transaction.note && (
+                        <div className="bg-muted/30 p-3 rounded-lg flex items-start gap-2 border border-dashed border-primary/20">
+                          <StickyNote className="h-4 w-4 text-primary mt-0.5 shrink-0" />
+                          <div className="text-sm">
+                             <p className="font-semibold text-xs uppercase tracking-wider text-muted-foreground mb-1">Poznámka</p>
+                             <p className="text-foreground">{transaction.note}</p>
+                          </div>
+                        </div>
+                      )}
                       <Table>
                         <TableHeader>
                           <TableRow>
