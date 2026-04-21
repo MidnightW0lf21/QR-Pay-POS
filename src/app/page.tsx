@@ -361,7 +361,7 @@ export default function Home() {
                     <p className="font-bold text-base leading-tight truncate w-full drop-shadow-md">
                       {product.name}
                     </p>
-                    <p className="text-lg font-black text-primary-foreground/95 drop-shadow-md">
+                    <p className="text-xl font-black text-primary drop-shadow-lg">
                       {product.price.toFixed(0)} Kč
                     </p>
                   </div>
