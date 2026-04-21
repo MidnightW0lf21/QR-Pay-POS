@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -115,15 +116,16 @@ export default function Home() {
   const triggerHapticFeedback = () => {
     if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
       try {
-        window.navigator.vibrate(50);
+        // Zvýšení na 70ms pro lepší odezvu na Samsung zařízeních
+        // Použití pole [70] může být spolehlivější na některých mobilních prohlížečích
+        window.navigator.vibrate([70]);
       } catch (e) {
-        // Ignore vibration errors
+        // Vibrace jsou bonusová funkce, chybu ignorujeme
       }
     }
   };
 
   const handleQuantityChange = (productId: string, amount: number) => {
-    // Immediate feedback
     triggerHapticFeedback();
 
     const product = products.find((p) => p.id === productId);
