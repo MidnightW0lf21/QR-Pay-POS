@@ -386,7 +386,7 @@ export default function Home() {
                   {/* Stock Badges */}
                   {isLowStock && !inCart && (
                     <Badge variant="outline" className="absolute top-2 left-2 bg-orange-500 text-white border-none animate-pulse z-30 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider">
-                      <AlertTriangle className="mr-1 h-3 w-3" /> Dochází
+                      <AlertTriangle className="mr-1 h-3 w-3" /> Dochází ({product.stock} ks)
                     </Badge>
                   )}
 
