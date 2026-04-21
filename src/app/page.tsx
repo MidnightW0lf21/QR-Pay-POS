@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -6,7 +7,6 @@ import QRCode from "qrcode";
 import { Button } from "@/components/ui/button";
 import {
   Card,
-  CardFooter,
 } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -21,7 +21,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Minus, ShoppingCart, Loader2, Landmark, Wallet, Package, Tag, AlertTriangle } from "lucide-react";
+import { Minus, ShoppingCart, Loader2, Landmark, Wallet, Tag, AlertTriangle, Eye, EyeOff } from "lucide-react";
 import type { Product, BankingDetails, Transaction, CartItem } from "@/lib/types";
 import { 
   DEFAULT_PRODUCTS, 
@@ -88,6 +88,7 @@ export default function Home() {
   const [cashReceived, setCashReceived] = useState<number | null>(null);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
+  const [showOutOfStock, setShowOutOfStock] = useState(false);
 
   const isCashMode = paymentMode === 'cash';
 
@@ -197,7 +198,6 @@ export default function Home() {
     setProducts(newProducts);
     localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(newProducts));
 
-    // Get POS name from settings
     const storedPosName = localStorage.getItem(POS_NAME_STORAGE_KEY);
     const posName = storedPosName ? JSON.parse(storedPosName) : DEFAULT_POS_NAME;
 
@@ -256,9 +256,10 @@ export default function Home() {
     return products.filter(p => {
       if (p.enabled === false) return false;
       if (selectedCategory !== "all" && p.category !== selectedCategory) return false;
+      if (!showOutOfStock && p.stock <= 0) return false;
       return true;
     });
-  }, [products, selectedCategory]);
+  }, [products, selectedCategory, showOutOfStock]);
 
   if (!isMounted) {
     return (
@@ -285,6 +286,18 @@ export default function Home() {
               <Label htmlFor="payment-mode" className="text-lg">
                 {isCashMode ? "Hotovost" : "QR platba"}
               </Label>
+            </div>
+            
+            <div className="flex items-center gap-2">
+              <Button 
+                variant="ghost" 
+                size="icon" 
+                onClick={() => setShowOutOfStock(!showOutOfStock)}
+                className={cn(showOutOfStock ? "text-primary bg-primary/10" : "text-muted-foreground")}
+                title={showOutOfStock ? "Skrýt vyprodané" : "Zobrazit vyprodané"}
+              >
+                {showOutOfStock ? <Eye className="h-5 w-5" /> : <EyeOff className="h-5 w-5" />}
+              </Button>
             </div>
           </div>
 
@@ -330,56 +343,65 @@ export default function Home() {
               <Card 
                 key={product.id} 
                 className={cn(
-                  "flex flex-col overflow-hidden transition-all duration-300 group relative",
+                  "flex flex-col overflow-hidden transition-all duration-300 group relative border-none shadow-md",
                   inCart > 0 && "ring-4 ring-primary ring-offset-2 ring-offset-background scale-[.98]",
-                  isOutOfStock && inCart === 0 ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:shadow-lg",
-                  isLowStock && !inCart && "border-orange-500/50"
+                  isOutOfStock && inCart === 0 ? "opacity-60 grayscale cursor-not-allowed" : "cursor-pointer hover:shadow-xl",
+                  isLowStock && !inCart && "ring-1 ring-orange-500/50"
                 )}
                 onClick={() => !isOutOfStock && handleQuantityChange(product.id, 1)}
               >
                 <div className="relative w-full aspect-square">
                   <ProductImage product={product} fill />
-                   {inCart > 0 && (
-                    <div className="absolute top-2 right-2 flex items-center bg-background/80 backdrop-blur-sm rounded-full p-1 shadow-md z-10">
+                  
+                  {/* Bottom Gradient Overlay */}
+                  <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/90 via-black/40 to-transparent z-10" />
+
+                  {/* Product Info inside the card */}
+                  <div className="absolute bottom-3 left-3 right-3 text-white z-20 flex flex-col items-start">
+                    <p className="font-bold text-base leading-tight truncate w-full drop-shadow-md">
+                      {product.name}
+                    </p>
+                    <p className="text-lg font-black text-primary-foreground/95 drop-shadow-md">
+                      {product.price.toFixed(0)} Kč
+                    </p>
+                  </div>
+
+                  {/* Quantity controls */}
+                  {inCart > 0 && (
+                    <div className="absolute top-2 right-2 flex items-center bg-background/90 backdrop-blur-sm rounded-full p-0.5 shadow-lg z-30">
                       <Button 
                         variant="ghost" 
                         size="icon" 
-                        className="h-8 w-8 rounded-full"
+                        className="h-7 w-7 rounded-full hover:bg-muted"
                         onClick={(e) => {
                           e.stopPropagation();
                           handleQuantityChange(product.id, -1);
                         }}
                       >
-                        <Minus className="h-5 w-5" />
+                        <Minus className="h-4 w-4" />
                       </Button>
-                      <span className="text-xl font-bold w-8 text-center">{inCart}</span>
+                      <span className="text-lg font-bold w-7 text-center">{inCart}</span>
                     </div>
                   )}
 
+                  {/* Stock Badges */}
                   {isLowStock && !inCart && (
-                    <Badge variant="outline" className="absolute top-2 left-2 bg-orange-500/90 text-white border-none animate-pulse z-10">
+                    <Badge variant="outline" className="absolute top-2 left-2 bg-orange-500 text-white border-none animate-pulse z-30 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider">
                       <AlertTriangle className="mr-1 h-3 w-3" /> Dochází
                     </Badge>
                   )}
 
-                  {isOutOfStock && inCart === 0 ? (
-                    <Badge variant="destructive" className="absolute bottom-2 left-2 text-md px-3 py-1 z-10">Vyprodáno</Badge>
-                  ) : (
-                    <Badge 
-                      variant={remainingStock <= 0 ? "destructive" : "secondary"} 
-                      className={cn(
-                        "absolute bottom-2 left-2 flex items-center text-sm px-3 py-1 z-10",
-                        remainingStock <= 0 && "bg-destructive text-destructive-foreground"
-                      )}
-                    >
-                      <Package className="mr-1.5 h-4 w-4" /> {product.stock} ks
-                    </Badge>
-                  )}
+                  <Badge 
+                    variant={remainingStock <= 0 ? "destructive" : "secondary"} 
+                    className={cn(
+                      "absolute top-2 left-2 flex items-center text-[11px] px-2 py-0.5 z-30 font-bold",
+                      remainingStock <= 0 ? "bg-destructive text-white" : "bg-black/60 text-white border-none backdrop-blur-sm",
+                      isLowStock && !inCart && "hidden" // Hide stock badge if low stock alert is visible
+                    )}
+                  >
+                    {remainingStock <= 0 ? "VYPRODÁNO" : `${product.stock} ks`}
+                  </Badge>
                 </div>
-                <CardFooter className="bg-background/80 p-3 flex-col items-start">
-                   <p className="font-semibold text-md truncate w-full">{product.name}</p>
-                   <p className="text-lg font-bold text-primary">{product.price.toFixed(0)} Kč</p>
-                </CardFooter>
               </Card>
             )
           })}
