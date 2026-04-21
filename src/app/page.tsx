@@ -114,13 +114,12 @@ export default function Home() {
   }, [isMounted]);
 
   const triggerHapticFeedback = () => {
-    if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
+    if (typeof window !== 'undefined' && typeof window.navigator !== 'undefined' && window.navigator.vibrate) {
       try {
-        // Zvýšení na 70ms pro lepší odezvu na Samsung zařízeních
-        // Použití pole [70] může být spolehlivější na některých mobilních prohlížečích
+        // Používáme pole [70] pro maximální kompatibilitu s Android/Chrome/Samsung Internet
         window.navigator.vibrate([70]);
       } catch (e) {
-        // Vibrace jsou bonusová funkce, chybu ignorujeme
+        // Ignorujeme, pokud prohlížeč vibrace zablokuje
       }
     }
   };
@@ -364,7 +363,8 @@ export default function Home() {
               <Card 
                 key={product.id} 
                 className={cn(
-                  "flex flex-col overflow-hidden transition-all duration-300 group relative border-none shadow-md",
+                  "flex flex-col overflow-hidden transition-all duration-200 group relative border-none shadow-md",
+                  "active:scale-95", // Vizuální haptická odezva při dotyku
                   inCart > 0 && "ring-4 ring-primary ring-offset-2 ring-offset-background scale-[.98]",
                   isOutOfStock && inCart === 0 ? "opacity-60 grayscale cursor-not-allowed" : "cursor-pointer hover:shadow-xl",
                   isLowStock && !inCart && "ring-1 ring-orange-500/50"
@@ -435,7 +435,7 @@ export default function Home() {
             <div className="text-lg font-bold">
               Celkem: <span className="text-primary text-2xl">{total.toFixed(0)} Kč</span>
             </div>
-            <Button size="lg" onClick={handleOpenDialog}>
+            <Button size="lg" onClick={handleOpenDialog} className="active:scale-95 transition-transform">
               {isCashMode ? <Wallet className="mr-2 h-5 w-5" /> : <ShoppingCart className="mr-2 h-5 w-5" />}
               {isCashMode ? 'Zaplatit hotově' : 'Generovat QR'}
             </Button>
@@ -467,7 +467,7 @@ export default function Home() {
             </div>
           </div>
           <DialogFooter>
-            <Button variant="secondary" onClick={handleCloseDialog} className="w-full h-12">
+            <Button variant="secondary" onClick={handleCloseDialog} className="w-full h-12 active:scale-95 transition-transform">
               Zavřít a vymazat košík
             </Button>
           </DialogFooter>
@@ -514,7 +514,7 @@ export default function Home() {
             )}
           </div>
           <DialogFooter>
-            <Button variant="secondary" onClick={handleCloseDialog} className="w-full h-12">
+            <Button variant="secondary" onClick={handleCloseDialog} className="w-full h-12 active:scale-95 transition-transform">
               Dokončit prodej
             </Button>
           </DialogFooter>
