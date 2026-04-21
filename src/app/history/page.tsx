@@ -265,7 +265,7 @@ export default function HistoryPage() {
                       Tato akce je nevratná. Dojde k trvalému odstranění
                       vybraných transakcí.
                     </AlertDialogDescription>
-                  </AccordionHeader>
+                  </AlertDialogHeader>
                   <AlertDialogFooter>
                     <AlertDialogCancel>Zrušit</AlertDialogCancel>
                     <AlertDialogAction onClick={handleBatchDelete}>
