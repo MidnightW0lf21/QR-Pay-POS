@@ -114,11 +114,18 @@ export default function Home() {
 
   const triggerHapticFeedback = () => {
     if (typeof window !== 'undefined' && window.navigator && window.navigator.vibrate) {
-      window.navigator.vibrate(50);
+      try {
+        window.navigator.vibrate(50);
+      } catch (e) {
+        // Ignore vibration errors
+      }
     }
   };
 
   const handleQuantityChange = (productId: string, amount: number) => {
+    // Immediate feedback
+    triggerHapticFeedback();
+
     const product = products.find((p) => p.id === productId);
     if (!product) return;
 
@@ -134,7 +141,6 @@ export default function Home() {
         });
         return;
       }
-      triggerHapticFeedback();
     }
     
     setCart((prevCart) => {
@@ -160,6 +166,7 @@ export default function Home() {
   }, [cashReceived, total]);
 
   const handleOpenDialog = () => {
+    triggerHapticFeedback();
     if (isCashMode) {
       setIsCashDialogOpen(true);
     } else {
@@ -168,6 +175,7 @@ export default function Home() {
   };
   
   const handleCloseDialog = () => {
+    triggerHapticFeedback();
     saveTransaction();
     setIsQrDialogOpen(false);
     setIsCashDialogOpen(false);
@@ -278,7 +286,10 @@ export default function Home() {
               <Switch
                 id="payment-mode"
                 checked={!isCashMode}
-                onCheckedChange={(checked) => setPaymentMode(checked ? 'qr' : 'cash')}
+                onCheckedChange={(checked) => {
+                  triggerHapticFeedback();
+                  setPaymentMode(checked ? 'qr' : 'cash');
+                }}
                 aria-label="Přepnout režim platby"
               />
               <Landmark className={cn(!isCashMode ? "text-primary" : "text-muted-foreground")} />
@@ -291,7 +302,10 @@ export default function Home() {
               <Button 
                 variant="ghost" 
                 size="icon" 
-                onClick={() => setShowOutOfStock(!showOutOfStock)}
+                onClick={() => {
+                  triggerHapticFeedback();
+                  setShowOutOfStock(!showOutOfStock);
+                }}
                 className={cn(showOutOfStock ? "text-primary bg-primary/10" : "text-muted-foreground")}
                 title={showOutOfStock ? "Skrýt vyprodané" : "Zobrazit vyprodané"}
               >
@@ -305,7 +319,10 @@ export default function Home() {
               <Button
                 variant={selectedCategory === "all" ? "default" : "outline"}
                 size="sm"
-                onClick={() => setSelectedCategory("all")}
+                onClick={() => {
+                  triggerHapticFeedback();
+                  setSelectedCategory("all");
+                }}
                 className="whitespace-nowrap rounded-full"
               >
                 Vše
@@ -315,7 +332,10 @@ export default function Home() {
                   key={cat}
                   variant={selectedCategory === cat ? "default" : "outline"}
                   size="sm"
-                  onClick={() => setSelectedCategory(cat)}
+                  onClick={() => {
+                    triggerHapticFeedback();
+                    setSelectedCategory(cat);
+                  }}
                   className="whitespace-nowrap rounded-full"
                 >
                   <Tag className="mr-1.5 h-3.5 w-3.5" />
@@ -352,7 +372,7 @@ export default function Home() {
                 <div className="relative w-full aspect-square">
                   <ProductImage product={product} fill />
                   
-                  {/* Bottom Gradient Overlay - darker for better text visibility */}
+                  {/* Bottom Gradient Overlay */}
                   <div className="absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-t from-black/95 via-black/50 to-transparent z-10" />
 
                   {/* Product Info inside the card */}
