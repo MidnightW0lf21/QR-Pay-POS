@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -353,15 +352,15 @@ export default function Home() {
                 <div className="relative w-full aspect-square">
                   <ProductImage product={product} fill />
                   
-                  {/* Bottom Gradient Overlay */}
-                  <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/90 via-black/40 to-transparent z-10" />
+                  {/* Bottom Gradient Overlay - darker for better text visibility */}
+                  <div className="absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-t from-black/95 via-black/50 to-transparent z-10" />
 
                   {/* Product Info inside the card */}
                   <div className="absolute bottom-3 left-3 right-3 text-white z-20 flex flex-col items-start">
                     <p className="font-bold text-base leading-tight truncate w-full drop-shadow-md">
                       {product.name}
                     </p>
-                    <p className="text-xl font-black text-primary drop-shadow-lg">
+                    <p className="text-2xl font-black text-primary drop-shadow-xl brightness-110">
                       {product.price.toFixed(0)} Kč
                     </p>
                   </div>
@@ -396,7 +395,7 @@ export default function Home() {
                     className={cn(
                       "absolute top-2 left-2 flex items-center text-[11px] px-2 py-0.5 z-30 font-bold",
                       remainingStock <= 0 ? "bg-destructive text-white" : "bg-black/60 text-white border-none backdrop-blur-sm",
-                      isLowStock && !inCart && "hidden" // Hide stock badge if low stock alert is visible
+                      isLowStock && !inCart && "hidden"
                     )}
                   >
                     {remainingStock <= 0 ? "VYPRODÁNO" : `${product.stock} ks`}
