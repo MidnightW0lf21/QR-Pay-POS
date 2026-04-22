@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
@@ -122,7 +123,7 @@ export default function Home() {
     if (isCashDialogOpen) {
       const timer = setTimeout(() => {
         cashInputRef.current?.focus();
-      }, 1500); // Animace trvá 1.4s, počkáme 1.5s
+      }, 1500); // Animace trvá 1.4s, počkáme 1.5s pro jistotu
       return () => clearTimeout(timer);
     }
   }, [isCashDialogOpen]);
@@ -450,7 +451,10 @@ export default function Home() {
       )}
 
       <Dialog open={isQrDialogOpen} onOpenChange={(open) => !open && handleCloseDialog()}>
-        <DialogContent className="p-0 border-none bg-transparent shadow-none w-fit max-w-[95vw] focus-visible:outline-none [&>button]:hidden">
+        <DialogContent 
+          className="p-0 border-none bg-transparent shadow-none w-fit max-w-[95vw] focus-visible:outline-none [&>button]:hidden"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
           <div className="receipt-paper p-8 flex flex-col items-center w-[320px] animate-print">
             <div className="w-full text-center border-b border-dashed border-zinc-300 pb-4 mb-4">
                <div className="flex items-center justify-center gap-2 mb-1">
@@ -490,7 +494,10 @@ export default function Home() {
       </Dialog>
       
       <Dialog open={isCashDialogOpen} onOpenChange={(open) => !open && handleCloseDialog()}>
-        <DialogContent className="p-0 border-none bg-transparent shadow-none w-fit max-w-[95vw] focus-visible:outline-none [&>button]:hidden">
+        <DialogContent 
+          className="p-0 border-none bg-transparent shadow-none w-fit max-w-[95vw] focus-visible:outline-none [&>button]:hidden"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
           <div className="receipt-paper p-8 flex flex-col w-[320px] animate-print">
             <div className="w-full text-center border-b border-dashed border-zinc-300 pb-4 mb-6">
                <div className="flex items-center justify-center gap-2 mb-1">
