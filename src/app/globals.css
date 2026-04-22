@@ -75,7 +75,7 @@ body {
 }
 
 /* 
-   NASTAVENÍ TISKU (Kroky tiskárny)
+   NASTAVENÍ TISKU (Mechanické kroky tiskárny)
    Zde můžete upravit pauzy a rychlost výjezdu.
    - Procenta (%) v keyframes definují časový moment (0% start, 100% konec).
    - Hodnoty v translateY (vh) definují pozici (100vh je pod obrazovkou, 0 je střed).
@@ -91,8 +91,10 @@ body {
 }
 
 .animate-receipt-print {
-  /* Změnou času (1s) zrychlíte nebo zpomalíte celkový tisk */
-  animation: receipt-print-stepped 1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  /* Změnou času (1.2s) zrychlíte nebo zpomalíte celkový tisk */
+  animation: receipt-print-stepped 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  /* Drop-shadow lemuje zubatý okraj i boky papíru plynule */
+  filter: drop-shadow(0 20px 25px rgba(0,0,0,0.15));
 }
 
 /* Plynulé vysouvání vnitřních polí (např. hotovost) */

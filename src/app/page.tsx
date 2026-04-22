@@ -119,7 +119,7 @@ export default function Home() {
     if (isCashDialogOpen) {
       const timer = setTimeout(() => {
         cashInputRef.current?.focus();
-      }, 1200); // Mírně upraveno pro lepší synchronizaci s kroky tisku
+      }, 1200);
       return () => clearTimeout(timer);
     }
   }, [isCashDialogOpen]);
@@ -449,19 +449,14 @@ export default function Home() {
           className="p-0 bg-transparent border-none shadow-none max-w-[360px] focus-visible:outline-none overflow-visible"
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          {/* 
-              HLAVNÍ KONTEJNER ANIMACE
-              - CSS animace receipt-print-stepped je v globals.css
-              - Zde se centrování děje pouze na základě výšky účtenky
-          */}
           <div className="animate-receipt-print relative">
             
-            {/* Účtenka - Hlavní část s bílým pozadím a zubatým okrajem */}
-            <div className="receipt-paper bg-white p-8 pb-12 w-full shadow-2xl relative z-20">
+            {/* ÚČTENKA - Hlavní část s bílým pozadím a zubatým horním okrajem */}
+            <div className="receipt-paper bg-white p-8 pb-12 w-full relative z-20">
               <div className="w-full text-center border-b border-dashed border-zinc-300 pb-4 mb-4">
-                 <div className="flex items-center justify-center gap-2 mb-1">
-                   <Receipt className="h-5 w-5 text-zinc-800" />
-                   <DialogTitle className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-800">
+                 <div className="flex items-center justify-center gap-2 mb-1 text-zinc-800">
+                   <Receipt className="h-5 w-5" />
+                   <DialogTitle className="text-xs font-bold uppercase tracking-[0.2em]">
                      {isCashDialogOpen ? "Účtenka / Hotovost" : "Účtenka / QR Platba"}
                    </DialogTitle>
                  </div>
@@ -507,7 +502,6 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {/* Plynulé vysouvání výpočtu doplatku/vrácení */}
                   <div className={cn(
                     "smooth-expand-container",
                     change !== null ? "is-open" : ""
@@ -537,14 +531,16 @@ export default function Home() {
                    <Scissors className="mr-2 h-5 w-5" /> Dokončit a uložit
                  </Button>
               </div>
-              
-              {/* 
-                  STUB - NEKONEČNÝ PAPÍR
-                  - top-[calc(100%-1px)] zajistí překrytí o 1px a schová dělící čáru (pruh)
-                  - h-screen zajistí, že papír vede až pod spodní okraj obrazovky
-              */}
-              <div className="absolute top-[calc(100%-1px)] left-0 right-0 h-screen bg-white shadow-2xl z-10" />
             </div>
+
+            {/* 
+                STUB - NEKONEČNÝ PAPÍR 
+                - Je umístěn VNĚ receipt-paper, aby ho neovlivňoval clip-path.
+                - top-[calc(100%-1px)] zajistí překrytí o 1px, čímž zmizí dělící pruh.
+                - h-screen zajistí, že papír vede až pod spodní okraj obrazovky.
+                - z-index je nižší než u hlavní účtenky (z-10).
+            */}
+            <div className="absolute top-[calc(100%-1px)] left-0 right-0 h-screen bg-white z-10" />
           </div>
         </DialogContent>
       </Dialog>
