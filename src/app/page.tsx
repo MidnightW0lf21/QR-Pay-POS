@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
@@ -180,14 +181,14 @@ export default function Home() {
   const handleFinalizeAndClose = async () => {
     triggerHapticFeedback();
     
-    // FÁZE 1: Začátek odtržení (maska se odsouvá doprava)
+    // FÁZE 1: Začátek odtržení (bílá maska se odkrývá vpravo)
     setIsClosing(true);
     
-    // FÁZE 2: Jakmile dojede animace odkrývání (0.8s), triggerujeme odlet
+    // FÁZE 2: Počkáme, až projede "řez" (0.8s)
     await new Promise(r => setTimeout(r, 800));
     setIsTorn(true);
 
-    // FÁZE 3: Odlet trvá 0.5s, pak teprve dialog skutečně zmizí
+    // FÁZE 3: Synchronní odlet obou částí (0.5s)
     await new Promise(r => setTimeout(r, 500));
     
     saveTransaction();
@@ -371,18 +372,22 @@ export default function Home() {
                    <Scissors className="mr-2 h-5 w-5" /> Dokončit a uložit
                  </Button>
               </div>
-
-              {/* MASKA PRO ODTRŽENÍ (Nůžky) - odsouvá se doprava a odkrývá trh */}
-              {isClosing && !isTorn && (
-                <div 
-                  className="absolute left-0 h-6 bg-white z-[60] animate-tear-reveal" 
-                  style={{ 
-                    bottom: '-12px',
-                    width: '100%'
-                  }} 
-                />
-              )}
             </div>
+
+            {/* MASKA PRO ODTRŽENÍ (Nůžky) - odsouvá se doprava a odkrývá trh */}
+            {/* Je vně, aby překryla spoj mezi účtenkou a stubem */}
+            {!isTorn && (
+              <div 
+                className={cn(
+                  "absolute left-0 h-10 bg-white z-[30] transition-none",
+                  isClosing && "animate-tear-reveal"
+                )} 
+                style={{ 
+                  top: 'calc(100% - 20px)', 
+                  width: '100%'
+                }} 
+              />
+            )}
 
             {/* NEKONEČNÝ PAPÍR (Stub) */}
             <div className={cn(
