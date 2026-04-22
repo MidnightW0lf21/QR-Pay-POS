@@ -272,6 +272,8 @@ export default function Home() {
           {visibleProducts.map((product) => {
             const inCart = cart[product.id] || 0;
             const remainingStock = product.stock - inCart;
+            const isLowStock = remainingStock > 0 && remainingStock <= 5;
+            
             return (
               <Card key={product.id} className={cn("flex flex-col overflow-hidden transition-all duration-200 group relative border-none shadow-md active:scale-95", inCart > 0 && "ring-4 ring-primary ring-offset-2 ring-offset-background scale-[.98]", product.stock <= 0 && inCart === 0 ? "opacity-60 grayscale cursor-not-allowed" : "cursor-pointer hover:shadow-xl")} onClick={() => product.stock > 0 && handleQuantityChange(product.id, 1)}>
                 <div className="relative w-full aspect-square">
@@ -292,9 +294,15 @@ export default function Home() {
                     </div>
                   )}
                   
-                  {/* Štítek skladu je nyní také adaptivní */}
-                  <Badge variant={remainingStock <= 0 ? "destructive" : "secondary"} className={cn("absolute top-2 left-2 flex items-center text-[11px] px-2 py-0.5 z-30 font-bold", remainingStock <= 0 ? "bg-destructive text-white" : "bg-background/60 text-foreground border-none backdrop-blur-sm shadow-sm")}>
-                    {remainingStock <= 0 ? "VYPRODÁNO" : `${product.stock} ks`}
+                  {/* Štítek skladu - Dynamický podle stavu */}
+                  <Badge 
+                    variant={remainingStock <= 5 ? "destructive" : "secondary"} 
+                    className={cn(
+                      "absolute top-2 left-2 flex items-center text-[11px] px-2 py-0.5 z-30 font-bold", 
+                      remainingStock <= 5 ? "bg-destructive text-white" : "bg-background/60 text-foreground border-none backdrop-blur-sm shadow-sm"
+                    )}
+                  >
+                    {remainingStock <= 0 ? "VYPRODÁNO" : isLowStock ? `DOCHÁZÍ (${remainingStock} ks)` : `${remainingStock} ks`}
                   </Badge>
                 </div>
               </Card>
@@ -356,7 +364,7 @@ export default function Home() {
                   <div className="space-y-2">
                     <Label htmlFor="cash-received" className="text-xs font-bold uppercase text-zinc-800 tracking-wider">Přijato</Label>
                     <div className="relative">
-                       <Input ref={cashInputRef} id="cash-received" type="number" placeholder="0" value={cashReceived ?? ""} onChange={(e) => setCashReceived(e.target.value === '' ? null : parseFloat(e.target.value))} className="text-center text-2xl h-14 font-bold bg-muted/20 border-dashed border-2 text-zinc-800" />
+                       <input ref={cashInputRef} id="cash-received" type="number" placeholder="0" value={cashReceived ?? ""} onChange={(e) => setCashReceived(e.target.value === '' ? null : parseFloat(e.target.value))} className="w-full text-center text-2xl h-14 font-bold bg-muted/20 border-dashed border-2 text-zinc-800 focus:outline-none rounded-md" />
                        <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 font-bold">Kč</div>
                     </div>
                   </div>
