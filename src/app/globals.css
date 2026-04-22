@@ -74,21 +74,28 @@ body {
   );
 }
 
-/* Kratší mechanické kroky tiskárny */
+/* 
+   NASTAVENÍ TISKU (Kroky tiskárny)
+   Zde můžete upravit pauzy a rychlost výjezdu.
+   - Procenta (%) v keyframes definují časový moment (0% start, 100% konec).
+   - Hodnoty v translateY (vh) definují pozici (100vh je pod obrazovkou, 0 je střed).
+   - Stejná hodnota translateY po sobě (např. 35% a 42%) vytvoří mechanickou pauzu.
+*/
 @keyframes receipt-print-stepped {
   0% { transform: translateY(100vh); }
   35% { transform: translateY(60vh); }
-  42% { transform: translateY(60vh); } /* Pauza */
+  42% { transform: translateY(60vh); } /* Mechanická pauza 1 */
   75% { transform: translateY(20vh); }
-  82% { transform: translateY(20vh); } /* Pauza */
+  82% { transform: translateY(20vh); } /* Mechanická pauza 2 */
   100% { transform: translateY(0); }
 }
 
 .animate-receipt-print {
+  /* Změnou času (1s) zrychlíte nebo zpomalíte celkový tisk */
   animation: receipt-print-stepped 1s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-/* Plynulé vysouvání přes CSS Grid */
+/* Plynulé vysouvání vnitřních polí (např. hotovost) */
 .smooth-expand-container {
   display: grid;
   grid-template-rows: 0fr;
