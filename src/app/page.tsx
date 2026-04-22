@@ -197,7 +197,7 @@ export default function Home() {
       setCashReceived(null);
       setCart({}); 
       setIsClosing(false);
-    }, 900);
+    }, 1200); // Prodlouženo pro plynulé odtržení a odlet
   };
 
   const saveTransaction = () => {
@@ -457,9 +457,10 @@ export default function Home() {
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
           <div className="relative flex flex-col items-center">
+            {/* Hlavní odletová účtenka */}
             <div 
               className={cn(
-                "receipt-paper bg-white p-8 flex flex-col w-[320px] transition-all duration-300",
+                "receipt-paper bg-white p-8 flex flex-col w-[320px] transition-all duration-300 relative z-30",
                 !isClosing ? "animate-print receipt-top-clip" : "animate-tear-off receipt-bottom-clip"
               )}
             >
@@ -536,13 +537,17 @@ export default function Home() {
                    <Scissors className="mr-2 h-5 w-5" /> Dokončit a uložit
                  </Button>
               </div>
+
+              {/* Maska pro plynulé odtržení zleva doprava */}
+              {isClosing && (
+                <div className="absolute inset-x-0 bottom-0 h-8 bg-white z-40 animate-tear-sweep" />
+              )}
             </div>
 
+            {/* Zbytek papíru, který sklouzne dolů */}
             {isClosing && (
-              <div className="absolute -bottom-10 w-[320px] h-20 bg-white receipt-top-clip opacity-40 animate-stub-down -z-10" />
+              <div className="absolute top-[calc(100%-8px)] w-[320px] h-32 bg-white receipt-top-clip opacity-90 animate-stub-down z-10" />
             )}
-            
-            <div className="w-[340px] h-3 bg-zinc-900 rounded-b-md shadow-[0_10px_30px_rgba(0,0,0,0.6)] z-20 border-t-2 border-zinc-800" />
           </div>
         </DialogContent>
       </Dialog>
