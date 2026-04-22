@@ -82,3 +82,22 @@ body {
 .animate-receipt-print {
   animation: receipt-print-smooth 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
+
+/* Smooth expansion for dynamic content inside the receipt */
+@keyframes smooth-expand {
+  from { 
+    opacity: 0; 
+    transform: translateY(-10px);
+    max-height: 0;
+  }
+  to { 
+    opacity: 1; 
+    transform: translateY(0);
+    max-height: 200px;
+  }
+}
+
+.animate-smooth-expand {
+  animation: smooth-expand 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+  overflow: hidden;
+}
