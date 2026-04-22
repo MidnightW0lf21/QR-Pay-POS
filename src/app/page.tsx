@@ -82,6 +82,7 @@ export default function Home() {
   const [cart, setCart] = useState<Record<string, number>>({});
   const [isQrDialogOpen, setIsQrDialogOpen] = useState(false);
   const [isCashDialogOpen, setIsCashDialogOpen] = useState(false);
+  const [isClosing, setIsClosing] = useState(false);
   const [cashReceived, setCashReceived] = useState<number | null>(null);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
@@ -118,13 +119,13 @@ export default function Home() {
   }, [isMounted]);
 
   useEffect(() => {
-    if (isCashDialogOpen) {
+    if (isCashDialogOpen && !isClosing) {
       const timer = setTimeout(() => {
         cashInputRef.current?.focus();
       }, 1500);
       return () => clearTimeout(timer);
     }
-  }, [isCashDialogOpen]);
+  }, [isCashDialogOpen, isClosing]);
 
   const triggerHapticFeedback = () => {
     if (typeof window !== 'undefined' && typeof window.navigator !== 'undefined' && window.navigator.vibrate) {
@@ -179,6 +180,7 @@ export default function Home() {
 
   const handleOpenDialog = () => {
     triggerHapticFeedback();
+    setIsClosing(false);
     if (isCashMode) {
       setIsCashDialogOpen(true);
     } else {
@@ -186,13 +188,19 @@ export default function Home() {
     }
   };
   
-  const handleCloseDialog = () => {
+  const handleFinalizeAndClose = () => {
     triggerHapticFeedback();
-    saveTransaction();
-    setIsQrDialogOpen(false);
-    setIsCashDialogOpen(false);
-    setCashReceived(null);
-    setCart({}); 
+    setIsClosing(true);
+    
+    // Počkáme na animaci odtržení a odletu
+    setTimeout(() => {
+      saveTransaction();
+      setIsQrDialogOpen(false);
+      setIsCashDialogOpen(false);
+      setCashReceived(null);
+      setCart({}); 
+      setIsClosing(false);
+    }, 1000);
   };
 
   const saveTransaction = () => {
@@ -446,109 +454,102 @@ export default function Home() {
         </div>
       )}
 
-      <Dialog open={isQrDialogOpen} onOpenChange={(open) => !open && handleCloseDialog()}>
+      {/* Společná komponenta účtenky */}
+      <Dialog open={isQrDialogOpen || isCashDialogOpen} onOpenChange={(open) => !open && handleFinalizeAndClose()}>
         <DialogContent 
-          className="p-0 border-none bg-transparent shadow-none w-fit max-w-[95vw] focus-visible:outline-none [&>button]:hidden"
+          className="p-0 border-none bg-transparent shadow-none w-fit max-w-[95vw] focus-visible:outline-none [&>button]:hidden overflow-visible"
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          <div className="receipt-paper p-8 flex flex-col items-center w-[320px] animate-print">
-            <div className="w-full text-center border-b border-dashed border-zinc-300 pb-4 mb-4">
-               <div className="flex items-center justify-center gap-2 mb-1">
-                 <Receipt className="h-5 w-5 text-zinc-800" />
-                 <DialogTitle className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-800">Účtenka / QR Platba</DialogTitle>
-               </div>
-               <DialogDescription className="text-[10px] text-zinc-800 font-medium">
-                 {currentPosName} • {new Date().toLocaleString('cs-CZ')}
-               </DialogDescription>
-            </div>
-
-            <div className="text-center w-full mb-6">
-              <p className="text-sm font-semibold text-zinc-800 mb-1">Celková částka k úhradě</p>
-              <p className="text-5xl font-black text-primary tabular-nums tracking-tight">
-                {total.toFixed(0)} <span className="text-2xl ml-1">Kč</span>
-              </p>
-            </div>
-
-            <div className="p-4 bg-white rounded-lg shadow-inner mb-6 ring-1 ring-black/5">
-              {qrCodeDataUrl ? (
-                <Image src={qrCodeDataUrl} alt="QR Code" width={220} height={220} className="mx-auto" />
-              ) : (
-                <div className="w-[220px] h-[220px] flex items-center justify-center bg-gray-50">
-                   <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                </div>
+          <div className="relative flex flex-col items-center">
+            {/* Samotná účtenka */}
+            <div 
+              className={cn(
+                "receipt-paper bg-white p-8 flex flex-col w-[320px] transition-all duration-300",
+                !isClosing ? "animate-print receipt-top-clip" : "animate-tear-off receipt-bottom-clip"
               )}
-            </div>
-
-            <div className="w-full text-center border-t border-dashed border-zinc-300 pt-4 mt-2">
-               <p className="text-[11px] text-zinc-800 font-medium italic mb-6">Skenujte kód ve své bankovní aplikaci.</p>
-               <Button onClick={handleCloseDialog} className="w-full h-12 active:scale-95 transition-transform font-bold text-lg">
-                 <Scissors className="mr-2 h-5 w-5" /> Dokončit a uložit
-               </Button>
-            </div>
-          </div>
-        </DialogContent>
-      </Dialog>
-      
-      <Dialog open={isCashDialogOpen} onOpenChange={(open) => !open && handleCloseDialog()}>
-        <DialogContent 
-          className="p-0 border-none bg-transparent shadow-none w-fit max-w-[95vw] focus-visible:outline-none [&>button]:hidden"
-          onOpenAutoFocus={(e) => e.preventDefault()}
-        >
-          <div className="receipt-paper p-8 flex flex-col w-[320px] animate-print">
-            <div className="w-full text-center border-b border-dashed border-zinc-300 pb-4 mb-6">
-               <div className="flex items-center justify-center gap-2 mb-1">
-                 <Receipt className="h-5 w-5 text-zinc-800" />
-                 <DialogTitle className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-800">Účtenka / Hotovost</DialogTitle>
-               </div>
-               <DialogDescription className="text-[10px] text-zinc-800 font-medium">
-                 {currentPosName} • {new Date().toLocaleString('cs-CZ')}
-               </DialogDescription>
-            </div>
-
-            <div className="text-center mb-8">
-              <p className="text-sm font-semibold text-zinc-800 mb-1">Celkem k úhradě</p>
-              <p className="text-5xl font-black text-primary tabular-nums">
-                {total.toFixed(0)} <span className="text-2xl ml-1">Kč</span>
-              </p>
-            </div>
-            
-            <div className="space-y-4 mb-6">
-              <div className="space-y-2">
-                <Label htmlFor="cash-received" className="text-xs font-bold uppercase text-zinc-800 tracking-wider">Přijatá hotovost</Label>
-                <div className="relative">
-                   <Input
-                    ref={cashInputRef}
-                    id="cash-received"
-                    type="number"
-                    placeholder="0"
-                    value={cashReceived ?? ""}
-                    onChange={(e) => setCashReceived(e.target.value === '' ? null : parseFloat(e.target.value))}
-                    className="text-center text-2xl h-14 font-bold bg-muted/20 border-dashed border-2 text-[#1a1a1a]"
-                  />
-                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 font-bold">Kč</div>
-                </div>
+            >
+              <div className="w-full text-center border-b border-dashed border-zinc-300 pb-4 mb-4">
+                 <div className="flex items-center justify-center gap-2 mb-1">
+                   <Receipt className="h-5 w-5 text-zinc-800" />
+                   <DialogTitle className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-800">
+                     {isCashDialogOpen ? "Účtenka / Hotovost" : "Účtenka / QR Platba"}
+                   </DialogTitle>
+                 </div>
+                 <DialogDescription className="text-[10px] text-zinc-800 font-bold uppercase">
+                   {currentPosName} • {new Date().toLocaleString('cs-CZ')}
+                 </DialogDescription>
               </div>
 
-              {change !== null && (
-                <div className="p-4 bg-zinc-50 rounded-lg border border-dashed border-zinc-200 text-center">
-                  <p className="text-xs font-bold uppercase text-zinc-800 mb-1">
-                    {change >= 0 ? "Vrátit zákazníkovi" : "Chybí doplatit"}
-                  </p>
-                  <p className={cn(
-                    "text-4xl font-black tabular-nums",
-                    change >= 0 ? "text-primary" : "text-destructive"
-                  )}>
-                    {Math.abs(change).toFixed(0)} <span className="text-xl">Kč</span>
-                  </p>
+              <div className="text-center w-full mb-6">
+                <p className="text-sm font-bold text-zinc-800 mb-1">Celková částka k úhradě</p>
+                <p className="text-5xl font-black text-primary tabular-nums tracking-tight">
+                  {total.toFixed(0)} <span className="text-2xl ml-1">Kč</span>
+                </p>
+              </div>
+
+              {isQrDialogOpen && (
+                <div className="p-4 bg-white rounded-lg shadow-inner mb-6 ring-1 ring-black/5">
+                  {qrCodeDataUrl ? (
+                    <Image src={qrCodeDataUrl} alt="QR Code" width={220} height={220} className="mx-auto" />
+                  ) : (
+                    <div className="w-[220px] h-[220px] flex items-center justify-center bg-gray-50">
+                       <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                    </div>
+                  )}
                 </div>
               )}
+
+              {isCashDialogOpen && (
+                <div className="space-y-4 mb-6">
+                  <div className="space-y-2">
+                    <Label htmlFor="cash-received" className="text-xs font-bold uppercase text-zinc-800 tracking-wider">Přijatá hotovost</Label>
+                    <div className="relative">
+                       <Input
+                        ref={cashInputRef}
+                        id="cash-received"
+                        type="number"
+                        placeholder="0"
+                        value={cashReceived ?? ""}
+                        onChange={(e) => setCashReceived(e.target.value === '' ? null : parseFloat(e.target.value))}
+                        className="text-center text-2xl h-14 font-bold bg-muted/20 border-dashed border-2 text-[#1a1a1a]"
+                      />
+                      <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 font-bold">Kč</div>
+                    </div>
+                  </div>
+
+                  {change !== null && (
+                    <div className="p-4 bg-zinc-50 rounded-lg border border-dashed border-zinc-200 text-center">
+                      <p className="text-xs font-bold uppercase text-zinc-800 mb-1">
+                        {change >= 0 ? "Vrátit zákazníkovi" : "Chybí doplatit"}
+                      </p>
+                      <p className={cn(
+                        "text-4xl font-black tabular-nums",
+                        change >= 0 ? "text-primary" : "text-destructive"
+                      )}>
+                        {Math.abs(change).toFixed(0)} <span className="text-xl">Kč</span>
+                      </p>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              <div className="w-full text-center border-t border-dashed border-zinc-300 pt-4 mt-2">
+                 <p className="text-[11px] text-zinc-800 font-bold italic mb-6">
+                   {isQrDialogOpen ? "Skenujte kód ve své bankovní aplikaci." : "Děkujeme za váš nákup!"}
+                 </p>
+                 <Button onClick={handleFinalizeAndClose} className="w-full h-14 active:scale-95 transition-transform font-bold text-lg">
+                   <Scissors className="mr-2 h-5 w-5" /> Dokončit a uložit
+                 </Button>
+              </div>
             </div>
 
-            <div className="w-full pt-4 border-t border-dashed border-zinc-300">
-               <Button onClick={handleCloseDialog} className="w-full h-14 text-lg font-bold active:scale-95 transition-transform">
-                 <Scissors className="mr-2 h-5 w-5" /> Dokončit a uložit
-               </Button>
-            </div>
+            {/* "Zbytek" papíru v tiskárně, který se ukáže jen při zavírání */}
+            {isClosing && (
+              <div className="absolute -bottom-4 w-[320px] h-16 bg-white receipt-top-clip opacity-50 animate-stub-down -z-10" />
+            )}
+            
+            {/* Vizuální "slot" tiskárny */}
+            <div className="w-[340px] h-2 bg-zinc-800 rounded-full shadow-[0_4px_10px_rgba(0,0,0,0.5)] z-20" />
           </div>
         </DialogContent>
       </Dialog>

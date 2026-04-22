@@ -92,10 +92,16 @@ body {
 }
 
 @layer utilities {
-  .receipt-paper {
-    background-color: #ffffff;
-    color: #1a1a1a;
-    position: relative;
+  /* Horní zubatý okraj */
+  .receipt-top-clip {
+    clip-path: polygon(
+      0% 15px, 2.5% 0, 5% 15px, 7.5% 0, 10% 15px, 12.5% 0, 15% 15px, 17.5% 0, 20% 15px, 22.5% 0, 25% 15px, 27.5% 0, 30% 15px, 32.5% 0, 35% 15px, 37.5% 0, 40% 15px, 42.5% 0, 45% 15px, 47.5% 0, 50% 15px, 52.5% 0, 55% 15px, 57.5% 0, 60% 15px, 62.5% 0, 65% 15px, 67.5% 0, 70% 15px, 72.5% 0, 75% 15px, 77.5% 0, 80% 15px, 82.5% 0, 85% 15px, 87.5% 0, 90% 15px, 92.5% 0, 95% 15px, 97.5% 0, 100% 15px,
+      100% 100%, 0% 100%
+    );
+  }
+
+  /* Spodní zubatý okraj */
+  .receipt-bottom-clip {
     clip-path: polygon(
       0% 15px, 2.5% 0, 5% 15px, 7.5% 0, 10% 15px, 12.5% 0, 15% 15px, 17.5% 0, 20% 15px, 22.5% 0, 25% 15px, 27.5% 0, 30% 15px, 32.5% 0, 35% 15px, 37.5% 0, 40% 15px, 42.5% 0, 45% 15px, 47.5% 0, 50% 15px, 52.5% 0, 55% 15px, 57.5% 0, 60% 15px, 62.5% 0, 65% 15px, 67.5% 0, 70% 15px, 72.5% 0, 75% 15px, 77.5% 0, 80% 15px, 82.5% 0, 85% 15px, 87.5% 0, 90% 15px, 92.5% 0, 95% 15px, 97.5% 0, 100% 15px,
       100% calc(100% - 15px), 97.5% 100%, 95% calc(100% - 15px), 92.5% 100%, 90% calc(100% - 15px), 87.5% 100%, 85% calc(100% - 15px), 82.5% 100%, 80% calc(100% - 15px), 77.5% 100%, 75% calc(100% - 15px), 72.5% 100%, 70% calc(100% - 15px), 67.5% 100%, 65% calc(100% - 15px), 62.5% 100%, 60% calc(100% - 15px), 57.5% 100%, 55% calc(100% - 15px), 52.5% 100%, 50% calc(100% - 15px), 47.5% 100%, 45% calc(100% - 15px), 42.5% 100%, 40% calc(100% - 15px), 37.5% 100%, 35% calc(100% - 15px), 32.5% 100%, 30% calc(100% - 15px), 27.5% 100%, 25% calc(100% - 15px), 22.5% 100%, 20% calc(100% - 15px), 17.5% 100%, 15% calc(100% - 15px), 12.5% 100%, 10% calc(100% - 15px), 7.5% 100%, 5% calc(100% - 15px), 2.5% 100%, 0% calc(100% - 15px)
@@ -111,7 +117,26 @@ body {
     100% { transform: translateY(0); opacity: 1; }
   }
 
+  @keyframes tear-and-fly-up {
+    0% { transform: translateY(0); opacity: 1; }
+    20% { transform: translateY(5px); }
+    100% { transform: translateY(-150vh); opacity: 0; }
+  }
+
+  @keyframes slide-down-stub {
+    0% { transform: translateY(-100%); opacity: 1; }
+    100% { transform: translateY(0%); opacity: 0; }
+  }
+
   .animate-print {
     animation: print-receipt 1.4s ease-in-out forwards;
+  }
+
+  .animate-tear-off {
+    animation: tear-and-fly-up 0.8s ease-in forwards;
+  }
+
+  .animate-stub-down {
+    animation: slide-down-stub 0.6s ease-out forwards;
   }
 }
