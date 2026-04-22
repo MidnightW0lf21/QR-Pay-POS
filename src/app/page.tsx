@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import Image from "next/image";
 import QRCode from "qrcode";
 import { Button } from "@/components/ui/button";
@@ -87,6 +87,8 @@ export default function Home() {
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [showOutOfStock, setShowOutOfStock] = useState(false);
   const [currentPosName, setCurrentPosName] = useState(DEFAULT_POS_NAME);
+  
+  const cashInputRef = useRef<HTMLInputElement>(null);
 
   const isCashMode = paymentMode === 'cash';
 
@@ -114,6 +116,16 @@ export default function Home() {
       }
     }
   }, [isMounted]);
+
+  // Efekt pro odložené zaměření (focus) na vstup hotovosti po dokončení animace "tisku"
+  useEffect(() => {
+    if (isCashDialogOpen) {
+      const timer = setTimeout(() => {
+        cashInputRef.current?.focus();
+      }, 1500); // Animace trvá 1.4s, počkáme 1.5s
+      return () => clearTimeout(timer);
+    }
+  }, [isCashDialogOpen]);
 
   const triggerHapticFeedback = () => {
     if (typeof window !== 'undefined' && typeof window.navigator !== 'undefined' && window.navigator.vibrate) {
@@ -502,13 +514,13 @@ export default function Home() {
                 <Label htmlFor="cash-received" className="text-xs font-bold uppercase text-zinc-800 tracking-wider">Přijatá hotovost</Label>
                 <div className="relative">
                    <Input
+                    ref={cashInputRef}
                     id="cash-received"
                     type="number"
                     placeholder="0"
                     value={cashReceived ?? ""}
                     onChange={(e) => setCashReceived(e.target.value === '' ? null : parseFloat(e.target.value))}
                     className="text-center text-2xl h-14 font-bold bg-muted/20 border-dashed border-2 text-[#1a1a1a]"
-                    autoFocus
                   />
                   <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 font-bold">Kč</div>
                 </div>
