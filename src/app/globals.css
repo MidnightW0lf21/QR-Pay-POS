@@ -103,17 +103,15 @@ body {
   }
 
   @keyframes print-receipt {
-    0% {
-      transform: translateY(100%);
-      opacity: 0;
-    }
-    100% {
-      transform: translateY(0);
-      opacity: 1;
-    }
+    0% { transform: translateY(100%); opacity: 0; }
+    35% { transform: translateY(60%); opacity: 1; }
+    40% { transform: translateY(60%); }
+    70% { transform: translateY(30%); }
+    75% { transform: translateY(30%); }
+    100% { transform: translateY(0); opacity: 1; }
   }
 
   .animate-print {
-    animation: print-receipt 0.7s steps(10, end) forwards;
+    animation: print-receipt 1.4s ease-in-out forwards;
   }
 }
