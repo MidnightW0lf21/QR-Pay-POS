@@ -375,18 +375,16 @@ export default function Home() {
             </div>
 
             {/* MASKA PRO ODTRŽENÍ (Nůžky) - odsouvá se doprava a odkrývá trh */}
-            {/* Je vně, aby překryla spoj mezi účtenkou a stubem */}
             {!isTorn && (
-              <div 
-                className={cn(
-                  "absolute left-0 h-10 bg-white z-[30] transition-none",
-                  isClosing && "animate-tear-reveal"
-                )} 
-                style={{ 
-                  top: 'calc(100% - 20px)', 
-                  width: '100%'
-                }} 
-              />
+              <div className="absolute left-0 right-0 h-10 overflow-hidden z-[30]" style={{ top: 'calc(100% - 20px)' }}>
+                <div 
+                  className={cn(
+                    "h-full bg-white transition-none",
+                    isClosing && "animate-tear-reveal"
+                  )} 
+                  style={{ width: '100%' }} 
+                />
+              </div>
             )}
 
             {/* NEKONEČNÝ PAPÍR (Stub) */}
