@@ -114,20 +114,19 @@ body {
     100% { transform: translateY(0); }
   }
 
-  @keyframes tear-sweep {
-    0% { clip-path: inset(0 0 0 0); }
-    100% { clip-path: inset(0 0 0 100%); }
+  @keyframes tear-sweep-mask {
+    0% { clip-path: inset(0 100% 0 0); }
+    100% { clip-path: inset(0 0 0 0); }
   }
 
-  @keyframes tear-and-fly-up {
-    0% { transform: translateY(0) rotate(0); opacity: 1; }
-    20% { transform: translateY(10px) rotate(0.5deg); }
-    100% { transform: translateY(-150vh) rotate(-2deg); opacity: 0; }
-  }
-
-  @keyframes slide-down-stub {
+  @keyframes fly-up-linear {
     0% { transform: translateY(0); opacity: 1; }
-    100% { transform: translateY(100vh); opacity: 0; }
+    100% { transform: translateY(-150vh); opacity: 0; }
+  }
+
+  @keyframes fly-down-linear {
+    0% { transform: translateY(0); opacity: 1; }
+    100% { transform: translateY(150vh); opacity: 0; }
   }
 
   .animate-print {
@@ -135,16 +134,16 @@ body {
   }
 
   .animate-tear-off {
-    animation: tear-and-fly-up 0.8s ease-in forwards;
-    animation-delay: 0.4s;
+    animation: fly-up-linear 0.7s ease-in forwards;
+    animation-delay: 0.5s;
   }
 
   .animate-stub-down {
-    animation: slide-down-stub 0.8s ease-in forwards;
-    animation-delay: 0.4s;
+    animation: fly-down-linear 0.7s ease-in forwards;
+    animation-delay: 0.5s;
   }
 
   .animate-tear-sweep {
-    animation: tear-sweep 0.5s linear forwards;
+    animation: tear-sweep-mask 0.5s linear forwards;
   }
 }

@@ -530,7 +530,10 @@ export default function Home() {
                 </div>
               )}
 
-              <div className="w-full text-center border-t border-dashed border-zinc-300 pt-4 mt-2">
+              <div className="w-full text-center border-t border-dashed border-zinc-300 pt-4 mt-2 relative">
+                 {isClosing && (
+                    <div className="absolute -top-1 left-0 w-full h-2 bg-white z-40 animate-tear-sweep" />
+                 )}
                  <p className="text-[11px] text-zinc-800 font-bold italic mb-6">
                    {isQrDialogOpen ? "Skenujte kód v bankovní aplikaci." : "Děkujeme za nákup!"}
                  </p>
@@ -538,17 +541,12 @@ export default function Home() {
                    <Scissors className="mr-2 h-5 w-5" /> Dokončit a uložit
                  </Button>
               </div>
-
-              {/* Maska pro plynulé odtržení zleva doprava */}
-              {isClosing && (
-                <div className="absolute inset-x-0 bottom-0 h-8 bg-white z-40 animate-tear-sweep" />
-              )}
             </div>
 
             {/* Stub papíru, který je vidět od začátku a pak sklouzne dolů */}
             <div 
               className={cn(
-                "w-[320px] h-screen bg-white receipt-top-clip transition-all duration-300",
+                "w-[320px] h-screen bg-white transition-all duration-300 relative z-20",
                 "animate-print",
                 isClosing && "animate-stub-down"
               )} 
