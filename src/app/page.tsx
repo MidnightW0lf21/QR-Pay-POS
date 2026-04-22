@@ -11,6 +11,8 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
+  DialogTitle,
+  DialogDescription,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -118,7 +120,7 @@ export default function Home() {
       try {
         window.navigator.vibrate([70]);
       } catch (e) {
-        // Ignorujeme, pokud prohlížeč vibrace zablokuje
+        // Ignored
       }
     }
   };
@@ -441,9 +443,9 @@ export default function Home() {
             <div className="w-full text-center border-b border-dashed border-muted-foreground/30 pb-4 mb-4">
                <div className="flex items-center justify-center gap-2 mb-1">
                  <Receipt className="h-5 w-5 text-muted-foreground" />
-                 <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Účtenka / QR Platba</h2>
+                 <DialogTitle className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Účtenka / QR Platba</DialogTitle>
                </div>
-               <p className="text-[10px] text-muted-foreground/70">{currentPosName} • {new Date().toLocaleString('cs-CZ')}</p>
+               <DialogDescription className="text-[10px] text-muted-foreground/70">{currentPosName} • {new Date().toLocaleString('cs-CZ')}</DialogDescription>
             </div>
 
             <div className="text-center w-full mb-6">
@@ -466,7 +468,7 @@ export default function Home() {
             <div className="w-full text-center border-t border-dashed border-muted-foreground/30 pt-4 mt-2">
                <p className="text-[11px] text-muted-foreground italic mb-6">Skenujte kód ve své bankovní aplikaci.</p>
                <Button variant="secondary" onClick={handleCloseDialog} className="w-full h-12 active:scale-95 transition-transform font-bold">
-                 <Scissors className="mr-2 h-4 w-4" /> Dokončit a vymazat
+                 <Scissors className="mr-2 h-4 w-4" /> Dokončit a uložit
                </Button>
             </div>
           </div>
@@ -479,9 +481,9 @@ export default function Home() {
             <div className="w-full text-center border-b border-dashed border-muted-foreground/30 pb-4 mb-6">
                <div className="flex items-center justify-center gap-2 mb-1">
                  <Receipt className="h-5 w-5 text-muted-foreground" />
-                 <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Účtenka / Hotovost</h2>
+                 <DialogTitle className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Účtenka / Hotovost</DialogTitle>
                </div>
-               <p className="text-[10px] text-muted-foreground/70">{currentPosName} • {new Date().toLocaleString('cs-CZ')}</p>
+               <DialogDescription className="text-[10px] text-muted-foreground/70">{currentPosName} • {new Date().toLocaleString('cs-CZ')}</DialogDescription>
             </div>
 
             <div className="text-center mb-8">
@@ -501,7 +503,7 @@ export default function Home() {
                     placeholder="0"
                     value={cashReceived ?? ""}
                     onChange={(e) => setCashReceived(e.target.value === '' ? null : parseFloat(e.target.value))}
-                    className="text-center text-2xl h-14 font-bold bg-muted/20 border-dashed border-2"
+                    className="text-center text-2xl h-14 font-bold bg-muted/20 border-dashed border-2 text-[#1a1a1a]"
                     autoFocus
                   />
                   <div className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">Kč</div>
@@ -525,7 +527,7 @@ export default function Home() {
 
             <div className="w-full pt-4 border-t border-dashed border-muted-foreground/30">
                <Button onClick={handleCloseDialog} className="w-full h-14 text-lg font-bold active:scale-95 transition-transform">
-                 <Scissors className="mr-2 h-5 w-5" /> Dokončit prodej
+                 <Scissors className="mr-2 h-5 w-5" /> Dokončit a uložit
                </Button>
             </div>
           </div>
