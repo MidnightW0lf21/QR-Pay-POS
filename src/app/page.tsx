@@ -501,21 +501,24 @@ export default function Home() {
                     </div>
                   </div>
 
-                  {change !== null && (
-                    <div className="animate-smooth-expand">
+                  <div className={cn(
+                    "smooth-expand-container",
+                    change !== null ? "is-open mb-6" : ""
+                  )}>
+                    <div className="min-h-0">
                       <div className="p-4 bg-zinc-50 rounded-lg border border-dashed border-zinc-200 text-center">
                         <p className="text-xs font-bold uppercase text-zinc-800 mb-1">
-                          {change >= 0 ? "Vrátit" : "Doplatit"}
+                          {change !== null && change >= 0 ? "Vrátit" : "Doplatit"}
                         </p>
                         <p className={cn(
                           "text-4xl font-black tabular-nums",
-                          change >= 0 ? "text-primary" : "text-destructive"
+                          change !== null && change >= 0 ? "text-primary" : "text-destructive"
                         )}>
-                          {Math.abs(change).toFixed(0)} <span className="text-xl">Kč</span>
+                          {change !== null ? Math.abs(change).toFixed(0) : "0"} <span className="text-xl">Kč</span>
                         </p>
                       </div>
                     </div>
-                  )}
+                  </div>
                 </div>
               )}
 

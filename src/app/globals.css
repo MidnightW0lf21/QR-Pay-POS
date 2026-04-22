@@ -83,21 +83,16 @@ body {
   animation: receipt-print-smooth 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
 }
 
-/* Smooth expansion for dynamic content inside the receipt */
-@keyframes smooth-expand {
-  from { 
-    opacity: 0; 
-    transform: translateY(-10px);
-    max-height: 0;
-  }
-  to { 
-    opacity: 1; 
-    transform: translateY(0);
-    max-height: 200px;
-  }
+/* Utility for smooth height expansion and collapse */
+.smooth-expand-container {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.4s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.4s ease, margin 0.4s ease;
+  opacity: 0;
+  overflow: hidden;
 }
 
-.animate-smooth-expand {
-  animation: smooth-expand 0.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  overflow: hidden;
+.smooth-expand-container.is-open {
+  grid-template-rows: 1fr;
+  opacity: 1;
 }
