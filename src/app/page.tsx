@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
@@ -12,16 +11,12 @@ import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogDescription,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Minus, ShoppingCart, Loader2, Landmark, Wallet, Tag, AlertTriangle, Eye, EyeOff } from "lucide-react";
+import { Minus, ShoppingCart, Loader2, Landmark, Wallet, Tag, AlertTriangle, Eye, EyeOff, Receipt, Scissors } from "lucide-react";
 import type { Product, BankingDetails, Transaction, CartItem } from "@/lib/types";
 import { 
   DEFAULT_PRODUCTS, 
@@ -89,6 +84,7 @@ export default function Home() {
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [showOutOfStock, setShowOutOfStock] = useState(false);
+  const [currentPosName, setCurrentPosName] = useState(DEFAULT_POS_NAME);
 
   const isCashMode = paymentMode === 'cash';
 
@@ -110,13 +106,16 @@ export default function Home() {
       if (storedBankingDetails) {
         setBankingDetails(JSON.parse(storedBankingDetails));
       }
+      const storedPosName = localStorage.getItem(POS_NAME_STORAGE_KEY);
+      if (storedPosName) {
+        setCurrentPosName(JSON.parse(storedPosName));
+      }
     }
   }, [isMounted]);
 
   const triggerHapticFeedback = () => {
     if (typeof window !== 'undefined' && typeof window.navigator !== 'undefined' && window.navigator.vibrate) {
       try {
-        // Používáme pole [70] pro maximální kompatibilitu s Android/Chrome/Samsung Internet
         window.navigator.vibrate([70]);
       } catch (e) {
         // Ignorujeme, pokud prohlížeč vibrace zablokuje
@@ -206,16 +205,13 @@ export default function Home() {
     setProducts(newProducts);
     localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(newProducts));
 
-    const storedPosName = localStorage.getItem(POS_NAME_STORAGE_KEY);
-    const posName = storedPosName ? JSON.parse(storedPosName) : DEFAULT_POS_NAME;
-
     const newTransaction: Transaction = {
       id: crypto.randomUUID(),
       date: new Date().toISOString(),
       total: total,
       items: transactionItems,
       paymentMethod: isCashMode ? 'cash' : 'qr',
-      posName: posName,
+      posName: currentPosName,
     };
 
     const storedTransactions = localStorage.getItem(TRANSACTIONS_STORAGE_KEY);
@@ -364,7 +360,7 @@ export default function Home() {
                 key={product.id} 
                 className={cn(
                   "flex flex-col overflow-hidden transition-all duration-200 group relative border-none shadow-md",
-                  "active:scale-95", // Vizuální haptická odezva při dotyku
+                  "active:scale-95",
                   inCart > 0 && "ring-4 ring-primary ring-offset-2 ring-offset-background scale-[.98]",
                   isOutOfStock && inCart === 0 ? "opacity-60 grayscale cursor-not-allowed" : "cursor-pointer hover:shadow-xl",
                   isLowStock && !inCart && "ring-1 ring-orange-500/50"
@@ -374,10 +370,8 @@ export default function Home() {
                 <div className="relative w-full aspect-square">
                   <ProductImage product={product} fill />
                   
-                  {/* Bottom Gradient Overlay */}
                   <div className="absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-t from-black/95 via-black/50 to-transparent z-10" />
 
-                  {/* Product Info inside the card */}
                   <div className="absolute bottom-3 left-3 right-3 text-white z-20 flex flex-col items-start">
                     <p className="font-bold text-base leading-tight truncate w-full drop-shadow-md">
                       {product.name}
@@ -387,7 +381,6 @@ export default function Home() {
                     </p>
                   </div>
 
-                  {/* Quantity controls */}
                   {inCart > 0 && (
                     <div className="absolute top-2 right-2 flex items-center bg-background/90 backdrop-blur-sm rounded-full p-0.5 shadow-lg z-30">
                       <Button 
@@ -405,7 +398,6 @@ export default function Home() {
                     </div>
                   )}
 
-                  {/* Stock Badges */}
                   {isLowStock && !inCart && (
                     <Badge variant="outline" className="absolute top-2 left-2 bg-orange-500 text-white border-none animate-pulse z-30 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider">
                       <AlertTriangle className="mr-1 h-3 w-3" /> Dochází ({product.stock} ks)
@@ -444,80 +436,99 @@ export default function Home() {
       )}
 
       <Dialog open={isQrDialogOpen} onOpenChange={(open) => !open && handleCloseDialog()}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Skenujte pro platbu</DialogTitle>
-            <DialogDescription>
-              Předložte tento QR kód pro dokončení transakce.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="flex flex-col items-center justify-center space-y-4 p-4">
-            <div className="p-4 bg-white rounded-lg shadow-md">
+        <DialogContent className="p-0 border-none bg-transparent shadow-none max-w-[95vw] sm:max-w-md focus-visible:outline-none">
+          <div className="receipt-paper p-8 flex flex-col items-center">
+            <div className="w-full text-center border-b border-dashed border-muted-foreground/30 pb-4 mb-4">
+               <div className="flex items-center justify-center gap-2 mb-1">
+                 <Receipt className="h-5 w-5 text-muted-foreground" />
+                 <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Účtenka / QR Platba</h2>
+               </div>
+               <p className="text-[10px] text-muted-foreground/70">{currentPosName} • {new Date().toLocaleString('cs-CZ')}</p>
+            </div>
+
+            <div className="text-center w-full mb-6">
+              <p className="text-sm font-medium text-muted-foreground mb-1">Celková částka k úhradě</p>
+              <p className="text-5xl font-black text-primary tabular-nums tracking-tight">
+                {total.toFixed(0)} <span className="text-2xl ml-1">Kč</span>
+              </p>
+            </div>
+
+            <div className="p-4 bg-white rounded-lg shadow-inner mb-6 ring-1 ring-black/5">
               {qrCodeDataUrl ? (
-                <Image src={qrCodeDataUrl} alt="QR Code" width={256} height={256} />
+                <Image src={qrCodeDataUrl} alt="QR Code" width={220} height={220} className="mx-auto" />
               ) : (
-                <div className="w-[256px] h-[256px] flex items-center justify-center bg-gray-100">
-                   <Loader2 className="h-16 w-16 animate-spin text-primary" />
+                <div className="w-[220px] h-[220px] flex items-center justify-center bg-gray-50">
+                   <Loader2 className="h-10 w-10 animate-spin text-primary" />
                 </div>
               )}
             </div>
-            <div className="text-center w-full">
-              <p className="text-lg font-medium text-muted-foreground">Celková částka</p>
-              <p className="text-4xl font-bold text-primary">{total.toFixed(0)} Kč</p>
+
+            <div className="w-full text-center border-t border-dashed border-muted-foreground/30 pt-4 mt-2">
+               <p className="text-[11px] text-muted-foreground italic mb-6">Skenujte kód ve své bankovní aplikaci.</p>
+               <Button variant="secondary" onClick={handleCloseDialog} className="w-full h-12 active:scale-95 transition-transform font-bold">
+                 <Scissors className="mr-2 h-4 w-4" /> Dokončit a vymazat
+               </Button>
             </div>
           </div>
-          <DialogFooter>
-            <Button variant="secondary" onClick={handleCloseDialog} className="w-full h-12 active:scale-95 transition-transform">
-              Zavřít a vymazat košík
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
       
       <Dialog open={isCashDialogOpen} onOpenChange={(open) => !open && handleCloseDialog()}>
-        <DialogContent className="sm:max-w-md">
-          <DialogHeader>
-            <DialogTitle>Platba v hotovosti</DialogTitle>
-            <DialogDescription>
-              Zadejte přijatou částku pro výpočet vrácených peněz.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="space-y-4 p-4">
-            <div className="text-center">
-              <p className="text-lg font-medium text-muted-foreground">Celková částka</p>
-              <p className="text-4xl font-bold text-primary">{total.toFixed(0)} Kč</p>
-            </div>
-            
-            <div className="grid grid-cols-1 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="cash-received">Přijatá hotovost (Kč)</Label>
-                <Input
-                  id="cash-received"
-                  type="number"
-                  placeholder="0"
-                  value={cashReceived ?? ""}
-                  onChange={(e) => setCashReceived(e.target.value === '' ? null : parseFloat(e.target.value))}
-                  className="text-center text-lg h-12"
-                />
-              </div>
+        <DialogContent className="p-0 border-none bg-transparent shadow-none max-w-[95vw] sm:max-w-md focus-visible:outline-none">
+          <div className="receipt-paper p-8 flex flex-col">
+            <div className="w-full text-center border-b border-dashed border-muted-foreground/30 pb-4 mb-6">
+               <div className="flex items-center justify-center gap-2 mb-1">
+                 <Receipt className="h-5 w-5 text-muted-foreground" />
+                 <h2 className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground">Účtenka / Hotovost</h2>
+               </div>
+               <p className="text-[10px] text-muted-foreground/70">{currentPosName} • {new Date().toLocaleString('cs-CZ')}</p>
             </div>
 
-            {change !== null && (
-              <div className="text-center p-4 bg-muted rounded-lg">
-                <p className="text-lg font-medium text-muted-foreground">
-                  {change >= 0 ? "Vrátit" : "Nedostatečná hotovost"}
-                </p>
-                <p className={`text-4xl font-bold ${change >= 0 ? "text-primary" : "text-destructive"}`}>
-                  {Math.abs(change).toFixed(0)} Kč
-                </p>
+            <div className="text-center mb-8">
+              <p className="text-sm font-medium text-muted-foreground mb-1">Celkem k úhradě</p>
+              <p className="text-5xl font-black text-primary tabular-nums">
+                {total.toFixed(0)} <span className="text-2xl ml-1">Kč</span>
+              </p>
+            </div>
+            
+            <div className="space-y-4 mb-6">
+              <div className="space-y-2">
+                <Label htmlFor="cash-received" className="text-xs font-bold uppercase text-muted-foreground tracking-wider">Přijatá hotovost</Label>
+                <div className="relative">
+                   <Input
+                    id="cash-received"
+                    type="number"
+                    placeholder="0"
+                    value={cashReceived ?? ""}
+                    onChange={(e) => setCashReceived(e.target.value === '' ? null : parseFloat(e.target.value))}
+                    className="text-center text-2xl h-14 font-bold bg-muted/20 border-dashed border-2"
+                    autoFocus
+                  />
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-muted-foreground font-bold">Kč</div>
+                </div>
               </div>
-            )}
+
+              {change !== null && (
+                <div className="p-4 bg-muted/30 rounded-lg border border-dashed text-center">
+                  <p className="text-xs font-bold uppercase text-muted-foreground mb-1">
+                    {change >= 0 ? "Vrátit zákazníkovi" : "Chybí doplatit"}
+                  </p>
+                  <p className={cn(
+                    "text-4xl font-black tabular-nums",
+                    change >= 0 ? "text-primary" : "text-destructive"
+                  )}>
+                    {Math.abs(change).toFixed(0)} <span className="text-xl">Kč</span>
+                  </p>
+                </div>
+              )}
+            </div>
+
+            <div className="w-full pt-4 border-t border-dashed border-muted-foreground/30">
+               <Button onClick={handleCloseDialog} className="w-full h-14 text-lg font-bold active:scale-95 transition-transform">
+                 <Scissors className="mr-2 h-5 w-5" /> Dokončit prodej
+               </Button>
+            </div>
           </div>
-          <DialogFooter>
-            <Button variant="secondary" onClick={handleCloseDialog} className="w-full h-12 active:scale-95 transition-transform">
-              Dokončit prodej
-            </Button>
-          </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
