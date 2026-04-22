@@ -119,7 +119,7 @@ export default function Home() {
     if (isCashDialogOpen) {
       const timer = setTimeout(() => {
         cashInputRef.current?.focus();
-      }, 1500); // Focus after print animation completes
+      }, 1500);
       return () => clearTimeout(timer);
     }
   }, [isCashDialogOpen]);
@@ -449,8 +449,8 @@ export default function Home() {
           className="p-0 bg-transparent border-none shadow-none max-w-[360px] focus-visible:outline-none overflow-visible"
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          <div className="animate-receipt-print flex flex-col items-center">
-            {/* Main Receipt Content */}
+          <div className="animate-receipt-print relative">
+            {/* The Main Receipt Body */}
             <div className="receipt-paper bg-white p-8 pb-12 w-full shadow-2xl relative z-10">
               <div className="w-full text-center border-b border-dashed border-zinc-300 pb-4 mb-4">
                  <div className="flex items-center justify-center gap-2 mb-1">
@@ -525,10 +525,11 @@ export default function Home() {
                    <Scissors className="mr-2 h-5 w-5" /> Dokončit a uložit
                  </Button>
               </div>
-            </div>
 
-            {/* Stub continuing below the screen */}
-            <div className="w-full bg-white h-screen -mt-1" />
+              {/* Infinite stub extension */}
+              {/* This is absolutely positioned so it doesn't affect the receipt's center position */}
+              <div className="absolute top-full left-0 right-0 h-screen bg-white" />
+            </div>
           </div>
         </DialogContent>
       </Dialog>
