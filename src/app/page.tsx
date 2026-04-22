@@ -381,7 +381,7 @@ export default function Home() {
 
             {/* NEKONEČNÝ PAPÍR (Stub) */}
             <div className={cn(
-              "absolute left-0 right-0 h-screen bg-white z-10 stub-paper",
+              "absolute left-0 right-0 h-screen bg-white z-10 stub-paper shadow-lg",
               "top-[calc(100%-1px)]", // 1px překrytí pro schování švu
               isTorn && "animate-fly-down"
             )} />
