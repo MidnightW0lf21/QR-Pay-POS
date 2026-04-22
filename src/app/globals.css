@@ -101,4 +101,19 @@ body {
       100% calc(100% - 15px), 97.5% 100%, 95% calc(100% - 15px), 92.5% 100%, 90% calc(100% - 15px), 87.5% 100%, 85% calc(100% - 15px), 82.5% 100%, 80% calc(100% - 15px), 77.5% 100%, 75% calc(100% - 15px), 72.5% 100%, 70% calc(100% - 15px), 67.5% 100%, 65% calc(100% - 15px), 62.5% 100%, 60% calc(100% - 15px), 57.5% 100%, 55% calc(100% - 15px), 52.5% 100%, 50% calc(100% - 15px), 47.5% 100%, 45% calc(100% - 15px), 42.5% 100%, 40% calc(100% - 15px), 37.5% 100%, 35% calc(100% - 15px), 32.5% 100%, 30% calc(100% - 15px), 27.5% 100%, 25% calc(100% - 15px), 22.5% 100%, 20% calc(100% - 15px), 17.5% 100%, 15% calc(100% - 15px), 12.5% 100%, 10% calc(100% - 15px), 7.5% 100%, 5% calc(100% - 15px), 2.5% 100%, 0% calc(100% - 15px)
     );
   }
+
+  @keyframes print-receipt {
+    0% {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+    100% {
+      transform: translateY(0);
+      opacity: 1;
+    }
+  }
+
+  .animate-print {
+    animation: print-receipt 0.7s steps(10, end) forwards;
+  }
 }
