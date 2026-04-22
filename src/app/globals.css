@@ -76,7 +76,7 @@ body {
 }
 
 /* 
-   STUB (Páska pod účtenkou) - Zubatý okraj nahoře 
+   STUB (Páska pod účtenkou) - Zubatý okraj nahoře (přesně zapadá do spodku účtenky)
 */
 .stub-paper {
   clip-path: polygon(
