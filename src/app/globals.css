@@ -110,7 +110,7 @@ body {
 }
 
 .animate-tear-reveal {
-  animation: tear-reveal 0.8s ease-in-out forwards;
+  animation: tear-reveal 0.35s ease-in-out forwards;
 }
 
 /* 
@@ -127,11 +127,11 @@ body {
 }
 
 .animate-fly-up {
-  animation: fly-up-linear 0.5s cubic-bezier(0.32, 0, 0.67, 0) forwards;
+  animation: fly-up-linear 0.7s cubic-bezier(0.32, 0, 0.67, 0) forwards;
 }
 
 .animate-fly-down {
-  animation: fly-down-linear 0.5s cubic-bezier(0.32, 0, 0.67, 0) forwards;
+  animation: fly-down-linear 0.3s cubic-bezier(0.32, 0, 0.67, 0) forwards;
 }
 
 /* Plynulé vysouvání vnitřních polí */

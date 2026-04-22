@@ -376,15 +376,14 @@ export default function Home() {
 
             {/* MASKA PRO ODTRŽENÍ (Nůžky) - odkrývá trh plynulým odsouváním doprava */}
             {!isTorn && (
-              <div className="absolute left-0 right-0 h-10 overflow-hidden z-[30]" style={{ top: 'calc(100% - 20px)' }}>
+              <div className="absolute left-0 right-0 h-8 overflow-hidden z-[30]" style={{ top: 'calc(100% - 20px)' }}>
                 <div 
                   className={cn(
                     "h-full bg-white transition-none will-change-transform origin-left",
                     isClosing && "animate-tear-reveal"
                   )} 
                   style={{ 
-                    width: '101%', // Mírný přesah pro eliminaci artefaktů na okrajích
-                    left: '-0.5%',
+                    width: '100%', 
                     position: 'absolute',
                     clipPath: 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)', // Nutí prohlížeč k anti-aliasingu srovnatelnému s papírem
                     transform: isClosing ? undefined : 'scaleX(1)'
