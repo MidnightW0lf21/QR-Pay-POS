@@ -181,7 +181,7 @@ export default function Home() {
   const handleFinalizeAndClose = async () => {
     triggerHapticFeedback();
     
-    // FÁZE 1: Začátek odtržení (bílá maska se odkrývá vpravo)
+    // FÁZE 1: Začátek odtržení (maska se odkrývá vpravo)
     setIsClosing(true);
     
     // FÁZE 2: Počkáme, až projede "řez" (0.8s)
@@ -374,7 +374,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* MASKA PRO ODTRŽENÍ (Nůžky) - odsouvá se doprava a odkrývá trh. Plná šířka pro čisté hrany. */}
+            {/* MASKA PRO ODTRŽENÍ (Nůžky) - odkrývá trh plynulým odsouváním doprava */}
             {!isTorn && (
               <div className="absolute left-0 right-0 h-10 overflow-hidden z-[30]" style={{ top: 'calc(100% - 20px)' }}>
                 <div 
@@ -383,9 +383,11 @@ export default function Home() {
                     isClosing && "animate-tear-reveal"
                   )} 
                   style={{ 
-                    width: '100%',
-                    // Mírný přesah scaleX zajistí, že maska spolehlivě překryje vyhlazené hrany clip-pathu na bocích
-                    transform: isClosing ? undefined : 'scaleX(1.01)'
+                    width: '101%', // Mírný přesah pro eliminaci artefaktů na okrajích
+                    left: '-0.5%',
+                    position: 'absolute',
+                    clipPath: 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)', // Nutí prohlížeč k anti-aliasingu srovnatelnému s papírem
+                    transform: isClosing ? undefined : 'scaleX(1)'
                   }} 
                 />
               </div>
