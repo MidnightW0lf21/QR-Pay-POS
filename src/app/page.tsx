@@ -62,8 +62,6 @@ const ProductImage = ({ product, fill }: { product: Product; fill?: boolean }) =
         src={imageUrl} 
         alt={product.name} 
         fill={fill}
-        width={fill ? undefined : 400}
-        height={fill ? undefined : 400}
         className="object-cover transition-transform duration-300 group-hover:scale-105"
         data-ai-hint="product image"
       />
@@ -192,7 +190,6 @@ export default function Home() {
     triggerHapticFeedback();
     setIsClosing(true);
     
-    // Počkáme na animaci odtržení a odletu
     setTimeout(() => {
       saveTransaction();
       setIsQrDialogOpen(false);
@@ -200,7 +197,7 @@ export default function Home() {
       setCashReceived(null);
       setCart({}); 
       setIsClosing(false);
-    }, 1000);
+    }, 900);
   };
 
   const saveTransaction = () => {
@@ -240,7 +237,7 @@ export default function Home() {
     localStorage.setItem(TRANSACTIONS_STORAGE_KEY, JSON.stringify(transactions));
     toast({ 
       title: "Úspěch", 
-      description: "Transakce uložena do historie.",
+      description: "Transakce uložena.",
       variant: "success",
     });
   };
@@ -454,14 +451,12 @@ export default function Home() {
         </div>
       )}
 
-      {/* Společná komponenta účtenky */}
       <Dialog open={isQrDialogOpen || isCashDialogOpen} onOpenChange={(open) => !open && handleFinalizeAndClose()}>
         <DialogContent 
           className="p-0 border-none bg-transparent shadow-none w-fit max-w-[95vw] focus-visible:outline-none [&>button]:hidden overflow-visible"
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
           <div className="relative flex flex-col items-center">
-            {/* Samotná účtenka */}
             <div 
               className={cn(
                 "receipt-paper bg-white p-8 flex flex-col w-[320px] transition-all duration-300",
@@ -481,7 +476,7 @@ export default function Home() {
               </div>
 
               <div className="text-center w-full mb-6">
-                <p className="text-sm font-bold text-zinc-800 mb-1">Celková částka k úhradě</p>
+                <p className="text-sm font-bold text-zinc-800 mb-1">K úhradě</p>
                 <p className="text-5xl font-black text-primary tabular-nums tracking-tight">
                   {total.toFixed(0)} <span className="text-2xl ml-1">Kč</span>
                 </p>
@@ -502,7 +497,7 @@ export default function Home() {
               {isCashDialogOpen && (
                 <div className="space-y-4 mb-6">
                   <div className="space-y-2">
-                    <Label htmlFor="cash-received" className="text-xs font-bold uppercase text-zinc-800 tracking-wider">Přijatá hotovost</Label>
+                    <Label htmlFor="cash-received" className="text-xs font-bold uppercase text-zinc-800 tracking-wider">Přijato</Label>
                     <div className="relative">
                        <Input
                         ref={cashInputRef}
@@ -520,7 +515,7 @@ export default function Home() {
                   {change !== null && (
                     <div className="p-4 bg-zinc-50 rounded-lg border border-dashed border-zinc-200 text-center">
                       <p className="text-xs font-bold uppercase text-zinc-800 mb-1">
-                        {change >= 0 ? "Vrátit zákazníkovi" : "Chybí doplatit"}
+                        {change >= 0 ? "Vrátit" : "Doplatit"}
                       </p>
                       <p className={cn(
                         "text-4xl font-black tabular-nums",
@@ -535,7 +530,7 @@ export default function Home() {
 
               <div className="w-full text-center border-t border-dashed border-zinc-300 pt-4 mt-2">
                  <p className="text-[11px] text-zinc-800 font-bold italic mb-6">
-                   {isQrDialogOpen ? "Skenujte kód ve své bankovní aplikaci." : "Děkujeme za váš nákup!"}
+                   {isQrDialogOpen ? "Skenujte kód v bankovní aplikaci." : "Děkujeme za nákup!"}
                  </p>
                  <Button onClick={handleFinalizeAndClose} className="w-full h-14 active:scale-95 transition-transform font-bold text-lg">
                    <Scissors className="mr-2 h-5 w-5" /> Dokončit a uložit
@@ -543,13 +538,11 @@ export default function Home() {
               </div>
             </div>
 
-            {/* "Zbytek" papíru v tiskárně, který se ukáže jen při zavírání */}
             {isClosing && (
-              <div className="absolute -bottom-4 w-[320px] h-16 bg-white receipt-top-clip opacity-50 animate-stub-down -z-10" />
+              <div className="absolute -bottom-10 w-[320px] h-20 bg-white receipt-top-clip opacity-40 animate-stub-down -z-10" />
             )}
             
-            {/* Vizuální "slot" tiskárny */}
-            <div className="w-[340px] h-2 bg-zinc-800 rounded-full shadow-[0_4px_10px_rgba(0,0,0,0.5)] z-20" />
+            <div className="w-[340px] h-3 bg-zinc-900 rounded-b-md shadow-[0_10px_30px_rgba(0,0,0,0.6)] z-20 border-t-2 border-zinc-800" />
           </div>
         </DialogContent>
       </Dialog>
