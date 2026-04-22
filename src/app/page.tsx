@@ -18,7 +18,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
 import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
-import { Minus, ShoppingCart, Loader2, Landmark, Wallet, Tag, AlertTriangle, Eye, EyeOff, Receipt, Scissors } from "lucide-react";
+import { Minus, ShoppingCart, Loader2, Landmark, Wallet, Tag, Eye, EyeOff, Receipt, Scissors } from "lucide-react";
 import type { Product, BankingDetails, Transaction, CartItem } from "@/lib/types";
 import { 
   DEFAULT_PRODUCTS, 
@@ -123,7 +123,7 @@ export default function Home() {
     if (isCashDialogOpen) {
       const timer = setTimeout(() => {
         cashInputRef.current?.focus();
-      }, 1000); // Sladěno s tiskem
+      }, 1000); 
       return () => clearTimeout(timer);
     }
   }, [isCashDialogOpen]);
@@ -180,11 +180,11 @@ export default function Home() {
   const handleFinalizeAndClose = async () => {
     triggerHapticFeedback();
     
-    // FÁZE 1: Začátek odtržení (nůžky)
+    // FÁZE 1: Začátek odtržení (maska se odsouvá doprava)
     setIsClosing(true);
     
-    // FÁZE 2: Jakmile dojedou nůžky (0.4s), triggerujeme odlet
-    await new Promise(r => setTimeout(r, 400));
+    // FÁZE 2: Jakmile dojede animace odkrývání (0.8s), triggerujeme odlet
+    await new Promise(r => setTimeout(r, 800));
     setIsTorn(true);
 
     // FÁZE 3: Odlet trvá 0.5s, pak teprve dialog skutečně zmizí
@@ -313,11 +313,13 @@ export default function Home() {
         <DialogContent className="p-0 bg-transparent border-none shadow-none max-w-[360px] focus-visible:outline-none overflow-visible" onOpenAutoFocus={(e) => e.preventDefault()}>
           <div className={cn(
             "relative",
-            !isClosing && "animate-receipt-print",
-            isTorn && "animate-fly-up"
+            !isClosing && "animate-receipt-print"
           )}>
-            {/* ÚČTENKA - Zubatý okraj nahoře i dole */}
-            <div className="receipt-paper bg-white p-8 pb-12 w-full relative z-20">
+            {/* ÚČTENKA */}
+            <div className={cn(
+              "receipt-paper bg-white p-8 pb-12 w-full relative z-20",
+              isTorn && "animate-fly-up"
+            )}>
               <div className="w-full text-center border-b border-dashed border-zinc-300 pb-4 mb-4">
                  <div className="flex items-center justify-center gap-2 mb-1 text-zinc-800">
                    <Receipt className="h-5 w-5" />
@@ -370,19 +372,22 @@ export default function Home() {
                  </Button>
               </div>
 
-              {/* 
-                  MASKA ODTRŽENÍ (Nůžky) 
-                  - Prochází vodorovně přímo na spodní hraně účtenky 
-              */}
-              {isClosing && (
-                <div className="absolute bottom-0 left-0 h-4 bg-white animate-tear-sweep z-50 stub-paper" style={{ transform: 'translateY(50%)' }} />
+              {/* MASKA PRO ODTRŽENÍ (Nůžky) - odsouvá se doprava a odkrývá trh */}
+              {isClosing && !isTorn && (
+                <div 
+                  className="absolute left-0 h-6 bg-white z-[60] animate-tear-reveal" 
+                  style={{ 
+                    bottom: '-12px',
+                    width: '100%'
+                  }} 
+                />
               )}
             </div>
 
             {/* NEKONEČNÝ PAPÍR (Stub) */}
             <div className={cn(
               "absolute left-0 right-0 h-screen bg-white z-10 stub-paper shadow-lg",
-              "top-[calc(100%-1px)]", // 1px překrytí pro schování švu
+              "top-[calc(100%-1px)]", 
               isTorn && "animate-fly-down"
             )} />
           </div>
