@@ -76,7 +76,7 @@ import {
   PieChart as PieChartIcon, Tag, Boxes, TrendingUp, Calendar as CalendarIcon, 
   FilterX, Eye, EyeOff, FileJson, Files, AlertCircle, MonitorSmartphone 
 } from "lucide-react";
-import { deleteImage, getAllImageKeys } from "@/lib/db";
+import { deleteImage, getAllImageKeys, getImage, saveImage } from "@/lib/db";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   BarChart,
@@ -152,6 +152,7 @@ export default function SettingsPage() {
   const [pendingProducts, setPendingProducts] = useState<Product[]>([]);
   const [pendingTransactions, setPendingTransactions] = useState<Transaction[]>([]);
   const [pendingCategories, setPendingCategories] = useState<string[]>([]);
+  const [pendingImages, setPendingImages] = useState<Record<string, string>>({});
 
   // Analytics Filters
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
@@ -373,14 +374,23 @@ export default function SettingsPage() {
     XLSX.writeFile(workbook, "historie-transakci.xlsx");
   };
 
-  const handleExportAllData = () => {
+  const handleExportAllData = async () => {
+    // Collect images from IndexedDB
+    const keys = await getAllImageKeys();
+    const images: Record<string, string> = {};
+    for (const key of keys) {
+      const value = await getImage(key);
+      if (value) images[key] = value;
+    }
+
     const allData = {
       products: JSON.parse(localStorage.getItem(PRODUCTS_STORAGE_KEY) || '[]'),
       categories: JSON.parse(localStorage.getItem(CATEGORIES_STORAGE_KEY) || '[]'),
       transactions: JSON.parse(localStorage.getItem(TRANSACTIONS_STORAGE_KEY) || '[]'),
       banking: JSON.parse(localStorage.getItem(BANKING_DETAILS_STORAGE_KEY) || '{}'),
       message: JSON.parse(localStorage.getItem(MESSAGE_STORAGE_KEY) || '""'),
-      posName: JSON.parse(localStorage.getItem(POS_NAME_STORAGE_KEY) || `"${DEFAULT_POS_NAME}"`)
+      posName: JSON.parse(localStorage.getItem(POS_NAME_STORAGE_KEY) || `"${DEFAULT_POS_NAME}"`),
+      images // Include gathered images
     };
     const blob = new Blob([JSON.stringify(allData, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -389,7 +399,7 @@ export default function SettingsPage() {
     a.download = `quickpay-backup-${new Date().toISOString().split('T')[0]}.json`;
     a.click();
     URL.revokeObjectURL(url);
-    toast({ title: "Úspěch", description: "Záloha všech dat byla stažena." });
+    toast({ title: "Úspěch", description: "Záloha všech dat včetně fotografií byla stažena." });
   };
 
   const handleMasterImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -398,6 +408,7 @@ export default function SettingsPage() {
 
     let mergedTransactions: Transaction[] = [...JSON.parse(localStorage.getItem(TRANSACTIONS_STORAGE_KEY) || '[]')];
     let mergedCategories: string[] = [...categories];
+    let mergedImages: Record<string, string> = {};
     let newProducts: Product[] = [];
     
     for (const file of Array.from(files)) {
@@ -408,7 +419,11 @@ export default function SettingsPage() {
         const importedProducts = Array.isArray(data) ? data : (data.products || []);
         const importedTransactions = Array.isArray(data) ? [] : (data.transactions || []);
         const importedCategories = Array.isArray(data) ? [] : (data.categories || []);
+        const importedImages = Array.isArray(data) ? {} : (data.images || {});
         
+        // Merge images
+        mergedImages = { ...mergedImages, ...importedImages };
+
         // Merge transactions (preventing duplicates by ID)
         const txIds = new Set(mergedTransactions.map(tx => tx.id));
         importedTransactions.forEach((tx: Transaction) => {
@@ -429,7 +444,7 @@ export default function SettingsPage() {
       }
     }
 
-    // Filter out internal product duplicates from newProducts (if multiple files had same new products)
+    // Filter out internal product duplicates from newProducts
     const uniqueImportedProducts = newProducts.reduce((acc: Product[], current) => {
       const exists = acc.find(p => p.name.toLowerCase() === current.name.toLowerCase());
       if (!exists) acc.push(current);
@@ -457,19 +472,20 @@ export default function SettingsPage() {
     setPendingProducts(nonConflictingProducts);
     setPendingTransactions(mergedTransactions);
     setPendingCategories(mergedCategories);
+    setPendingImages(mergedImages);
 
     if (newConflicts.length > 0) {
       setConflicts(newConflicts);
       setIsConflictDialogOpen(true);
     } else {
-      finalizeImport(nonConflictingProducts, mergedTransactions, mergedCategories);
+      finalizeImport(nonConflictingProducts, mergedTransactions, mergedCategories, mergedImages);
     }
 
     // Reset input
     event.target.value = '';
   };
 
-  const finalizeImport = (newProds: Product[], newTxs: Transaction[], newCats: string[]) => {
+  const finalizeImport = async (newProds: Product[], newTxs: Transaction[], newCats: string[], newImages: Record<string, string>) => {
     const finalProducts = [...products];
     
     newProds.forEach(p => {
@@ -478,13 +494,18 @@ export default function SettingsPage() {
       }
     });
 
+    // Save imported images to IndexedDB
+    for (const [key, value] of Object.entries(newImages)) {
+      await saveImage(key, value);
+    }
+
     handleSaveProducts(finalProducts);
     handleSaveCategories(newCats);
     localStorage.setItem(TRANSACTIONS_STORAGE_KEY, JSON.stringify(newTxs));
     
     toast({ 
       title: "Import dokončen", 
-      description: `Importováno ${newProds.length} produktů a aktualizována historie (${newTxs.length} transakcí celkem).` 
+      description: `Importováno ${newProds.length} produktů, ${Object.keys(newImages).length} fotografií a aktualizována historie.` 
     });
     
     setIsConflictDialogOpen(false);
@@ -504,7 +525,7 @@ export default function SettingsPage() {
     });
 
     handleSaveProducts(updatedExistingProducts);
-    finalizeImport(resolvedProds, pendingTransactions, pendingCategories);
+    finalizeImport(resolvedProds, pendingTransactions, pendingCategories, pendingImages);
   };
 
   const handleClearHistory = () => {
