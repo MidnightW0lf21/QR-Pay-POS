@@ -177,29 +177,19 @@ export default function Home() {
     else setIsQrDialogOpen(true);
   };
   
-  /**
-   * TADY SE NASTAVUJE ČASOVÁNÍ EXIT ANIMACE
-   */
   const handleFinalizeAndClose = async () => {
     triggerHapticFeedback();
     
-    // FÁZE 1: Začne se odsouvat bílá maska (nůžky)
     setIsClosing(true);
     
-    // FÁZE 2: Čekáme, až "nůžky" (maska) dojedou doprava.
-    // Tento čas musí odpovídat délce 'animate-tear-reveal' v globals.css (např. 0.35s = 350ms).
-    // Necháváme 400ms jako rezervu.
+    // Časování pro trhnutí (masku)
     await new Promise(r => setTimeout(r, 400));
     
-    // Nyní aktivujeme stav 'isTorn', který spustí 'animate-fly-up' a 'animate-fly-down'
     setIsTorn(true);
 
-    // FÁZE 3: Čekáme, až obě části odletí úplně mimo obrazovku.
-    // Tento čas musí odpovídat délce 'animate-fly-up' v globals.css (např. 0.7s = 700ms).
-    // Pokud ti účtenka mizí dřív, ZVĚTŠI toto číslo (např. na 800 nebo 1000).
+    // Časování pro odlet (musí být delší než animace v CSS)
     await new Promise(r => setTimeout(r, 800));
     
-    // Teprve teď vypneme Dialog (což skryje ztmavené pozadí) a vymažeme košík.
     saveTransaction();
     setIsQrDialogOpen(false);
     setIsCashDialogOpen(false);
@@ -286,18 +276,24 @@ export default function Home() {
               <Card key={product.id} className={cn("flex flex-col overflow-hidden transition-all duration-200 group relative border-none shadow-md active:scale-95", inCart > 0 && "ring-4 ring-primary ring-offset-2 ring-offset-background scale-[.98]", product.stock <= 0 && inCart === 0 ? "opacity-60 grayscale cursor-not-allowed" : "cursor-pointer hover:shadow-xl")} onClick={() => product.stock > 0 && handleQuantityChange(product.id, 1)}>
                 <div className="relative w-full aspect-square">
                   <ProductImage product={product} fill />
-                  <div className="absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-t from-black/95 via-black/50 to-transparent z-10" />
-                  <div className="absolute bottom-3 left-3 right-3 text-white z-20 flex flex-col items-start">
-                    <p className="font-bold text-base leading-tight truncate w-full drop-shadow-md">{product.name}</p>
-                    <p className="text-2xl font-black text-primary drop-shadow-xl brightness-110">{product.price.toFixed(0)} Kč</p>
+                  {/* Barevně adaptivní fade – ve světlém režimu z bílé, v tmavém z černé */}
+                  <div className="absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-t from-card/95 via-card/50 to-transparent z-10" />
+                  
+                  {/* Barva textu názvu produktu se nyní mění podle režimu */}
+                  <div className="absolute bottom-3 left-3 right-3 text-card-foreground z-20 flex flex-col items-start">
+                    <p className="font-bold text-base leading-tight truncate w-full">{product.name}</p>
+                    <p className="text-2xl font-black text-primary brightness-110">{product.price.toFixed(0)} Kč</p>
                   </div>
+                  
                   {inCart > 0 && (
                     <div className="absolute top-2 right-2 flex items-center bg-background/90 backdrop-blur-sm rounded-full p-0.5 shadow-lg z-30">
                       <Button variant="ghost" size="icon" className="h-7 w-7 rounded-full hover:bg-muted" onClick={(e) => { e.stopPropagation(); handleQuantityChange(product.id, -1); }}><Minus className="h-4 w-4" /></Button>
                       <span className="text-lg font-bold w-7 text-center">{inCart}</span>
                     </div>
                   )}
-                  <Badge variant={remainingStock <= 0 ? "destructive" : "secondary"} className={cn("absolute top-2 left-2 flex items-center text-[11px] px-2 py-0.5 z-30 font-bold", remainingStock <= 0 ? "bg-destructive text-white" : "bg-black/60 text-white border-none backdrop-blur-sm")}>
+                  
+                  {/* Štítek skladu je nyní také adaptivní */}
+                  <Badge variant={remainingStock <= 0 ? "destructive" : "secondary"} className={cn("absolute top-2 left-2 flex items-center text-[11px] px-2 py-0.5 z-30 font-bold", remainingStock <= 0 ? "bg-destructive text-white" : "bg-background/60 text-foreground border-none backdrop-blur-sm shadow-sm")}>
                     {remainingStock <= 0 ? "VYPRODÁNO" : `${product.stock} ks`}
                   </Badge>
                 </div>
@@ -320,7 +316,7 @@ export default function Home() {
       )}
 
       <Dialog open={isQrDialogOpen || isCashDialogOpen} onOpenChange={(open) => !open && !isClosing && handleFinalizeAndClose()}>
-        <DialogContent className="p-0 bg-transparent border-none shadow-none max-w-[360px] focus-visible:outline-none overflow-visible" onOpenAutoFocus={(e) => e.preventDefault()}>
+        <DialogContent className="p-0 bg-transparent border-none shadow-none max-w-[360px] focus-visible:outline-none overflow-visible [&>button]:hidden" onOpenAutoFocus={(e) => e.preventDefault()}>
           <div className={cn(
             "relative",
             !isClosing && "animate-receipt-print"
@@ -383,7 +379,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* KONTEJNER PRO MASKU (Nůžky) - ořezává masku, aby "nečouhala" vpravo mimo papír */}
+            {/* KONTEJNER PRO MASKU (Nůžky) */}
             {!isTorn && (
               <div className="absolute left-0 right-0 h-8 overflow-hidden z-[30]" style={{ top: 'calc(100% - 20px)' }}>
                 <div 
@@ -392,10 +388,10 @@ export default function Home() {
                     isClosing && "animate-tear-reveal"
                   )} 
                   style={{ 
-                    width: '101%', // Mírný přesah pro dokonalý anti-aliasing
+                    width: '101%', 
                     left: '-0.5%',
                     position: 'absolute',
-                    clipPath: 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)', // Nutí prohlížeč k vyhlazování (vytváří stejné hrany jako papír)
+                    clipPath: 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)',
                     transform: isClosing ? undefined : 'scaleX(1)'
                   }} 
                 />
