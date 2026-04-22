@@ -379,10 +379,14 @@ export default function Home() {
               <div className="absolute left-0 right-0 h-10 overflow-hidden z-[30]" style={{ top: 'calc(100% - 20px)' }}>
                 <div 
                   className={cn(
-                    "h-full bg-white transition-none",
+                    "h-full bg-white transition-none will-change-transform origin-left",
                     isClosing && "animate-tear-reveal"
                   )} 
-                  style={{ width: '100%' }} 
+                  style={{ 
+                    width: '100%',
+                    // Mírný přesah scaleX zajistí, že maska spolehlivě překryje vyhlazené hrany clip-pathu na bocích
+                    transform: isClosing ? undefined : 'scaleX(1.01)'
+                  }} 
                 />
               </div>
             )}
