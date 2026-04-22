@@ -197,7 +197,7 @@ export default function Home() {
       setCashReceived(null);
       setCart({}); 
       setIsClosing(false);
-    }, 1200); // Prodlouženo pro plynulé odtržení a odlet
+    }, 1200); 
   };
 
   const saveTransaction = () => {
@@ -507,7 +507,7 @@ export default function Home() {
                         placeholder="0"
                         value={cashReceived ?? ""}
                         onChange={(e) => setCashReceived(e.target.value === '' ? null : parseFloat(e.target.value))}
-                        className="text-center text-2xl h-14 font-bold bg-muted/20 border-dashed border-2 text-[#1a1a1a]"
+                        className="text-center text-2xl h-14 font-bold bg-muted/20 border-dashed border-2 text-zinc-800"
                       />
                       <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 font-bold">Kč</div>
                     </div>
@@ -546,7 +546,7 @@ export default function Home() {
 
             {/* Zbytek papíru, který sklouzne dolů */}
             {isClosing && (
-              <div className="absolute top-[calc(100%-8px)] w-[320px] h-32 bg-white receipt-top-clip opacity-90 animate-stub-down z-10" />
+              <div className="absolute top-[calc(100%-15px)] w-[320px] h-screen bg-white receipt-top-clip opacity-90 animate-stub-down z-10" />
             )}
           </div>
         </DialogContent>
