@@ -449,9 +449,9 @@ export default function Home() {
           className="p-0 bg-transparent border-none shadow-none max-w-[360px] focus-visible:outline-none overflow-visible"
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          <div className="animate-receipt-print relative">
-            {/* The Main Receipt Body */}
-            <div className="receipt-paper bg-white p-8 pb-12 w-full shadow-2xl relative z-10">
+          <div className="animate-receipt-print flex flex-col items-center">
+            {/* Samotná Účtenka */}
+            <div className="receipt-paper bg-white p-8 pb-12 w-full shadow-2xl relative z-20">
               <div className="w-full text-center border-b border-dashed border-zinc-300 pb-4 mb-4">
                  <div className="flex items-center justify-center gap-2 mb-1">
                    <Receipt className="h-5 w-5 text-zinc-800" />
@@ -503,9 +503,9 @@ export default function Home() {
 
                   <div className={cn(
                     "smooth-expand-container",
-                    change !== null ? "is-open mb-6" : ""
+                    change !== null ? "is-open" : ""
                   )}>
-                    <div className="min-h-0">
+                    <div className="min-h-0 pt-4">
                       <div className="p-4 bg-zinc-50 rounded-lg border border-dashed border-zinc-200 text-center">
                         <p className="text-xs font-bold uppercase text-zinc-800 mb-1">
                           {change !== null && change >= 0 ? "Vrátit" : "Doplatit"}
@@ -531,8 +531,9 @@ export default function Home() {
                  </Button>
               </div>
             </div>
-            {/* The Stub (Visual continuation of paper) */}
-            <div className="absolute top-[calc(100%-2px)] left-0 right-0 h-screen bg-white shadow-2xl z-0" />
+
+            {/* Stub - nekonečný papír pokračující dolů */}
+            <div className="w-full h-screen bg-white shadow-2xl z-10 -mt-2" />
           </div>
         </DialogContent>
       </Dialog>
