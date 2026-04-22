@@ -168,7 +168,6 @@ export default function HistoryPage() {
       title: "Úspěch",
       description: "Poslední transakce byla smazána.",
       variant: "success",
-      duration: 2000,
     });
   };
 

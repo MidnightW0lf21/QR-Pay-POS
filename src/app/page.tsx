@@ -1,4 +1,3 @@
-
 "use client";
 
 import { useState, useEffect, useMemo, useRef } from "react";
@@ -118,12 +117,11 @@ export default function Home() {
     }
   }, [isMounted]);
 
-  // Efekt pro odložené zaměření (focus) na vstup hotovosti po dokončení animace "tisku"
   useEffect(() => {
     if (isCashDialogOpen) {
       const timer = setTimeout(() => {
         cashInputRef.current?.focus();
-      }, 1500); // Animace trvá 1.4s, počkáme 1.5s pro jistotu
+      }, 1500);
       return () => clearTimeout(timer);
     }
   }, [isCashDialogOpen]);
@@ -152,7 +150,6 @@ export default function Home() {
           variant: "destructive",
           title: "Nedostatek zboží",
           description: `Na skladě je pouze ${product.stock} kusů produktu ${product.name}.`,
-          duration: 2000,
         });
         return;
       }
@@ -237,7 +234,6 @@ export default function Home() {
       title: "Úspěch", 
       description: "Transakce uložena do historie.",
       variant: "success",
-      duration: 1000,
     });
   };
 
