@@ -65,8 +65,20 @@ body {
   }
 }
 
-/* Zubatý horní okraj účtenky */
+/* 
+   HLAVNÍ ÚČTENKA - Zubatý okraj nahoře i dole 
+*/
 .receipt-paper {
+  clip-path: polygon(
+    0% 1.5%, 2.5% 0%, 5% 1.5%, 7.5% 0%, 10% 1.5%, 12.5% 0%, 15% 1.5%, 17.5% 0%, 20% 1.5%, 22.5% 0%, 25% 1.5%, 27.5% 0%, 30% 1.5%, 32.5% 0%, 35% 1.5%, 37.5% 0%, 40% 1.5%, 42.5% 0%, 45% 1.5%, 47.5% 0%, 50% 1.5%, 52.5% 0%, 55% 1.5%, 57.5% 0%, 60% 1.5%, 62.5% 0%, 65% 1.5%, 67.5% 0%, 70% 1.5%, 72.5% 0%, 75% 1.5%, 77.5% 0%, 80% 1.5%, 82.5% 0%, 85% 1.5%, 87.5% 0%, 90% 1.5%, 92.5% 0%, 95% 1.5%, 97.5% 0%, 100% 1.5%, 
+    100% 98.5%, 97.5% 100%, 95% 98.5%, 92.5% 100%, 90% 98.5%, 87.5% 100%, 85% 98.5%, 82.5% 100%, 80% 98.5%, 77.5% 100%, 75% 98.5%, 72.5% 100%, 70% 98.5%, 67.5% 100%, 65% 98.5%, 62.5% 100%, 60% 98.5%, 57.5% 100%, 55% 98.5%, 52.5% 100%, 50% 98.5%, 47.5% 100%, 45% 98.5%, 42.5% 100%, 40% 98.5%, 37.5% 100%, 35% 98.5%, 32.5% 100%, 30% 98.5%, 27.5% 100%, 25% 98.5%, 22.5% 100%, 20% 98.5%, 17.5% 100%, 15% 98.5%, 12.5% 100%, 10% 98.5%, 7.5% 100%, 5% 98.5%, 2.5% 100%, 0% 98.5%
+  );
+}
+
+/* 
+   STUB (Páska pod účtenkou) - Zubatý okraj nahoře 
+*/
+.stub-paper {
   clip-path: polygon(
     0% 1.5%, 2.5% 0%, 5% 1.5%, 7.5% 0%, 10% 1.5%, 12.5% 0%, 15% 1.5%, 17.5% 0%, 20% 1.5%, 22.5% 0%, 25% 1.5%, 27.5% 0%, 30% 1.5%, 32.5% 0%, 35% 1.5%, 37.5% 0%, 40% 1.5%, 42.5% 0%, 45% 1.5%, 47.5% 0%, 50% 1.5%, 52.5% 0%, 55% 1.5%, 57.5% 0%, 60% 1.5%, 62.5% 0%, 65% 1.5%, 67.5% 0%, 70% 1.5%, 72.5% 0%, 75% 1.5%, 77.5% 0%, 80% 1.5%, 82.5% 0%, 85% 1.5%, 87.5% 0%, 90% 1.5%, 92.5% 0%, 95% 1.5%, 97.5% 0%, 100% 1.5%, 
     100% 100%, 
@@ -77,27 +89,55 @@ body {
 /* 
    NASTAVENÍ TISKU (Mechanické kroky tiskárny)
    Zde můžete upravit pauzy a rychlost výjezdu.
-   - Procenta (%) v keyframes definují časový moment (0% start, 100% konec).
-   - Hodnoty v translateY (vh) definují pozici (100vh je pod obrazovkou, 0 je střed).
-   - Stejná hodnota translateY po sobě (např. 35% a 42%) vytvoří mechanickou pauzu.
 */
 @keyframes receipt-print-stepped {
   0% { transform: translateY(100vh); }
-  35% { transform: translateY(60vh); }
-  42% { transform: translateY(60vh); } /* Mechanická pauza 1 */
-  75% { transform: translateY(20vh); }
-  82% { transform: translateY(20vh); } /* Mechanická pauza 2 */
+  40% { transform: translateY(50vh); }
+  45% { transform: translateY(50vh); } /* Mechanická pauza 1 */
+  85% { transform: translateY(5vh); }
+  90% { transform: translateY(5vh); }  /* Mechanická pauza 2 */
   100% { transform: translateY(0); }
 }
 
 .animate-receipt-print {
-  /* Změnou času (1.2s) zrychlíte nebo zpomalíte celkový tisk */
-  animation: receipt-print-stepped 1.2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
-  /* Drop-shadow lemuje zubatý okraj i boky papíru plynule */
+  animation: receipt-print-stepped 0.8s cubic-bezier(0.22, 1, 0.36, 1) forwards;
   filter: drop-shadow(0 20px 25px rgba(0,0,0,0.15));
 }
 
-/* Plynulé vysouvání vnitřních polí (např. hotovost) */
+/* 
+   ODTRŽENÍ (Nůžky zleva doprava) 
+*/
+@keyframes tear-sweep {
+  0% { width: 0; left: 0; }
+  100% { width: 100%; left: 0; }
+}
+
+.animate-tear-sweep {
+  animation: tear-sweep 0.4s ease-in-out forwards;
+}
+
+/* 
+   ODLET (Lineárně pryč) 
+*/
+@keyframes fly-up-linear {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(-120vh); opacity: 1; }
+}
+
+@keyframes fly-down-linear {
+  0% { transform: translateY(0); opacity: 1; }
+  100% { transform: translateY(120vh); opacity: 1; }
+}
+
+.animate-fly-up {
+  animation: fly-up-linear 0.5s cubic-bezier(0.32, 0, 0.67, 0) forwards;
+}
+
+.animate-fly-down {
+  animation: fly-down-linear 0.5s cubic-bezier(0.32, 0, 0.67, 0) forwards;
+}
+
+/* Plynulé vysouvání vnitřních polí */
 .smooth-expand-container {
   display: grid;
   grid-template-rows: 0fr;
