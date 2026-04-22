@@ -436,8 +436,8 @@ export default function Home() {
       )}
 
       <Dialog open={isQrDialogOpen} onOpenChange={(open) => !open && handleCloseDialog()}>
-        <DialogContent className="p-0 border-none bg-transparent shadow-none max-w-[95vw] sm:max-w-md focus-visible:outline-none">
-          <div className="receipt-paper p-8 flex flex-col items-center">
+        <DialogContent className="p-0 border-none bg-transparent shadow-none w-fit max-w-[95vw] focus-visible:outline-none">
+          <div className="receipt-paper p-8 flex flex-col items-center w-[320px]">
             <div className="w-full text-center border-b border-dashed border-muted-foreground/30 pb-4 mb-4">
                <div className="flex items-center justify-center gap-2 mb-1">
                  <Receipt className="h-5 w-5 text-muted-foreground" />
@@ -474,8 +474,8 @@ export default function Home() {
       </Dialog>
       
       <Dialog open={isCashDialogOpen} onOpenChange={(open) => !open && handleCloseDialog()}>
-        <DialogContent className="p-0 border-none bg-transparent shadow-none max-w-[95vw] sm:max-w-md focus-visible:outline-none">
-          <div className="receipt-paper p-8 flex flex-col">
+        <DialogContent className="p-0 border-none bg-transparent shadow-none w-fit max-w-[95vw] focus-visible:outline-none">
+          <div className="receipt-paper p-8 flex flex-col w-[320px]">
             <div className="w-full text-center border-b border-dashed border-muted-foreground/30 pb-4 mb-6">
                <div className="flex items-center justify-center gap-2 mb-1">
                  <Receipt className="h-5 w-5 text-muted-foreground" />
