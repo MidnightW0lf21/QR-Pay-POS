@@ -106,12 +106,12 @@ body {
   }
 
   @keyframes print-receipt {
-    0% { transform: translateY(100%); opacity: 0; }
-    30% { transform: translateY(65%); opacity: 1; }
-    35% { transform: translateY(65%); }
-    65% { transform: translateY(35%); }
-    70% { transform: translateY(35%); }
-    100% { transform: translateY(0); opacity: 1; }
+    0% { transform: translateY(100vh); }
+    30% { transform: translateY(60vh); }
+    35% { transform: translateY(60vh); }
+    65% { transform: translateY(30vh); }
+    70% { transform: translateY(30vh); }
+    100% { transform: translateY(0); }
   }
 
   @keyframes tear-sweep {
@@ -120,18 +120,18 @@ body {
   }
 
   @keyframes tear-and-fly-up {
-    0% { transform: translateY(0); opacity: 1; }
-    20% { transform: translateY(10px) rotate(1deg); }
-    100% { transform: translateY(-150vh) rotate(-5deg); opacity: 0; }
+    0% { transform: translateY(0) rotate(0); opacity: 1; }
+    20% { transform: translateY(10px) rotate(0.5deg); }
+    100% { transform: translateY(-150vh) rotate(-2deg); opacity: 0; }
   }
 
   @keyframes slide-down-stub {
-    0% { transform: translateY(-100%); opacity: 1; }
-    100% { transform: translateY(100vh) rotate(5deg); opacity: 0; }
+    0% { transform: translateY(0); opacity: 1; }
+    100% { transform: translateY(100vh); opacity: 0; }
   }
 
   .animate-print {
-    animation: print-receipt 1.4s ease-out forwards;
+    animation: print-receipt 1.4s cubic-bezier(0.2, 0.8, 0.2, 1) forwards;
   }
 
   .animate-tear-off {

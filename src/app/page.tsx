@@ -457,11 +457,12 @@ export default function Home() {
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
           <div className="relative flex flex-col items-center">
-            {/* Hlavní odletová účtenka */}
+            {/* Hlavní účtenka */}
             <div 
               className={cn(
                 "receipt-paper bg-white p-8 flex flex-col w-[320px] transition-all duration-300 relative z-30",
-                !isClosing ? "animate-print receipt-top-clip" : "animate-tear-off receipt-bottom-clip"
+                "animate-print receipt-top-clip",
+                isClosing && "animate-tear-off receipt-bottom-clip"
               )}
             >
               <div className="w-full text-center border-b border-dashed border-zinc-300 pb-4 mb-4">
@@ -544,10 +545,14 @@ export default function Home() {
               )}
             </div>
 
-            {/* Zbytek papíru, který sklouzne dolů */}
-            {isClosing && (
-              <div className="absolute top-[calc(100%-15px)] w-[320px] h-screen bg-white receipt-top-clip opacity-90 animate-stub-down z-10" />
-            )}
+            {/* Stub papíru, který je vidět od začátku a pak sklouzne dolů */}
+            <div 
+              className={cn(
+                "w-[320px] h-screen bg-white receipt-top-clip transition-all duration-300",
+                "animate-print",
+                isClosing && "animate-stub-down"
+              )} 
+            />
           </div>
         </DialogContent>
       </Dialog>
