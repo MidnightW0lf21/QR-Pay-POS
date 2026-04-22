@@ -449,8 +449,8 @@ export default function Home() {
           className="p-0 bg-transparent border-none shadow-none max-w-[360px] focus-visible:outline-none overflow-visible"
           onOpenAutoFocus={(e) => e.preventDefault()}
         >
-          <div className="animate-receipt-print flex flex-col items-center">
-            {/* Samotná Účtenka */}
+          <div className="animate-receipt-print relative">
+            {/* Účtenka - Hlavní část */}
             <div className="receipt-paper bg-white p-8 pb-12 w-full shadow-2xl relative z-20">
               <div className="w-full text-center border-b border-dashed border-zinc-300 pb-4 mb-4">
                  <div className="flex items-center justify-center gap-2 mb-1">
@@ -532,8 +532,8 @@ export default function Home() {
               </div>
             </div>
 
-            {/* Stub - nekonečný papír pokračující dolů */}
-            <div className="w-full h-screen bg-white shadow-2xl z-10 -mt-2" />
+            {/* Stub - Nekonečná páska visící absolutně pod účtenkou */}
+            <div className="absolute top-full left-0 right-0 h-screen bg-white shadow-2xl z-10" />
           </div>
         </DialogContent>
       </Dialog>
