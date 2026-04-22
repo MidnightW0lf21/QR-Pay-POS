@@ -106,11 +106,13 @@ body {
 */
 @keyframes tear-reveal {
   0% { transform: translateX(0); }
+  20% { transform: translateX(20%); }
+  66% { transform: translateX(60%); }
   100% { transform: translateX(100%); }
 }
 
 .animate-tear-reveal {
-  animation: tear-reveal 0.35s ease-in-out forwards;
+  animation: tear-reveal 0.35s ease-in forwards;
 }
 
 /* 
@@ -138,7 +140,7 @@ body {
 .smooth-expand-container {
   display: grid;
   grid-template-rows: 0fr;
-  transition: grid-template-rows 0.4s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.4s ease;
+  transition: grid-template-rows 0.5s cubic-bezier(0.22, 1, 0.36, 1), opacity 0.4s ease;
   opacity: 0;
   overflow: hidden;
 }

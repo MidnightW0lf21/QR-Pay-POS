@@ -87,7 +87,6 @@ export default function Home() {
   const [showOutOfStock, setShowOutOfStock] = useState(false);
   const [currentPosName, setCurrentPosName] = useState(DEFAULT_POS_NAME);
   
-  // Stavy pro animaci odtržení a odletu
   const [isClosing, setIsClosing] = useState(false);
   const [isTorn, setIsTorn] = useState(false);
 
@@ -178,19 +177,29 @@ export default function Home() {
     else setIsQrDialogOpen(true);
   };
   
+  /**
+   * TADY SE NASTAVUJE ČASOVÁNÍ EXIT ANIMACE
+   */
   const handleFinalizeAndClose = async () => {
     triggerHapticFeedback();
     
-    // FÁZE 1: Začátek odtržení (maska se odkrývá vpravo)
+    // FÁZE 1: Začne se odsouvat bílá maska (nůžky)
     setIsClosing(true);
     
-    // FÁZE 2: Počkáme, až projede "řez" (0.8s)
-    await new Promise(r => setTimeout(r, 800));
+    // FÁZE 2: Čekáme, až "nůžky" (maska) dojedou doprava.
+    // Tento čas musí odpovídat délce 'animate-tear-reveal' v globals.css (např. 0.35s = 350ms).
+    // Necháváme 400ms jako rezervu.
+    await new Promise(r => setTimeout(r, 400));
+    
+    // Nyní aktivujeme stav 'isTorn', který spustí 'animate-fly-up' a 'animate-fly-down'
     setIsTorn(true);
 
-    // FÁZE 3: Synchronní odlet obou částí (0.5s)
-    await new Promise(r => setTimeout(r, 500));
+    // FÁZE 3: Čekáme, až obě části odletí úplně mimo obrazovku.
+    // Tento čas musí odpovídat délce 'animate-fly-up' v globals.css (např. 0.7s = 700ms).
+    // Pokud ti účtenka mizí dřív, ZVĚTŠI toto číslo (např. na 800 nebo 1000).
+    await new Promise(r => setTimeout(r, 800));
     
+    // Teprve teď vypneme Dialog (což skryje ztmavené pozadí) a vymažeme košík.
     saveTransaction();
     setIsQrDialogOpen(false);
     setIsCashDialogOpen(false);
@@ -374,7 +383,7 @@ export default function Home() {
               </div>
             </div>
 
-            {/* MASKA PRO ODTRŽENÍ (Nůžky) - odkrývá trh plynulým odsouváním doprava */}
+            {/* KONTEJNER PRO MASKU (Nůžky) - ořezává masku, aby "nečouhala" vpravo mimo papír */}
             {!isTorn && (
               <div className="absolute left-0 right-0 h-8 overflow-hidden z-[30]" style={{ top: 'calc(100% - 20px)' }}>
                 <div 
@@ -383,9 +392,10 @@ export default function Home() {
                     isClosing && "animate-tear-reveal"
                   )} 
                   style={{ 
-                    width: '100%', 
+                    width: '101%', // Mírný přesah pro dokonalý anti-aliasing
+                    left: '-0.5%',
                     position: 'absolute',
-                    clipPath: 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)', // Nutí prohlížeč k anti-aliasingu srovnatelnému s papírem
+                    clipPath: 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)', // Nutí prohlížeč k vyhlazování (vytváří stejné hrany jako papír)
                     transform: isClosing ? undefined : 'scaleX(1)'
                   }} 
                 />
