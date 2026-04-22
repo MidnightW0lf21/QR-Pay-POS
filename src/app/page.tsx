@@ -374,9 +374,9 @@ export default function Home() {
               </div>
             </div>
 
-            {/* MASKA PRO ODTRŽENÍ (Nůžky) - odsouvá se doprava a odkrývá trh. Zúženo o 1px pro splynutí s hranou. */}
+            {/* MASKA PRO ODTRŽENÍ (Nůžky) - odsouvá se doprava a odkrývá trh. Plná šířka pro čisté hrany. */}
             {!isTorn && (
-              <div className="absolute left-[1px] right-[1px] h-10 overflow-hidden z-[30]" style={{ top: 'calc(100% - 20px)' }}>
+              <div className="absolute left-0 right-0 h-10 overflow-hidden z-[30]" style={{ top: 'calc(100% - 20px)' }}>
                 <div 
                   className={cn(
                     "h-full bg-white transition-none",
