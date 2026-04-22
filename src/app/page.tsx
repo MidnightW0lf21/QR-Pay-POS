@@ -133,7 +133,6 @@ export default function Home() {
       try {
         window.navigator.vibrate([70]);
       } catch (e) {
-        // Ignored
       }
     }
   };
@@ -179,17 +178,10 @@ export default function Home() {
   
   const handleFinalizeAndClose = async () => {
     triggerHapticFeedback();
-    
     setIsClosing(true);
-    
-    // Časování pro trhnutí (masku)
     await new Promise(r => setTimeout(r, 400));
-    
     setIsTorn(true);
-
-    // Časování pro odlet (musí být delší než animace v CSS)
     await new Promise(r => setTimeout(r, 800));
-    
     saveTransaction();
     setIsQrDialogOpen(false);
     setIsCashDialogOpen(false);
@@ -235,9 +227,20 @@ export default function Home() {
 
   const visibleProducts = useMemo(() => {
     return products.filter(p => {
+      // Basic check for visibility (explicit false means hidden)
       if (p.enabled === false) return false;
-      if (selectedCategory !== "all" && p.category !== selectedCategory) return false;
+      
+      // Category filter
+      if (selectedCategory !== "all") {
+        // If product has no category but we are looking for a specific one, hide it
+        if (!p.category && selectedCategory !== "all") return false;
+        // Strict category match
+        if (p.category !== selectedCategory) return false;
+      }
+      
+      // Stock filter: if hide out of stock is active, hide everything with 0 or less
       if (!showOutOfStock && p.stock <= 0) return false;
+      
       return true;
     });
   }, [products, selectedCategory, showOutOfStock]);
@@ -278,10 +281,8 @@ export default function Home() {
               <Card key={product.id} className={cn("flex flex-col overflow-hidden transition-all duration-200 group relative border-none shadow-md active:scale-95", inCart > 0 && "ring-4 ring-primary ring-offset-2 ring-offset-background scale-[.98]", product.stock <= 0 && inCart === 0 ? "opacity-60 grayscale cursor-not-allowed" : "cursor-pointer hover:shadow-xl")} onClick={() => product.stock > 0 && handleQuantityChange(product.id, 1)}>
                 <div className="relative w-full aspect-square">
                   <ProductImage product={product} fill />
-                  {/* Barevně adaptivní fade – ve světlém režimu z bílé, v tmavém z černé */}
                   <div className="absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-t from-card/95 via-card/50 to-transparent z-10" />
                   
-                  {/* Barva textu názvu produktu se nyní mění podle režimu */}
                   <div className="absolute bottom-3 left-3 right-3 text-card-foreground z-20 flex flex-col items-start">
                     <p className="font-bold text-base leading-tight truncate w-full">{product.name}</p>
                     <p className="text-2xl font-black text-primary brightness-110">{product.price.toFixed(0)} Kč</p>
@@ -294,7 +295,6 @@ export default function Home() {
                     </div>
                   )}
                   
-                  {/* Štítek skladu - Dynamický podle stavu */}
                   <Badge 
                     variant={remainingStock <= 5 ? "destructive" : "secondary"} 
                     className={cn(
@@ -329,7 +329,6 @@ export default function Home() {
             "relative",
             !isClosing && "animate-receipt-print"
           )}>
-            {/* ÚČTENKA */}
             <div className={cn(
               "receipt-paper bg-white p-8 pb-12 w-full relative z-20",
               isTorn && "animate-fly-up"
@@ -387,7 +386,6 @@ export default function Home() {
               </div>
             </div>
 
-            {/* KONTEJNER PRO MASKU (Nůžky) */}
             {!isTorn && (
               <div className="absolute left-0 right-0 h-8 overflow-hidden z-[30]" style={{ top: 'calc(100% - 20px)' }}>
                 <div 
@@ -406,7 +404,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* NEKONEČNÝ PAPÍR (Stub) */}
             <div className={cn(
               "absolute left-0 right-0 h-screen bg-white z-10 stub-paper shadow-lg",
               "top-[calc(100%-1px)]", 

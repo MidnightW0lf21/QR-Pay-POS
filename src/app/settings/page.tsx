@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
@@ -74,7 +75,8 @@ import {
   Plus, Edit, Trash2, Loader2, Sun, Moon, Laptop, Upload, Download, 
   Trash, RefreshCcw, Smartphone, X, LayoutGrid, Rows, BarChart3, 
   PieChart as PieChartIcon, Tag, Boxes, TrendingUp, Calendar as CalendarIcon, 
-  FilterX, Eye, EyeOff, FileJson, Files, AlertCircle, MonitorSmartphone 
+  FilterX, Eye, EyeOff, FileJson, Files, AlertCircle, MonitorSmartphone,
+  CheckCircle2, Circle
 } from "lucide-react";
 import { deleteImage, getAllImageKeys, getImage, saveImage } from "@/lib/db";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -146,7 +148,6 @@ export default function SettingsPage() {
   const [showInstallPrompt, setShowInstallPrompt] = useState(true);
   const [openAccordions, setOpenAccordions] = useState<string[]>(['item-1', 'item-2', 'item-category']);
 
-  // Conflict state
   const [conflicts, setConflicts] = useState<ImportConflict[]>([]);
   const [isConflictDialogOpen, setIsConflictDialogOpen] = useState(false);
   const [pendingProducts, setPendingProducts] = useState<Product[]>([]);
@@ -154,7 +155,6 @@ export default function SettingsPage() {
   const [pendingCategories, setPendingCategories] = useState<string[]>([]);
   const [pendingImages, setPendingImages] = useState<Record<string, string>>({});
 
-  // Analytics Filters
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
   const [selectedYear, setSelectedYear] = useState<string>("all");
@@ -246,7 +246,6 @@ export default function SettingsPage() {
     let revenueByDay = [];
 
     if (!isFiltered) {
-      // Last 30 days
       revenueByDay = Array.from({ length: 30 }, (_, i) => {
         const d = subDays(new Date(), i);
         const dateStr = d.toISOString().split('T')[0];
@@ -260,7 +259,6 @@ export default function SettingsPage() {
         };
       }).reverse();
     } else {
-      // Filtered mode: only days with activity
       const activeDates = Object.keys(revenueMap).sort();
       revenueByDay = activeDates.map(dateStr => {
         const revenue = Math.round(revenueMap[dateStr] || 0);
@@ -336,6 +334,14 @@ export default function SettingsPage() {
     setEditingProduct(null);
   };
 
+  const toggleProductEnabled = (productId: string, enabled: boolean) => {
+    handleSaveProducts(products.map(p => p.id === productId ? { ...p, enabled } : p));
+    toast({ 
+      title: enabled ? "Produkt aktivován" : "Produkt deaktivován",
+      description: `Produkt byl ${enabled ? 'přidán do' : 'odebrán z'} prodeje.` 
+    });
+  };
+
   const handleDeleteProduct = async (productId: string) => {
     const productToDelete = products.find(p => p.id === productId);
     if (productToDelete?.imageUrl?.startsWith('img_')) await deleteImage(productToDelete.imageUrl);
@@ -375,7 +381,6 @@ export default function SettingsPage() {
   };
 
   const handleExportAllData = async () => {
-    // Collect images from IndexedDB
     const keys = await getAllImageKeys();
     const images: Record<string, string> = {};
     for (const key of keys) {
@@ -390,7 +395,7 @@ export default function SettingsPage() {
       banking: JSON.parse(localStorage.getItem(BANKING_DETAILS_STORAGE_KEY) || '{}'),
       message: JSON.parse(localStorage.getItem(MESSAGE_STORAGE_KEY) || '""'),
       posName: JSON.parse(localStorage.getItem(POS_NAME_STORAGE_KEY) || `"${DEFAULT_POS_NAME}"`),
-      images // Include gathered images
+      images 
     };
     const blob = new Blob([JSON.stringify(allData, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -421,10 +426,8 @@ export default function SettingsPage() {
         const importedCategories = Array.isArray(data) ? [] : (data.categories || []);
         const importedImages = Array.isArray(data) ? {} : (data.images || {});
         
-        // Merge images
         mergedImages = { ...mergedImages, ...importedImages };
 
-        // Merge transactions (preventing duplicates by ID)
         const txIds = new Set(mergedTransactions.map(tx => tx.id));
         importedTransactions.forEach((tx: Transaction) => {
           if (!txIds.has(tx.id)) {
@@ -433,10 +436,7 @@ export default function SettingsPage() {
           }
         });
 
-        // Merge categories
         mergedCategories = Array.from(new Set([...mergedCategories, ...importedCategories]));
-
-        // Gather products for conflict checking
         newProducts = [...newProducts, ...importedProducts];
 
       } catch (err) {
@@ -444,14 +444,12 @@ export default function SettingsPage() {
       }
     }
 
-    // Filter out internal product duplicates from newProducts
     const uniqueImportedProducts = newProducts.reduce((acc: Product[], current) => {
       const exists = acc.find(p => p.name.toLowerCase() === current.name.toLowerCase());
       if (!exists) acc.push(current);
       return acc;
     }, []);
 
-    // Check for conflicts with existing products
     const newConflicts: ImportConflict[] = [];
     const nonConflictingProducts: Product[] = [];
 
@@ -481,7 +479,6 @@ export default function SettingsPage() {
       finalizeImport(nonConflictingProducts, mergedTransactions, mergedCategories, mergedImages);
     }
 
-    // Reset input
     event.target.value = '';
   };
 
@@ -494,7 +491,6 @@ export default function SettingsPage() {
       }
     });
 
-    // Save imported images to IndexedDB
     for (const [key, value] of Object.entries(newImages)) {
       await saveImage(key, value);
     }
@@ -585,7 +581,6 @@ export default function SettingsPage() {
           onValueChange={handleAccordionChange}
           className="w-full space-y-8"
         >
-          {/* Appearance & Installation */}
           <AccordionItem value="item-1" className="border-none">
             <Card>
               <AccordionTrigger className="p-6">
@@ -647,7 +642,6 @@ export default function SettingsPage() {
             </Card>
           </AccordionItem>
           
-          {/* Category Management */}
           <AccordionItem value="item-category" className="border-none">
             <Card>
               <AccordionTrigger className="p-6">
@@ -680,7 +674,6 @@ export default function SettingsPage() {
             </Card>
           </AccordionItem>
 
-          {/* Product Management */}
           <AccordionItem value="item-2" className="border-none">
             <Card>
               <AccordionTrigger className="p-6">
@@ -704,6 +697,7 @@ export default function SettingsPage() {
                         <TableHead>Název</TableHead>
                         <TableHead>Kat.</TableHead>
                         <TableHead>Sklad</TableHead>
+                        <TableHead className="text-center">Aktivní</TableHead>
                         <TableHead className="text-right">Akce</TableHead>
                       </TableRow>
                     </TableHeader>
@@ -713,6 +707,12 @@ export default function SettingsPage() {
                           <TableCell className="font-medium">{p.name}</TableCell>
                           <TableCell className="text-muted-foreground">{p.category || "-"}</TableCell>
                           <TableCell>{p.stock} ks</TableCell>
+                          <TableCell className="text-center">
+                            <Switch 
+                              checked={p.enabled !== false} 
+                              onCheckedChange={(checked) => toggleProductEnabled(p.id, checked)}
+                            />
+                          </TableCell>
                           <TableCell className="text-right space-x-1">
                             <DialogTrigger asChild>
                               <Button variant="ghost" size="icon" onClick={() => { setEditingProduct(p); setIsSheetOpen(true); }}>
@@ -741,7 +741,6 @@ export default function SettingsPage() {
             </Card>
           </AccordionItem>
           
-          {/* Sales Analytics */}
           <AccordionItem value="item-5" className="border-none">
             <Card>
               <AccordionTrigger className="p-6">
@@ -917,7 +916,6 @@ export default function SettingsPage() {
             </Card>
           </AccordionItem>
           
-          {/* QR Payment Settings */}
           <AccordionItem value="item-3" className="border-none">
             <Card>
               <AccordionTrigger className="p-6">
@@ -944,7 +942,6 @@ export default function SettingsPage() {
             </Card>
           </AccordionItem>
           
-          {/* Data Maintenance & Sync */}
           <AccordionItem value="item-4" className="border-none">
             <Card>
               <AccordionTrigger className="p-6">
@@ -954,7 +951,6 @@ export default function SettingsPage() {
                 </CardHeader>
               </AccordionTrigger>
               <AccordionContent className="px-6 pb-6 space-y-8">
-                {/* POS Identification */}
                 <div className="space-y-4 p-4 bg-primary/5 rounded-xl border border-primary/20">
                    <div className="flex items-center gap-2 text-primary">
                       <MonitorSmartphone className="h-5 w-5" />
@@ -1048,7 +1044,6 @@ export default function SettingsPage() {
           </AccordionItem>
         </Accordion>
         
-        {/* Product Editor Modal */}
         <DialogContent className="max-h-[90vh] sm:max-w-lg">
           <DialogHeader><DialogTitle>{editingProduct ? 'Upravit produkt' : 'Přidat nový produkt'}</DialogTitle></DialogHeader>
           <ScrollArea className="max-h-[calc(90vh-8rem)] -mx-6 px-6">
@@ -1061,7 +1056,6 @@ export default function SettingsPage() {
         </DialogContent>
       </Dialog>
 
-      {/* Conflict Resolution Dialog */}
       <Dialog open={isConflictDialogOpen} onOpenChange={setIsConflictDialogOpen}>
         <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
           <DialogHeader>
