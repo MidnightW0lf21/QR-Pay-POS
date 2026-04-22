@@ -525,11 +525,9 @@ export default function Home() {
                    <Scissors className="mr-2 h-5 w-5" /> Dokončit a uložit
                  </Button>
               </div>
-
-              {/* Infinite stub extension */}
-              {/* This is absolutely positioned so it doesn't affect the receipt's center position */}
-              <div className="absolute top-full left-0 right-0 h-screen bg-white" />
             </div>
+            {/* Infinite stub extension - now outside of the clipped parent but inside the animated container */}
+            <div className="absolute top-[calc(100%-1px)] left-0 right-0 h-screen bg-white shadow-2xl z-0" />
           </div>
         </DialogContent>
       </Dialog>
