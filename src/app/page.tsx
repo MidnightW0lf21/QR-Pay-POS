@@ -438,20 +438,20 @@ export default function Home() {
       )}
 
       <Dialog open={isQrDialogOpen} onOpenChange={(open) => !open && handleCloseDialog()}>
-        <DialogContent className="p-0 border-none bg-transparent shadow-none w-fit max-w-[95vw] focus-visible:outline-none">
+        <DialogContent className="p-0 border-none bg-transparent shadow-none w-fit max-w-[95vw] focus-visible:outline-none [&>button]:hidden">
           <div className="receipt-paper p-8 flex flex-col items-center w-[320px] animate-print">
             <div className="w-full text-center border-b border-dashed border-zinc-300 pb-4 mb-4">
                <div className="flex items-center justify-center gap-2 mb-1">
-                 <Receipt className="h-5 w-5 text-zinc-700" />
-                 <DialogTitle className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-700">Účtenka / QR Platba</DialogTitle>
+                 <Receipt className="h-5 w-5 text-zinc-800" />
+                 <DialogTitle className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-800">Účtenka / QR Platba</DialogTitle>
                </div>
-               <DialogDescription className="text-[10px] text-zinc-700 font-medium">
+               <DialogDescription className="text-[10px] text-zinc-800 font-medium">
                  {currentPosName} • {new Date().toLocaleString('cs-CZ')}
                </DialogDescription>
             </div>
 
             <div className="text-center w-full mb-6">
-              <p className="text-sm font-semibold text-zinc-700 mb-1">Celková částka k úhradě</p>
+              <p className="text-sm font-semibold text-zinc-800 mb-1">Celková částka k úhradě</p>
               <p className="text-5xl font-black text-primary tabular-nums tracking-tight">
                 {total.toFixed(0)} <span className="text-2xl ml-1">Kč</span>
               </p>
@@ -468,7 +468,7 @@ export default function Home() {
             </div>
 
             <div className="w-full text-center border-t border-dashed border-zinc-300 pt-4 mt-2">
-               <p className="text-[11px] text-zinc-700 font-medium italic mb-6">Skenujte kód ve své bankovní aplikaci.</p>
+               <p className="text-[11px] text-zinc-800 font-medium italic mb-6">Skenujte kód ve své bankovní aplikaci.</p>
                <Button onClick={handleCloseDialog} className="w-full h-12 active:scale-95 transition-transform font-bold text-lg">
                  <Scissors className="mr-2 h-5 w-5" /> Dokončit a uložit
                </Button>
@@ -478,20 +478,20 @@ export default function Home() {
       </Dialog>
       
       <Dialog open={isCashDialogOpen} onOpenChange={(open) => !open && handleCloseDialog()}>
-        <DialogContent className="p-0 border-none bg-transparent shadow-none w-fit max-w-[95vw] focus-visible:outline-none">
+        <DialogContent className="p-0 border-none bg-transparent shadow-none w-fit max-w-[95vw] focus-visible:outline-none [&>button]:hidden">
           <div className="receipt-paper p-8 flex flex-col w-[320px] animate-print">
             <div className="w-full text-center border-b border-dashed border-zinc-300 pb-4 mb-6">
                <div className="flex items-center justify-center gap-2 mb-1">
-                 <Receipt className="h-5 w-5 text-zinc-700" />
-                 <DialogTitle className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-700">Účtenka / Hotovost</DialogTitle>
+                 <Receipt className="h-5 w-5 text-zinc-800" />
+                 <DialogTitle className="text-xs font-bold uppercase tracking-[0.2em] text-zinc-800">Účtenka / Hotovost</DialogTitle>
                </div>
-               <DialogDescription className="text-[10px] text-zinc-700 font-medium">
+               <DialogDescription className="text-[10px] text-zinc-800 font-medium">
                  {currentPosName} • {new Date().toLocaleString('cs-CZ')}
                </DialogDescription>
             </div>
 
             <div className="text-center mb-8">
-              <p className="text-sm font-semibold text-zinc-700 mb-1">Celkem k úhradě</p>
+              <p className="text-sm font-semibold text-zinc-800 mb-1">Celkem k úhradě</p>
               <p className="text-5xl font-black text-primary tabular-nums">
                 {total.toFixed(0)} <span className="text-2xl ml-1">Kč</span>
               </p>
@@ -499,7 +499,7 @@ export default function Home() {
             
             <div className="space-y-4 mb-6">
               <div className="space-y-2">
-                <Label htmlFor="cash-received" className="text-xs font-bold uppercase text-zinc-700 tracking-wider">Přijatá hotovost</Label>
+                <Label htmlFor="cash-received" className="text-xs font-bold uppercase text-zinc-800 tracking-wider">Přijatá hotovost</Label>
                 <div className="relative">
                    <Input
                     id="cash-received"
@@ -516,7 +516,7 @@ export default function Home() {
 
               {change !== null && (
                 <div className="p-4 bg-zinc-50 rounded-lg border border-dashed border-zinc-200 text-center">
-                  <p className="text-xs font-bold uppercase text-zinc-700 mb-1">
+                  <p className="text-xs font-bold uppercase text-zinc-800 mb-1">
                     {change >= 0 ? "Vrátit zákazníkovi" : "Chybí doplatit"}
                   </p>
                   <p className={cn(
