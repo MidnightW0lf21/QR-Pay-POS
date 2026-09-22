@@ -4,6 +4,8 @@ import { Toaster } from "@/components/ui/toaster";
 import Header from '@/components/header';
 import { ThemeProvider } from '@/components/theme-provider';
 import { AppProvider } from '@/context/AppContext';
+import { AuthProvider } from '@/context/AuthContext';
+import { DataProvider } from '@/context/DataContext';
 
 export const metadata: Metadata = {
   title: 'Quick Pay',
@@ -30,13 +32,17 @@ export default function RootLayout({
           defaultTheme="dark"
           enableSystem
         >
-          <AppProvider>
-            <div className="relative flex min-h-screen w-full flex-col">
-              <Header />
-              <main className="flex-1 pt-16">{children}</main>
-            </div>
-            <Toaster />
-          </AppProvider>
+          <AuthProvider>
+            <DataProvider>
+              <AppProvider>
+                <div className="relative flex min-h-screen w-full flex-col">
+                  <Header />
+                  <main className="flex-1 pt-16">{children}</main>
+                </div>
+                <Toaster />
+              </AppProvider>
+            </DataProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

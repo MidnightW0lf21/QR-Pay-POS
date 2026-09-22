@@ -6,6 +6,8 @@ import * as z from "zod";
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import { saveImage, getImage } from "@/lib/db";
+import { uploadProductImage } from "@/lib/storage";
+import { useAuth } from "@/context/AuthContext";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -26,6 +28,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import type { Product } from "@/lib/types";
+import { generateUUID } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
 const productFormSchema = z.object({
@@ -47,8 +50,10 @@ interface ProductFormProps {
 
 export default function ProductForm({ onSubmit, product, categories }: ProductFormProps) {
   const { toast } = useToast();
+  const { user } = useAuth();
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [imageDataUrl, setImageDataUrl] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
@@ -67,12 +72,10 @@ export default function ProductForm({ onSubmit, product, categories }: ProductFo
       if (product?.imageUrl) {
         if (product.imageUrl.startsWith('data:')) {
           setImagePreview(product.imageUrl);
-          setImageDataUrl(product.imageUrl);
         } else if (product.imageUrl.startsWith('img_')) {
           const storedImage = await getImage(product.imageUrl);
           if (storedImage) {
             setImagePreview(storedImage);
-            setImageDataUrl(storedImage);
           }
         } else {
            setImagePreview(product.imageUrl);
@@ -85,45 +88,51 @@ export default function ProductForm({ onSubmit, product, categories }: ProductFo
   const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
-      if (file.size > 2 * 1024 * 1024) { // 2MB limit
+      if (file.size > 5 * 1024 * 1024) { // 5MB limit
         toast({
           variant: "destructive",
           title: "Soubor je příliš velký",
-          description: "Prosím nahrajte obrázek menší než 2MB.",
+          description: "Prosím nahrajte obrázek menší než 5MB.",
         });
         return;
       }
+      setSelectedFile(file);
       const reader = new FileReader();
       reader.onloadend = () => {
-        const dataUrl = reader.result as string;
-        setImagePreview(dataUrl);
-        setImageDataUrl(dataUrl);
+        setImagePreview(reader.result as string);
       };
       reader.readAsDataURL(file);
     }
   };
 
   const handleSubmit = async (data: ProductFormValues) => {
-    let imageUrl = product?.imageUrl || "";
+    setIsSubmitting(true);
+    try {
+      let imageUrl = product?.imageUrl || "";
 
-    if (imageDataUrl && (!product?.imageUrl || imageDataUrl !== imagePreview)) {
-      const imageKey = `img_${crypto.randomUUID()}`;
-      await saveImage(imageKey, imageDataUrl);
-      imageUrl = imageKey;
-    } else if (imagePreview && !imagePreview.startsWith('http') && !imagePreview.startsWith('img_')) {
-      const imageKey = `img_${crypto.randomUUID()}`;
-      await saveImage(imageKey, imagePreview);
-      imageUrl = imageKey;
-    } else if (data.imageUrl && !imageDataUrl) {
-      imageUrl = data.imageUrl;
-    }
+      if (selectedFile) {
+        const userId = user?.uid || "local_user";
+        const prodId = product?.id || generateUUID();
+        imageUrl = await uploadProductImage(userId, prodId, selectedFile);
+      } else if (data.imageUrl) {
+        imageUrl = data.imageUrl;
+      }
 
-    const finalData = { ...data, imageUrl };
-    
-    if (product) {
-      onSubmit({ ...product, ...finalData });
-    } else {
-      onSubmit(finalData);
+      const finalData = { ...data, imageUrl };
+      
+      if (product) {
+        onSubmit({ ...product, ...finalData });
+      } else {
+        onSubmit(finalData);
+      }
+    } catch (err: any) {
+      toast({
+        variant: "destructive",
+        title: "Chyba při ukládání",
+        description: err.message || "Nepodařilo se uložit obrázek produktu.",
+      });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -223,7 +232,7 @@ export default function ProductForm({ onSubmit, product, categories }: ProductFo
                       onChange={(e) => {
                         field.onChange(e);
                         setImagePreview(e.target.value);
-                        setImageDataUrl(null);
+                        setSelectedFile(null);
                       }}
                       className="flex-grow"
                     />
@@ -246,13 +255,14 @@ export default function ProductForm({ onSubmit, product, categories }: ProductFo
                 alt="Náhled obrázku" 
                 width={120} 
                 height={120} 
+                unoptimized={imagePreview.startsWith('data:')}
                 className="rounded-lg object-cover border" 
               />
             </div>
           )}
         </FormItem>
-        <Button type="submit" className="w-full h-12 text-lg">
-          {product ? "Uložit změny" : "Vytvořit produkt"}
+        <Button type="submit" className="w-full h-12 text-lg" disabled={isSubmitting}>
+          {isSubmitting ? "Ukládám produkt a fotku..." : product ? "Uložit změny" : "Vytvořit produkt"}
         </Button>
       </form>
     </Form>

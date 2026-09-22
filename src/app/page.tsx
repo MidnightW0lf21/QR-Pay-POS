@@ -37,6 +37,7 @@ import {
 import { useIsMounted } from "@/hooks/use-is-mounted";
 import { useToast } from "@/hooks/use-toast";
 import { useAppContext } from "@/context/AppContext";
+import { useDataContext } from "@/context/DataContext";
 import { cn } from "@/lib/utils";
 import { getImage } from "@/lib/db";
 
@@ -63,6 +64,7 @@ const ProductImage = ({ product, fill }: { product: Product; fill?: boolean }) =
         src={imageUrl} 
         alt={product.name} 
         fill={fill}
+        unoptimized={imageUrl.startsWith('data:')}
         className="object-cover transition-transform duration-300 group-hover:scale-105"
         data-ai-hint="product image"
       />
@@ -74,10 +76,16 @@ export default function Home() {
   const isMounted = useIsMounted();
   const { toast } = useToast();
   const { paymentMode, setPaymentMode, columnView } = useAppContext();
-  const [products, setProducts] = useState<Product[]>(DEFAULT_PRODUCTS);
-  const [categories, setCategories] = useState<string[]>(DEFAULT_CATEGORIES);
-  const [paymentMessage, setPaymentMessage] = useState<string>(DEFAULT_MESSAGE);
-  const [bankingDetails, setBankingDetails] = useState<BankingDetails>(DEFAULT_BANKING_DETAILS);
+  const { 
+    products, 
+    categories, 
+    paymentMessage, 
+    bankingDetails, 
+    posName: currentPosName,
+    recordSale,
+    isProductEnabledOnDevice
+  } = useDataContext();
+
   const [cart, setCart] = useState<Record<string, number>>({});
   const [isQrDialogOpen, setIsQrDialogOpen] = useState(false);
   const [isCashDialogOpen, setIsCashDialogOpen] = useState(false);
@@ -85,39 +93,29 @@ export default function Home() {
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
   const [showOutOfStock, setShowOutOfStock] = useState(false);
-  const [currentPosName, setCurrentPosName] = useState(DEFAULT_POS_NAME);
   
   const [isClosing, setIsClosing] = useState(false);
   const [isTorn, setIsTorn] = useState(false);
+  const [isSuccessFlash, setIsSuccessFlash] = useState(false);
+  const successTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
+    };
+  }, []);
+
+  const triggerSuccessFlash = () => {
+    if (successTimeoutRef.current) clearTimeout(successTimeoutRef.current);
+    setIsSuccessFlash(true);
+    successTimeoutRef.current = setTimeout(() => {
+      setIsSuccessFlash(false);
+    }, 1200);
+  };
 
   const cashInputRef = useRef<HTMLInputElement>(null);
 
   const isCashMode = paymentMode === 'cash';
-
-  useEffect(() => {
-    if (isMounted) {
-      const storedProducts = localStorage.getItem(PRODUCTS_STORAGE_KEY);
-      if (storedProducts) {
-        setProducts(JSON.parse(storedProducts));
-      }
-      const storedCategories = localStorage.getItem(CATEGORIES_STORAGE_KEY);
-      if (storedCategories) {
-        setCategories(JSON.parse(storedCategories));
-      }
-      const storedMessage = localStorage.getItem(MESSAGE_STORAGE_KEY);
-      if (storedMessage) {
-        setPaymentMessage(JSON.parse(storedMessage));
-      }
-      const storedBankingDetails = localStorage.getItem(BANKING_DETAILS_STORAGE_KEY);
-      if (storedBankingDetails) {
-        setBankingDetails(JSON.parse(storedBankingDetails));
-      }
-      const storedPosName = localStorage.getItem(POS_NAME_STORAGE_KEY);
-      if (storedPosName) {
-        setCurrentPosName(JSON.parse(storedPosName));
-      }
-    }
-  }, [isMounted]);
 
   useEffect(() => {
     if (isCashDialogOpen) {
@@ -182,6 +180,7 @@ export default function Home() {
     await new Promise(r => setTimeout(r, 400));
     setIsTorn(true);
     await new Promise(r => setTimeout(r, 800));
+    triggerSuccessFlash();
     saveTransaction();
     setIsQrDialogOpen(false);
     setIsCashDialogOpen(false);
@@ -191,24 +190,26 @@ export default function Home() {
     setIsTorn(false);
   };
 
-  const saveTransaction = () => {
+  const saveTransaction = async () => {
     if (Object.keys(cart).length === 0) return;
-    const transactionItems: CartItem[] = Object.entries(cart).map(([productId, quantity]) => {
-      const product = products.find(p => p.id === productId)!;
-      return { productId: product.id, name: product.name, price: product.price, quantity: quantity };
-    });
-    const newProducts = products.map(product => {
-      if (cart[product.id]) return { ...product, stock: product.stock - cart[product.id] };
-      return product;
-    });
-    setProducts(newProducts);
-    localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(newProducts));
-    const newTransaction: Transaction = { id: crypto.randomUUID(), date: new Date().toISOString(), total: total, items: transactionItems, paymentMethod: isCashMode ? 'cash' : 'qr', posName: currentPosName };
-    const storedTransactions = localStorage.getItem(TRANSACTIONS_STORAGE_KEY);
-    const transactions = storedTransactions ? JSON.parse(storedTransactions) : [];
-    transactions.unshift(newTransaction);
-    localStorage.setItem(TRANSACTIONS_STORAGE_KEY, JSON.stringify(transactions));
-    toast({ title: "Úspěch", description: "Transakce uložena.", variant: "success" });
+    const transactionItems: CartItem[] = Object.entries(cart)
+      .map(([productId, quantity]) => {
+        const product = products.find(p => p.id === productId);
+        if (!product) return null;
+        return { productId: product.id, name: product.name, price: product.price, quantity };
+      })
+      .filter((item): item is CartItem => item !== null);
+
+    try {
+      await recordSale(transactionItems, total, isCashMode ? 'cash' : 'qr');
+    } catch (err: any) {
+      console.error("Chyba při ukládání transakce:", err);
+      toast({ 
+        title: "Chyba", 
+        description: `Transakci se nepodařilo uložit: ${err?.message || err}`, 
+        variant: "destructive" 
+      });
+    }
   };
 
   const qrCodeData = useMemo(() => {
@@ -230,6 +231,9 @@ export default function Home() {
       // Basic check for visibility (explicit false means hidden)
       if (p.enabled === false) return false;
       
+      // Per-device filter: check if enabled on THIS cash register
+      if (!isProductEnabledOnDevice(p.id)) return false;
+      
       // Category filter
       if (selectedCategory !== "all") {
         // If product has no category but we are looking for a specific one, hide it
@@ -243,12 +247,22 @@ export default function Home() {
       
       return true;
     });
-  }, [products, selectedCategory, showOutOfStock]);
+  }, [products, selectedCategory, showOutOfStock, isProductEnabledOnDevice]);
 
   if (!isMounted) return <div className="flex h-[calc(100vh-4rem)] items-center justify-center"><Loader2 className="h-16 w-16 animate-spin text-primary" /></div>;
 
   return (
     <>
+      {/* Full-screen success flash overlay */}
+      <div 
+        className={cn(
+          "fixed inset-0 pointer-events-none z-50 transition-all duration-300 ease-out",
+          isSuccessFlash 
+            ? "bg-emerald-500/25 dark:bg-emerald-500/30 ring-8 ring-inset ring-emerald-500/50 opacity-100" 
+            : "bg-transparent opacity-0"
+        )}
+        aria-hidden="true"
+      />
       <div className="container mx-auto max-w-7xl p-4 sm:p-6 md:p-8 pb-32">
         <div className="flex flex-col gap-4 mb-6">
           <div className="flex items-center justify-between">

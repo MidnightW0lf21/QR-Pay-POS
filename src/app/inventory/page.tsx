@@ -56,6 +56,7 @@ import { Label } from "@/components/ui/label";
 import type { Product, Transaction } from "@/lib/types";
 import { PRODUCTS_STORAGE_KEY, TRANSACTIONS_STORAGE_KEY } from "@/lib/constants";
 import { useIsMounted } from "@/hooks/use-is-mounted";
+import { useDataContext } from "@/context/DataContext";
 import {
   BarChart,
   Bar,
@@ -72,8 +73,7 @@ import { cn } from "@/lib/utils";
 
 export default function InventoryPage() {
   const isMounted = useIsMounted();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
+  const { products, transactions } = useDataContext();
   
   // Date range filters
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
@@ -84,19 +84,6 @@ export default function InventoryPage() {
   const [chartMode, setChartMode] = useState<"stacked" | "grouped">("stacked");
   const [showCost, setShowCost] = useState(true);
   const [showProfit, setShowProfit] = useState(true);
-
-  useEffect(() => {
-    if (isMounted) {
-      const storedProducts = localStorage.getItem(PRODUCTS_STORAGE_KEY);
-      if (storedProducts) {
-        setProducts(JSON.parse(storedProducts));
-      }
-      const storedTransactions = localStorage.getItem(TRANSACTIONS_STORAGE_KEY);
-      if (storedTransactions) {
-        setTransactions(JSON.parse(storedTransactions));
-      }
-    }
-  }, [isMounted]);
 
   const availableYears = useMemo(() => {
     const years = new Set<string>();
@@ -290,7 +277,7 @@ export default function InventoryPage() {
 
           <div className="w-[120px]">
             <Select value={selectedYear} onValueChange={setSelectedYear}>
-              <SelectTrigger size="sm" className="h-9">
+              <SelectTrigger className="h-9">
                 <SelectValue placeholder="Rok" />
               </SelectTrigger>
               <SelectContent>

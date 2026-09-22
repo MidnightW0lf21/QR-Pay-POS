@@ -1,8 +1,6 @@
-
 "use client";
 
 import { useState, useEffect, useRef, useMemo } from "react";
-import Image from "next/image";
 import Link from "next/link";
 import { useTheme } from "next-themes";
 import * as XLSX from "xlsx";
@@ -30,9 +28,6 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
-  DialogDescription,
-  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   AlertDialog,
@@ -53,32 +48,29 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { useToast } from "@/hooks/use-toast";
-import type { Product, BankingDetails, Transaction } from "@/lib/types";
+import type { Product, BankingDetails } from "@/lib/types";
 import {
   DEFAULT_PRODUCTS,
-  PRODUCTS_STORAGE_KEY,
-  CATEGORIES_STORAGE_KEY,
   DEFAULT_CATEGORIES,
-  MESSAGE_STORAGE_KEY,
   DEFAULT_MESSAGE,
-  BANKING_DETAILS_STORAGE_KEY,
   DEFAULT_BANKING_DETAILS,
-  TRANSACTIONS_STORAGE_KEY,
+  DEFAULT_POS_NAME,
   SETTINGS_ACCORDION_STATE_KEY,
-  POS_NAME_STORAGE_KEY,
-  DEFAULT_POS_NAME
 } from "@/lib/constants";
 import { useIsMounted } from "@/hooks/use-is-mounted";
 import { useAppContext } from "@/context/AppContext";
+import { useDataContext } from "@/context/DataContext";
+import { useAuth } from "@/context/AuthContext";
+import AuthModal from "@/components/auth-modal";
+import SyncStatusBadge from "@/components/sync-status-badge";
 import ProductForm from "@/components/product-form";
 import { 
-  Plus, Edit, Trash2, Loader2, Sun, Moon, Laptop, Upload, Download, 
-  Trash, RefreshCcw, Smartphone, X, LayoutGrid, Rows, BarChart3, 
-  PieChart as PieChartIcon, Tag, Boxes, TrendingUp, Calendar as CalendarIcon, 
-  FilterX, Eye, EyeOff, FileJson, Files, AlertCircle, MonitorSmartphone,
-  CheckCircle2, Circle
+  Plus, Edit, Trash2, Loader2, Sun, Moon, Laptop, Download, 
+  Trash, RefreshCcw, Smartphone, X, LayoutGrid, Rows, 
+  Tag, Boxes, TrendingUp, Calendar as CalendarIcon, 
+  FilterX, Eye, EyeOff, MonitorSmartphone, CheckCircle2, Cloud
 } from "lucide-react";
-import { deleteImage, getAllImageKeys, getImage, saveImage } from "@/lib/db";
+import { deleteImage, getAllImageKeys } from "@/lib/db";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
   BarChart,
@@ -121,13 +113,6 @@ interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>;
 }
 
-interface ImportConflict {
-  name: string;
-  existing: Product;
-  imported: Product;
-  resolution: 'keep' | 'overwrite' | 'rename';
-}
-
 const COLORS = ['#0ea5e9', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#6366f1', '#ec4899', '#f97316'];
 
 export default function SettingsPage() {
@@ -135,25 +120,40 @@ export default function SettingsPage() {
   const { toast } = useToast();
   const { theme, setTheme } = useTheme();
   const { columnView, setColumnView } = useAppContext();
-  const [products, setProducts] = useState<Product[]>([]);
-  const [categories, setCategories] = useState<string[]>([]);
+  const {
+    products,
+    categories,
+    transactions,
+    bankingDetails: ctxBankingDetails,
+    paymentMessage: ctxPaymentMessage,
+    posName: ctxPosName,
+    addProduct,
+    updateProduct,
+    deleteProduct,
+    toggleProductEnabled: ctxToggleProductEnabled,
+    isProductEnabledOnDevice,
+    toggleProductDeviceEnabled,
+    enableAllProductsOnDevice,
+    addCategory,
+    deleteCategory,
+    saveCategories,
+    saveBankingDetails,
+    savePaymentMessage,
+    savePosName,
+    clearAllTransactions,
+  } = useDataContext();
+  const { user } = useAuth();
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+
   const [newCategoryName, setNewCategoryName] = useState("");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState(DEFAULT_MESSAGE);
   const [posName, setPosName] = useState(DEFAULT_POS_NAME);
   const [bankingDetails, setBankingDetails] = useState<BankingDetails>(DEFAULT_BANKING_DETAILS);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [isSheetOpen, setIsSheetOpen] = useState(false);
   const [deferredPrompt, setDeferredPrompt] = useState<BeforeInstallPromptEvent | null>(null);
-  const masterInputRef = useRef<HTMLInputElement>(null);
   const [showInstallPrompt, setShowInstallPrompt] = useState(true);
-  const [openAccordions, setOpenAccordions] = useState<string[]>(['item-1', 'item-2', 'item-category']);
-
-  const [conflicts, setConflicts] = useState<ImportConflict[]>([]);
-  const [isConflictDialogOpen, setIsConflictDialogOpen] = useState(false);
-  const [pendingProducts, setPendingProducts] = useState<Product[]>([]);
-  const [pendingTransactions, setPendingTransactions] = useState<Transaction[]>([]);
-  const [pendingCategories, setPendingCategories] = useState<string[]>([]);
-  const [pendingImages, setPendingImages] = useState<Record<string, string>>({});
+  const [openAccordions, setOpenAccordions] = useState<string[]>(['item-products', 'item-category']);
 
   const [dateFrom, setDateFrom] = useState<Date | undefined>(undefined);
   const [dateTo, setDateTo] = useState<Date | undefined>(undefined);
@@ -172,198 +172,188 @@ export default function SettingsPage() {
   }, []);
 
   useEffect(() => {
+    if (ctxBankingDetails) setBankingDetails(ctxBankingDetails);
+  }, [ctxBankingDetails]);
+
+  useEffect(() => {
+    if (ctxPaymentMessage) setMessage(ctxPaymentMessage);
+  }, [ctxPaymentMessage]);
+
+  useEffect(() => {
+    if (ctxPosName) setPosName(ctxPosName);
+  }, [ctxPosName]);
+
+  useEffect(() => {
     if (isMounted) {
-      const storedProducts = localStorage.getItem(PRODUCTS_STORAGE_KEY);
-      setProducts(storedProducts ? JSON.parse(storedProducts) : DEFAULT_PRODUCTS);
-      
-      const storedCategories = localStorage.getItem(CATEGORIES_STORAGE_KEY);
-      setCategories(storedCategories ? JSON.parse(storedCategories) : DEFAULT_CATEGORIES);
-
-      const storedMessage = localStorage.getItem(MESSAGE_STORAGE_KEY);
-      setMessage(storedMessage ? JSON.parse(storedMessage) : DEFAULT_MESSAGE);
-      
-      const storedPosName = localStorage.getItem(POS_NAME_STORAGE_KEY);
-      setPosName(storedPosName ? JSON.parse(storedPosName) : DEFAULT_POS_NAME);
-
-      const storedBankingDetails = localStorage.getItem(BANKING_DETAILS_STORAGE_KEY);
-      setBankingDetails(storedBankingDetails ? JSON.parse(storedBankingDetails) : DEFAULT_BANKING_DETAILS);
-      
       const storedAccordionState = localStorage.getItem(SETTINGS_ACCORDION_STATE_KEY);
       if (storedAccordionState) setOpenAccordions(JSON.parse(storedAccordionState));
     }
   }, [isMounted]);
 
-  const availableYears = useMemo(() => {
-    if (!isMounted) return [];
-    const storedTransactions = localStorage.getItem(TRANSACTIONS_STORAGE_KEY);
-    const transactions: Transaction[] = storedTransactions ? JSON.parse(storedTransactions) : [];
-    const years = new Set<string>();
-    transactions.forEach(tx => {
-      years.add(new Date(tx.date).getFullYear().toString());
-    });
-    return Array.from(years).sort((a, b) => b.localeCompare(a));
-  }, [isMounted]);
-
-  const analyticsData = useMemo(() => {
-    if (!isMounted) return { revenueByDay: [], topProducts: [] };
-    
-    const storedTransactions = localStorage.getItem(TRANSACTIONS_STORAGE_KEY);
-    const transactions: Transaction[] = storedTransactions ? JSON.parse(storedTransactions) : [];
-    
-    let filtered = transactions;
-
-    if (selectedYear !== "all") {
-      filtered = filtered.filter(tx => new Date(tx.date).getFullYear().toString() === selectedYear);
-    }
-
-    if (dateFrom || dateTo) {
-      filtered = filtered.filter(tx => {
-        const txDate = new Date(tx.date);
-        const start = dateFrom ? startOfDay(dateFrom) : new Date(0);
-        const end = dateTo ? endOfDay(dateTo) : new Date(8640000000000000);
-        return isWithinInterval(txDate, { start, end });
-      });
-    }
-
-    const isFiltered = dateFrom || dateTo || selectedYear !== "all";
-
-    const revenueMap: Record<string, number> = {};
-    const costMap: Record<string, number> = {};
-    const productSales: Record<string, number> = {};
-
-    filtered.forEach(tx => {
-      const dateKey = tx.date.split('T')[0];
-      revenueMap[dateKey] = (revenueMap[dateKey] || 0) + tx.total;
-      
-      tx.items.forEach(item => {
-        productSales[item.name] = (productSales[item.name] || 0) + item.quantity;
-        const product = products.find(p => p.id === item.productId);
-        const costPrice = product?.costPrice || 0;
-        costMap[dateKey] = (costMap[dateKey] || 0) + (costPrice * item.quantity);
-      });
-    });
-
-    let revenueByDay = [];
-
-    if (!isFiltered) {
-      revenueByDay = Array.from({ length: 30 }, (_, i) => {
-        const d = subDays(new Date(), i);
-        const dateStr = d.toISOString().split('T')[0];
-        const revenue = Math.round(revenueMap[dateStr] || 0);
-        const cost = Math.round(costMap[dateStr] || 0);
-        return {
-          name: format(d, 'd.M.', { locale: cs }),
-          revenue: revenue,
-          cost: cost,
-          profit: Math.max(0, revenue - cost)
-        };
-      }).reverse();
-    } else {
-      const activeDates = Object.keys(revenueMap).sort();
-      revenueByDay = activeDates.map(dateStr => {
-        const revenue = Math.round(revenueMap[dateStr] || 0);
-        const cost = Math.round(costMap[dateStr] || 0);
-        return {
-          name: format(new Date(dateStr), 'd.M.', { locale: cs }),
-          revenue: revenue,
-          cost: cost,
-          profit: Math.max(0, revenue - cost)
-        };
-      });
-    }
-
-    const topProducts = Object.entries(productSales)
-      .map(([name, value]) => ({ name, value }))
-      .sort((a, b) => b.value - a.value)
-      .slice(0, 8);
-
-    return { revenueByDay, topProducts };
-  }, [isMounted, products, dateFrom, dateTo, selectedYear]);
-
   const handleAccordionChange = (value: string[]) => {
     setOpenAccordions(value);
     localStorage.setItem(SETTINGS_ACCORDION_STATE_KEY, JSON.stringify(value));
   };
-  
+
   const handleInstallClick = async () => {
-    if (deferredPrompt) {
-      deferredPrompt.prompt();
-      const { outcome } = await deferredPrompt.userChoice;
-      if (outcome === 'accepted') toast({ title: "Úspěch", description: "Aplikace nainstalována." });
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    const { outcome } = await deferredPrompt.userChoice;
+    if (outcome === 'accepted') {
       setDeferredPrompt(null);
+      setShowInstallPrompt(false);
     }
   };
 
-  const handleSaveProducts = (newProducts: Product[]) => {
-    setProducts(newProducts);
-    localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(newProducts));
-  };
+  const availableYears = useMemo(() => {
+    const years = new Set<string>();
+    transactions.forEach(tx => {
+      years.add(new Date(tx.date).getFullYear().toString());
+    });
+    return Array.from(years).sort().reverse();
+  }, [transactions]);
 
-  const handleSaveCategories = (newCategories: string[]) => {
-    setCategories(newCategories);
-    localStorage.setItem(CATEGORIES_STORAGE_KEY, JSON.stringify(newCategories));
-  };
+  const filteredTransactions = useMemo(() => {
+    return transactions.filter(tx => {
+      const txDate = new Date(tx.date);
+      if (selectedYear !== "all" && txDate.getFullYear().toString() !== selectedYear) {
+        return false;
+      }
+      if (dateFrom && dateTo) {
+        return isWithinInterval(txDate, {
+          start: startOfDay(dateFrom),
+          end: endOfDay(dateTo)
+        });
+      } else if (dateFrom) {
+        return txDate >= startOfDay(dateFrom);
+      } else if (dateTo) {
+        return txDate <= endOfDay(dateTo);
+      }
+      return true;
+    });
+  }, [transactions, dateFrom, dateTo, selectedYear]);
 
-  const handleAddCategory = () => {
+  const analyticsData = useMemo(() => {
+    const last7Days = Array.from({ length: 7 }).map((_, i) => {
+      const d = subDays(new Date(), 6 - i);
+      return {
+        dateStr: format(d, "yyyy-MM-dd"),
+        displayDate: format(d, "d. M.", { locale: cs }),
+        revenue: 0,
+        cost: 0,
+        profit: 0
+      };
+    });
+
+    const isUsingDateFilter = dateFrom || dateTo || selectedYear !== "all";
+
+    let revenueMap: Record<string, { displayDate: string, revenue: number, cost: number, profit: number }> = {};
+    
+    if (!isUsingDateFilter) {
+      last7Days.forEach(day => {
+        revenueMap[day.dateStr] = { displayDate: day.displayDate, revenue: 0, cost: 0, profit: 0 };
+      });
+    }
+
+    const categoryMap: Record<string, number> = {};
+
+    filteredTransactions.forEach(tx => {
+      const txDateStr = format(new Date(tx.date), "yyyy-MM-dd");
+      let txCost = 0;
+
+      tx.items.forEach(item => {
+        const prod = products.find(p => p.id === item.productId);
+        const costPrice = prod ? prod.costPrice : 0;
+        const category = (prod && prod.category) ? prod.category : "Nezařazeno";
+
+        txCost += costPrice * item.quantity;
+        categoryMap[category] = (categoryMap[category] || 0) + (item.price * item.quantity);
+      });
+
+      const txProfit = Math.max(0, tx.total - txCost);
+
+      if (!isUsingDateFilter) {
+        if (revenueMap[txDateStr]) {
+          revenueMap[txDateStr].revenue += tx.total;
+          revenueMap[txDateStr].cost += txCost;
+          revenueMap[txDateStr].profit += txProfit;
+        }
+      } else {
+        if (!revenueMap[txDateStr]) {
+          revenueMap[txDateStr] = {
+            displayDate: format(new Date(tx.date), "d. M.", { locale: cs }),
+            revenue: 0,
+            cost: 0,
+            profit: 0
+          };
+        }
+        revenueMap[txDateStr].revenue += tx.total;
+        revenueMap[txDateStr].cost += txCost;
+        revenueMap[txDateStr].profit += txProfit;
+      }
+    });
+
+    const revenueByDay = Object.keys(revenueMap).sort().map(key => ({
+      name: revenueMap[key].displayDate,
+      revenue: revenueMap[key].revenue,
+      cost: revenueMap[key].cost,
+      profit: revenueMap[key].profit,
+    }));
+
+    const categoryShare = Object.entries(categoryMap).map(([name, value]) => ({
+      name,
+      value
+    }));
+
+    return { revenueByDay, categoryShare };
+  }, [filteredTransactions, products, dateFrom, dateTo, selectedYear]);
+
+  const handleAddCategory = async () => {
     if (!newCategoryName.trim()) return;
-    if (categories.includes(newCategoryName.trim())) {
-      toast({ variant: "destructive", title: "Chyba", description: "Kategorie již existuje." });
-      return;
-    }
-    handleSaveCategories([...categories, newCategoryName.trim()]);
+    await addCategory(newCategoryName);
     setNewCategoryName("");
     toast({ title: "Úspěch", description: "Kategorie přidána." });
   };
 
-  const handleDeleteCategory = (cat: string) => {
-    handleSaveCategories(categories.filter(c => c !== cat));
+  const handleDeleteCategory = async (cat: string) => {
+    await deleteCategory(cat);
     toast({ title: "Úspěch", description: "Kategorie smazána." });
   };
 
-  const handleAddProduct = (product: Omit<Product, "id">) => {
-    const newProduct = { ...product, id: crypto.randomUUID(), enabled: true };
-    handleSaveProducts([...products, newProduct]);
-    toast({ title: "Úspěch", description: "Produkt přidán." });
+  const handleAddProduct = async (productData: Omit<Product, "id">) => {
+    await addProduct(productData);
+    toast({ title: "Úspěch", description: "Produkt vytvořen a synchronizován." });
     setIsSheetOpen(false);
   };
 
-  const handleEditProduct = (product: Product) => {
-    handleSaveProducts(products.map((p) => (p.id === product.id ? product : p)));
-    toast({ title: "Úspěch", description: "Produkt aktualizován." });
+  const handleEditProduct = async (product: Product | Omit<Product, "id">) => {
+    if (!('id' in product)) return;
+    await updateProduct(product as Product);
+    toast({ title: "Úspěch", description: "Produkt aktualizován a synchronizován." });
     setIsSheetOpen(false);
     setEditingProduct(null);
   };
 
-  const toggleProductEnabled = (productId: string, enabled: boolean) => {
-    handleSaveProducts(products.map(p => p.id === productId ? { ...p, enabled } : p));
-    toast({ 
-      title: enabled ? "Produkt aktivován" : "Produkt deaktivován",
-      description: `Produkt byl ${enabled ? 'přidán do' : 'odebrán z'} prodeje.` 
-    });
-  };
-
   const handleDeleteProduct = async (productId: string) => {
-    const productToDelete = products.find(p => p.id === productId);
-    if (productToDelete?.imageUrl?.startsWith('img_')) await deleteImage(productToDelete.imageUrl);
-    handleSaveProducts(products.filter((p) => p.id !== productId));
+    await deleteProduct(productId);
     toast({ title: "Úspěch", description: "Produkt smazán." });
   };
   
-  const handleSaveQrSettings = () => {
-    localStorage.setItem(MESSAGE_STORAGE_KEY, JSON.stringify(message));
-    localStorage.setItem(BANKING_DETAILS_STORAGE_KEY, JSON.stringify(bankingDetails));
-    toast({ title: "Úspěch", description: "Nastavení QR platby uloženo." });
+  const handleSaveQrSettings = async () => {
+    await saveBankingDetails(bankingDetails);
+    await savePaymentMessage(message);
+    toast({ title: "Úspěch", description: "Nastavení QR platby uloženo a synchronizováno." });
   };
 
-  const handleSavePosName = () => {
-    localStorage.setItem(POS_NAME_STORAGE_KEY, JSON.stringify(posName));
-    toast({ title: "Úspěch", description: "Název pokladny uložen." });
+  const handleSavePosName = async () => {
+    await savePosName(posName);
+    toast({ title: "Úspěch", description: "Název pokladny uložen a synchronizován." });
   };
 
   const handleExportHistory = () => {
-    const storedTransactions = localStorage.getItem(TRANSACTIONS_STORAGE_KEY);
-    const transactions: Transaction[] = storedTransactions ? JSON.parse(storedTransactions) : [];
-    if (transactions.length === 0) return toast({ variant: "destructive", title: "Chyba", description: "Žádná historie k exportu." });
+    if (transactions.length === 0) {
+      return toast({ variant: "destructive", title: "Chyba", description: "Žádná historie k exportu." });
+    }
     const flattenedData = transactions.flatMap(tx => tx.items.map(item => ({
       'ID Transakce': tx.id,
       'Pokladna': tx.posName || 'Neznámá',
@@ -380,160 +370,21 @@ export default function SettingsPage() {
     XLSX.writeFile(workbook, "historie-transakci.xlsx");
   };
 
-  const handleExportAllData = async () => {
-    const keys = await getAllImageKeys();
-    const images: Record<string, string> = {};
-    for (const key of keys) {
-      const value = await getImage(key);
-      if (value) images[key] = value;
-    }
-
-    const allData = {
-      products: JSON.parse(localStorage.getItem(PRODUCTS_STORAGE_KEY) || '[]'),
-      categories: JSON.parse(localStorage.getItem(CATEGORIES_STORAGE_KEY) || '[]'),
-      transactions: JSON.parse(localStorage.getItem(TRANSACTIONS_STORAGE_KEY) || '[]'),
-      banking: JSON.parse(localStorage.getItem(BANKING_DETAILS_STORAGE_KEY) || '{}'),
-      message: JSON.parse(localStorage.getItem(MESSAGE_STORAGE_KEY) || '""'),
-      posName: JSON.parse(localStorage.getItem(POS_NAME_STORAGE_KEY) || `"${DEFAULT_POS_NAME}"`),
-      images 
-    };
-    const blob = new Blob([JSON.stringify(allData, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = `quickpay-backup-${new Date().toISOString().split('T')[0]}.json`;
-    a.click();
-    URL.revokeObjectURL(url);
-    toast({ title: "Úspěch", description: "Záloha všech dat včetně fotografií byla stažena." });
-  };
-
-  const handleMasterImport = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const files = event.target.files;
-    if (!files || files.length === 0) return;
-
-    let mergedTransactions: Transaction[] = [...JSON.parse(localStorage.getItem(TRANSACTIONS_STORAGE_KEY) || '[]')];
-    let mergedCategories: string[] = [...categories];
-    let mergedImages: Record<string, string> = {};
-    let newProducts: Product[] = [];
-    
-    for (const file of Array.from(files)) {
-      try {
-        const text = await file.text();
-        const data = JSON.parse(text);
-        
-        const importedProducts = Array.isArray(data) ? data : (data.products || []);
-        const importedTransactions = Array.isArray(data) ? [] : (data.transactions || []);
-        const importedCategories = Array.isArray(data) ? [] : (data.categories || []);
-        const importedImages = Array.isArray(data) ? {} : (data.images || {});
-        
-        mergedImages = { ...mergedImages, ...importedImages };
-
-        const txIds = new Set(mergedTransactions.map(tx => tx.id));
-        importedTransactions.forEach((tx: Transaction) => {
-          if (!txIds.has(tx.id)) {
-            mergedTransactions.push(tx);
-            txIds.add(tx.id);
-          }
-        });
-
-        mergedCategories = Array.from(new Set([...mergedCategories, ...importedCategories]));
-        newProducts = [...newProducts, ...importedProducts];
-
-      } catch (err) {
-        toast({ variant: "destructive", title: `Chyba v souboru ${file.name}` });
-      }
-    }
-
-    const uniqueImportedProducts = newProducts.reduce((acc: Product[], current) => {
-      const exists = acc.find(p => p.name.toLowerCase() === current.name.toLowerCase());
-      if (!exists) acc.push(current);
-      return acc;
-    }, []);
-
-    const newConflicts: ImportConflict[] = [];
-    const nonConflictingProducts: Product[] = [];
-
-    uniqueImportedProducts.forEach(imported => {
-      const existing = products.find(p => p.name.toLowerCase() === imported.name.toLowerCase());
-      if (existing) {
-        newConflicts.push({
-          name: existing.name,
-          existing,
-          imported,
-          resolution: 'overwrite'
-        });
-      } else {
-        nonConflictingProducts.push(imported);
-      }
-    });
-
-    setPendingProducts(nonConflictingProducts);
-    setPendingTransactions(mergedTransactions);
-    setPendingCategories(mergedCategories);
-    setPendingImages(mergedImages);
-
-    if (newConflicts.length > 0) {
-      setConflicts(newConflicts);
-      setIsConflictDialogOpen(true);
-    } else {
-      finalizeImport(nonConflictingProducts, mergedTransactions, mergedCategories, mergedImages);
-    }
-
-    event.target.value = '';
-  };
-
-  const finalizeImport = async (newProds: Product[], newTxs: Transaction[], newCats: string[], newImages: Record<string, string>) => {
-    const finalProducts = [...products];
-    
-    newProds.forEach(p => {
-      if (!finalProducts.find(fp => fp.id === p.id)) {
-        finalProducts.push({ ...p, id: p.id || crypto.randomUUID() });
-      }
-    });
-
-    for (const [key, value] of Object.entries(newImages)) {
-      await saveImage(key, value);
-    }
-
-    handleSaveProducts(finalProducts);
-    handleSaveCategories(newCats);
-    localStorage.setItem(TRANSACTIONS_STORAGE_KEY, JSON.stringify(newTxs));
-    
-    toast({ 
-      title: "Import dokončen", 
-      description: `Importováno ${newProds.length} produktů, ${Object.keys(newImages).length} fotografií a aktualizována historie.` 
-    });
-    
-    setIsConflictDialogOpen(false);
-  };
-
-  const handleResolveConflicts = () => {
-    const resolvedProds = [...pendingProducts];
-    const updatedExistingProducts = [...products];
-
-    conflicts.forEach(c => {
-      if (c.resolution === 'overwrite') {
-        const idx = updatedExistingProducts.findIndex(p => p.id === c.existing.id);
-        if (idx !== -1) updatedExistingProducts[idx] = { ...c.imported, id: c.existing.id };
-      } else if (c.resolution === 'rename') {
-        resolvedProds.push({ ...c.imported, name: `${c.imported.name} (Imported)`, id: crypto.randomUUID() });
-      }
-    });
-
-    handleSaveProducts(updatedExistingProducts);
-    finalizeImport(resolvedProds, pendingTransactions, pendingCategories, pendingImages);
-  };
-
-  const handleClearHistory = () => {
-    localStorage.removeItem(TRANSACTIONS_STORAGE_KEY);
+  const handleClearHistory = async () => {
+    await clearAllTransactions();
     toast({ title: "Úspěch", description: "Historie vymazána." });
   };
   
   const handleRestoreDefaultProducts = async () => {
     const currentImageKeys = await getAllImageKeys();
     for (const key of currentImageKeys) await deleteImage(key);
-    handleSaveProducts(DEFAULT_PRODUCTS);
-    handleSaveCategories(DEFAULT_CATEGORIES);
+    for (const p of products) {
+      await deleteProduct(p.id);
+    }
+    for (const p of DEFAULT_PRODUCTS) {
+      await addProduct(p);
+    }
+    await saveCategories(DEFAULT_CATEGORIES);
     toast({ title: "Úspěch", description: "Výchozí stav obnoven." });
   };
 
@@ -552,500 +403,581 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-4xl p-4 sm:p-6 md:p-8">
-      <div className="mb-6 flex flex-col gap-2">
-         <h1 className="text-3xl font-bold">Nastavení</h1>
-         <p className="text-muted-foreground">Správa systému, vzhledu a dat.</p>
+    <div className="container mx-auto max-w-4xl p-4 sm:p-6 md:p-8 space-y-6">
+      <div className="flex flex-col gap-1">
+        <h1 className="text-3xl font-bold tracking-tight">Nastavení</h1>
+        <p className="text-muted-foreground text-sm">Správa cloudové synchronizace, sortimentu pokladny, vzhledu a dat.</p>
       </div>
 
-      <Card className="mb-8 border-primary bg-primary/5">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Boxes className="h-5 w-5 text-primary" /> Inventura a Ziskovost
-          </CardTitle>
-          <CardDescription>
-            Podívejte se na podrobnou analýzu marží a hodnotu vašeho skladu.
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <Button asChild className="w-full sm:w-auto h-12 text-lg">
-            <Link href="/inventory">Otevřít Inventuru</Link>
-          </Button>
+      {/* 1. CLOUDOVÁ SYNCHRONIZACE & POKLADNÍ ÚČET */}
+      <Card className="border-primary/30 shadow-sm overflow-hidden bg-gradient-to-br from-card via-card to-primary/[0.03]">
+        <div className="bg-gradient-to-r from-primary/10 via-primary/5 to-transparent p-5 sm:p-6 border-b">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="flex items-start sm:items-center gap-3">
+              <div className="p-2.5 rounded-xl bg-primary/10 text-primary shrink-0 mt-0.5 sm:mt-0">
+                <Cloud className="h-6 w-6" />
+              </div>
+              <div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <h2 className="text-lg sm:text-xl font-bold">Cloudová synchronizace</h2>
+                  <SyncStatusBadge onOpenAuth={() => setIsAuthModalOpen(true)} />
+                </div>
+                <p className="text-xs sm:text-sm text-muted-foreground mt-0.5">
+                  {user 
+                    ? `Přihlášeno k účtu ${user.email} • Všechny pokladny sdílejí data v reálném čase`
+                    : "Pokladna běží v lokálním offline profilu. Přihlaste se pro synchronizaci mezi zařízeními."}
+                </p>
+              </div>
+            </div>
+            <Button 
+              onClick={() => setIsAuthModalOpen(true)} 
+              variant={user ? "outline" : "default"}
+              className="shrink-0 font-medium"
+            >
+              {user ? "Správa účtu / Odhlásit" : "Přihlásit pokladnu"}
+            </Button>
+          </div>
+        </div>
+
+        <CardContent className="p-5 sm:p-6 space-y-6">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 items-end">
+            <div className="space-y-2">
+              <Label htmlFor="pos-name" className="text-sm font-semibold flex items-center gap-2">
+                <MonitorSmartphone className="h-4 w-4 text-primary" />
+                Název této pokladny
+              </Label>
+              <div className="flex gap-2">
+                <Input 
+                  id="pos-name"
+                  value={posName} 
+                  onChange={(e) => setPosName(e.target.value)}
+                  placeholder="např. Bar - Pokladna 1"
+                  className="font-medium"
+                />
+                <Button onClick={handleSavePosName} variant="secondary">
+                  Uložit
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Tento název se zobrazuje na účtenkách a v historii prodejů pro identifikaci obsluhy.
+              </p>
+            </div>
+
+            <div className="grid grid-cols-2 gap-3">
+              <div className="p-3 rounded-lg border bg-muted/30">
+                <div className="text-xs text-muted-foreground">Společný katalog</div>
+                <div className="text-xl font-bold mt-0.5">{products.length} položek</div>
+              </div>
+              <div className="p-3 rounded-lg border bg-muted/30">
+                <div className="text-xs text-muted-foreground">Celkem transakcí</div>
+                <div className="text-xl font-bold mt-0.5">{transactions.length} prodejů</div>
+              </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2 text-xs text-muted-foreground border-t">
+            <div className="flex items-center gap-2 p-2 rounded-md bg-muted/40">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+              <span><strong>Funguje i offline:</strong> Prodeje se ukládají lokálně v zařízení a synchronizují se hned po připojení.</span>
+            </div>
+            <div className="flex items-center gap-2 p-2 rounded-md bg-muted/40">
+              <CheckCircle2 className="h-4 w-4 text-emerald-500 shrink-0" />
+              <span><strong>Okamžitý push skladů:</strong> Jakmile jedna kasa prodá zboží, ostatním se ihned poníží stav na displeji.</span>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
-      <Dialog open={isSheetOpen} onOpenChange={setIsSheetOpen}>
-        <Accordion 
-          type="multiple" 
-          value={openAccordions}
-          onValueChange={handleAccordionChange}
-          className="w-full space-y-8"
-        >
-          <AccordionItem value="item-1" className="border-none">
-            <Card>
-              <AccordionTrigger className="p-6">
-                <CardHeader className="p-0 text-left">
-                  <CardTitle>Vzhled & Instalace</CardTitle>
-                  <CardDescription>PWA nastavení a motiv aplikace.</CardDescription>
-                </CardHeader>
-              </AccordionTrigger>
-              <AccordionContent className="px-6 pb-6">
-                {showInstallPrompt && (
-                  <Card className="bg-primary/10 border-primary relative mb-6">
-                    <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6" onClick={() => setShowInstallPrompt(false)}>
-                      <X className="h-4 w-4" />
-                    </Button>
-                    <CardHeader>
-                      <CardTitle>Instalace</CardTitle>
-                      <CardDescription>Aplikace funguje 100% offline po instalaci.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <Button onClick={handleInstallClick} className="w-full h-12" disabled={!deferredPrompt}>
-                        <Smartphone className="mr-2 h-4 w-4" /> Instalovat (PWA)
-                      </Button>
-                    </CardContent>
-                  </Card>
-                )}
-                <div className="space-y-6">
-                  <div>
-                    <Label className="text-base font-medium">Motiv</Label>
-                    <RadioGroup value={theme} onValueChange={setTheme} className="grid grid-cols-3 gap-4 mt-3">
-                      {['light', 'dark', 'system'].map((t) => (
-                        <div key={t}>
-                          <RadioGroupItem value={t} id={t} className="peer sr-only" />
-                          <Label htmlFor={t} className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent peer-data-[state=checked]:border-primary capitalize cursor-pointer">
-                            {t === 'light' && <Sun className="h-6 w-6 mb-2" />}
-                            {t === 'dark' && <Moon className="h-6 w-6 mb-2" />}
-                            {t === 'system' && <Laptop className="h-6 w-6 mb-2" />}
-                            {t === 'light' ? 'Světlý' : t === 'dark' ? 'Tmavý' : 'Systém'}
-                          </Label>
-                        </div>
-                      ))}
-                    </RadioGroup>
-                  </div>
-                  <div>
-                    <Label className="text-base font-medium">Počet sloupců (mobil)</Label>
-                    <RadioGroup value={columnView} onValueChange={(v) => setColumnView(v as '2-col' | '3-col')} className="grid grid-cols-2 gap-4 mt-3">
-                      {['2-col', '3-col'].map((v) => (
-                        <div key={v}>
-                          <RadioGroupItem value={v} id={v} className="peer sr-only" />
-                          <Label htmlFor={v} className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent peer-data-[state=checked]:border-primary cursor-pointer">
-                            {v === '2-col' ? <Rows className="h-6 w-6 mb-2" /> : <LayoutGrid className="h-6 w-6 mb-2" />}
-                            {v === '2-col' ? '2 Sloupce' : '3 Sloupce'}
-                          </Label>
-                        </div>
-                      ))}
-                    </RadioGroup>
-                  </div>
-                </div>
-              </AccordionContent>
-            </Card>
-          </AccordionItem>
-          
-          <AccordionItem value="item-category" className="border-none">
-            <Card>
-              <AccordionTrigger className="p-6">
-                <CardHeader className="p-0 text-left">
-                  <CardTitle>Správa kategorií</CardTitle>
-                  <CardDescription>Definujte seznam kategorií pro vaše produkty.</CardDescription>
-                </CardHeader>
-              </AccordionTrigger>
-              <AccordionContent className="px-6 pb-6 space-y-4">
-                <div className="flex gap-2">
-                  <Input 
-                    placeholder="Název nové kategorie" 
-                    value={newCategoryName} 
-                    onChange={(e) => setNewCategoryName(e.target.value)} 
-                    onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
-                  />
-                  <Button onClick={handleAddCategory} className="h-10 px-3"><Plus className="h-4 w-4" /></Button>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {categories.map((cat) => (
-                    <div key={cat} className="flex items-center gap-1 bg-secondary text-secondary-foreground px-3 py-1 rounded-full text-sm">
-                      {cat}
-                      <Button variant="ghost" size="icon" className="h-5 w-5 hover:text-destructive" onClick={() => handleDeleteCategory(cat)}>
-                        <X className="h-3 w-3" />
-                      </Button>
-                    </div>
-                  ))}
-                </div>
-              </AccordionContent>
-            </Card>
-          </AccordionItem>
+      {/* 2. RYCHLÝ ODKAZ DO INVENTURY */}
+      <Card className="border-primary/20 bg-primary/5">
+        <CardHeader className="py-4 px-6 flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <Boxes className="h-5 w-5 text-primary shrink-0" />
+            <div>
+              <CardTitle className="text-base">Inventura a Ziskovost</CardTitle>
+              <CardDescription className="text-xs">Podrobná analýza marží a ocenění hodnoty skladu.</CardDescription>
+            </div>
+          </div>
+          <Button asChild size="sm" className="shrink-0">
+            <Link href="/inventory">Otevřít Inventuru</Link>
+          </Button>
+        </CardHeader>
+      </Card>
 
-          <AccordionItem value="item-2" className="border-none">
-            <Card>
-              <AccordionTrigger className="p-6">
-                <CardHeader className="p-0 text-left">
-                  <CardTitle>Správa produktů</CardTitle>
-                  <CardDescription>Upravujte sortiment a skladové zásoby.</CardDescription>
-                </CardHeader>
-              </AccordionTrigger>
-              <AccordionContent className="px-6 pb-6">
-                <div className="flex flex-wrap gap-2 mb-6">
-                  <DialogTrigger asChild>
-                    <Button onClick={() => { setEditingProduct(null); setIsSheetOpen(true); }} className="h-10">
-                      <Plus className="mr-2 h-4 w-4" /> Přidat produkt
-                    </Button>
-                  </DialogTrigger>
-                </div>
-                <div className="rounded-lg border overflow-hidden">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Název</TableHead>
-                        <TableHead>Kat.</TableHead>
-                        <TableHead>Sklad</TableHead>
-                        <TableHead className="text-center">Aktivní</TableHead>
-                        <TableHead className="text-right">Akce</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {products.map((p) => (
-                        <TableRow key={p.id}>
-                          <TableCell className="font-medium">{p.name}</TableCell>
-                          <TableCell className="text-muted-foreground">{p.category || "-"}</TableCell>
-                          <TableCell>{p.stock} ks</TableCell>
-                          <TableCell className="text-center">
-                            <Switch 
-                              checked={p.enabled !== false} 
-                              onCheckedChange={(checked) => toggleProductEnabled(p.id, checked)}
-                            />
-                          </TableCell>
-                          <TableCell className="text-right space-x-1">
-                            <DialogTrigger asChild>
-                              <Button variant="ghost" size="icon" onClick={() => { setEditingProduct(p); setIsSheetOpen(true); }}>
-                                <Edit className="h-4 w-4" />
+      {/* 3. HLAVNÍ NASTAVENÍ (ACCORDION) */}
+      <Accordion 
+        type="multiple" 
+        value={openAccordions}
+        onValueChange={handleAccordionChange}
+        className="w-full space-y-4"
+      >
+        {/* SPRÁVA PRODUKTŮ */}
+        <AccordionItem value="item-products" className="border-none">
+          <Card>
+            <AccordionTrigger className="p-6 hover:no-underline">
+              <CardHeader className="p-0 text-left">
+                <CardTitle className="text-lg">Správa produktů</CardTitle>
+                <CardDescription>
+                  Společný katalog produktů a zásob. Přepínač &quot;Na této pokladně&quot; určuje, které produkty se nabízejí k prodeji na tomto konkrétním zařízení.
+                </CardDescription>
+              </CardHeader>
+            </AccordionTrigger>
+            <AccordionContent className="px-6 pb-6">
+              <div className="flex flex-wrap items-center justify-between gap-2 mb-4">
+                <Button 
+                  onClick={() => { setEditingProduct(null); setIsSheetOpen(true); }} 
+                  className="h-10"
+                >
+                  <Plus className="mr-2 h-4 w-4" /> Přidat produkt
+                </Button>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  onClick={() => {
+                    enableAllProductsOnDevice();
+                    toast({ title: "Všechny produkty povoleny na této pokladně." });
+                  }}
+                >
+                  Povolit vše na této kase
+                </Button>
+              </div>
+
+              <div className="rounded-lg border overflow-hidden">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Název</TableHead>
+                      <TableHead>Kat.</TableHead>
+                      <TableHead>Sklad</TableHead>
+                      <TableHead className="text-center">Na této pokladně</TableHead>
+                      <TableHead className="text-right">Akce</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {products.map((p) => (
+                      <TableRow key={p.id}>
+                        <TableCell className="font-medium">{p.name}</TableCell>
+                        <TableCell className="text-muted-foreground">{p.category || "-"}</TableCell>
+                        <TableCell>{p.stock} ks</TableCell>
+                        <TableCell className="text-center">
+                          <Switch 
+                            checked={isProductEnabledOnDevice(p.id)} 
+                            onCheckedChange={(checked) => {
+                              toggleProductDeviceEnabled(p.id, checked);
+                              toast({
+                                title: checked ? "Produkt aktivován na této pokladně" : "Produkt skryt na této pokladně",
+                                description: `Změna platí pouze pro toto zařízení (${p.name}).`,
+                              });
+                            }}
+                          />
+                        </TableCell>
+                        <TableCell className="text-right space-x-1">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            onClick={() => { setEditingProduct(p); setIsSheetOpen(true); }}
+                          >
+                            <Edit className="h-4 w-4" />
+                          </Button>
+                          <AlertDialog>
+                            <AlertDialogTrigger asChild>
+                              <Button variant="ghost" size="icon" className="text-destructive">
+                                <Trash2 className="h-4 w-4" />
                               </Button>
-                            </DialogTrigger>
-                            <AlertDialog>
-                              <AlertDialogTrigger asChild>
-                                <Button variant="ghost" size="icon" className="text-destructive"><Trash2 className="h-4 w-4" /></Button>
-                              </AlertDialogTrigger>
-                              <AlertDialogContent>
-                                <AlertDialogHeader><AlertDialogTitle>Smazat produkt?</AlertDialogTitle></AlertDialogHeader>
-                                <AlertDialogFooter>
-                                  <AlertDialogCancel>Zrušit</AlertDialogCancel>
-                                  <AlertDialogAction onClick={() => handleDeleteProduct(p.id)}>Smazat</AlertDialogAction>
-                                </AlertDialogFooter>
-                              </AlertDialogContent>
-                            </AlertDialog>
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
+                            </AlertDialogTrigger>
+                            <AlertDialogContent>
+                              <AlertDialogHeader>
+                                <AlertDialogTitle>Smazat produkt?</AlertDialogTitle>
+                                <AlertDialogDescription>Produkt bude smazán ze společného katalogu.</AlertDialogDescription>
+                              </AlertDialogHeader>
+                              <AlertDialogFooter>
+                                <AlertDialogCancel>Zrušit</AlertDialogCancel>
+                                <AlertDialogAction onClick={() => handleDeleteProduct(p.id)}>Smazat</AlertDialogAction>
+                              </AlertDialogFooter>
+                            </AlertDialogContent>
+                          </AlertDialog>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </AccordionContent>
+          </Card>
+        </AccordionItem>
+
+        {/* SPRÁVA KATEGORIÍ */}
+        <AccordionItem value="item-category" className="border-none">
+          <Card>
+            <AccordionTrigger className="p-6 hover:no-underline">
+              <CardHeader className="p-0 text-left">
+                <CardTitle className="text-lg">Správa kategorií</CardTitle>
+                <CardDescription>Definujte kategorie pro organizaci vašeho sortimentu.</CardDescription>
+              </CardHeader>
+            </AccordionTrigger>
+            <AccordionContent className="px-6 pb-6 space-y-4">
+              <div className="flex gap-2">
+                <Input 
+                  placeholder="Název nové kategorie" 
+                  value={newCategoryName} 
+                  onChange={(e) => setNewCategoryName(e.target.value)} 
+                  onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
+                />
+                <Button onClick={handleAddCategory} className="h-10 px-3">
+                  <Plus className="h-4 w-4" />
+                </Button>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {categories.map((cat) => (
+                  <div key={cat} className="flex items-center gap-1.5 bg-secondary text-secondary-foreground pl-3 pr-1.5 py-1 rounded-full text-sm">
+                    <Tag className="h-3 w-3 text-muted-foreground" />
+                    <span>{cat}</span>
+                    <Button 
+                      variant="ghost" 
+                      size="icon" 
+                      className="h-5 w-5 rounded-full hover:text-destructive" 
+                      onClick={() => handleDeleteCategory(cat)}
+                    >
+                      <X className="h-3 w-3" />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </AccordionContent>
+          </Card>
+        </AccordionItem>
+
+        {/* QR PLATBA */}
+        <AccordionItem value="item-qr" className="border-none">
+          <Card>
+            <AccordionTrigger className="p-6 hover:no-underline">
+              <CardHeader className="p-0 text-left">
+                <CardTitle className="text-lg">QR Platba & Bankovní údaje</CardTitle>
+                <CardDescription>Bankovní údaje pro generování platebních QR kódů na pokladně.</CardDescription>
+              </CardHeader>
+            </AccordionTrigger>
+            <AccordionContent className="px-6 pb-6 space-y-4">
+              <div className="space-y-2">
+                <Label>Jméno příjemce platby</Label>
+                <Input 
+                  value={bankingDetails.recipientName} 
+                  onChange={(e) => setBankingDetails({ ...bankingDetails, recipientName: e.target.value })} 
+                  placeholder="např. Moje Provozovna s.r.o."
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Číslo účtu / IBAN</Label>
+                <Input 
+                  value={bankingDetails.accountNumber} 
+                  onChange={(e) => setBankingDetails({ ...bankingDetails, accountNumber: e.target.value })} 
+                  placeholder="např. CZ1234567890123456789012 nebo 123456789/0800"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label>Zpráva pro příjemce</Label>
+                <Textarea 
+                  value={message} 
+                  onChange={(e) => setMessage(e.target.value)} 
+                  rows={2} 
+                  placeholder="Děkujeme za Váš nákup!"
+                />
+              </div>
+              <Button onClick={handleSaveQrSettings} className="w-full h-11">
+                Uložit bankovní nastavení
+              </Button>
+            </AccordionContent>
+          </Card>
+        </AccordionItem>
+
+        {/* VZHLED & APLIKACE */}
+        <AccordionItem value="item-appearance" className="border-none">
+          <Card>
+            <AccordionTrigger className="p-6 hover:no-underline">
+              <CardHeader className="p-0 text-left">
+                <CardTitle className="text-lg">Vzhled & Aplikace</CardTitle>
+                <CardDescription>Barevný motiv, rozložení pro mobil a instalace aplikace.</CardDescription>
+              </CardHeader>
+            </AccordionTrigger>
+            <AccordionContent className="px-6 pb-6 space-y-6">
+              {showInstallPrompt && (
+                <Card className="bg-primary/10 border-primary relative">
+                  <Button variant="ghost" size="icon" className="absolute top-2 right-2 h-6 w-6" onClick={() => setShowInstallPrompt(false)}>
+                    <X className="h-4 w-4" />
+                  </Button>
+                  <CardHeader className="pb-3">
+                    <CardTitle className="text-base">Instalovat aplikaci do zařízení</CardTitle>
+                    <CardDescription className="text-xs">Umožní spouštět pokladnu na celou obrazovku přímo z plochy i offline.</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <Button onClick={handleInstallClick} className="w-full h-11" disabled={!deferredPrompt}>
+                      <Smartphone className="mr-2 h-4 w-4" /> Instalovat na plochu (PWA)
+                    </Button>
+                  </CardContent>
+                </Card>
+              )}
+              
+              <div className="space-y-6">
+                <div>
+                  <Label className="text-sm font-semibold">Barevný motiv</Label>
+                  <RadioGroup value={theme} onValueChange={setTheme} className="grid grid-cols-3 gap-4 mt-3">
+                    {['light', 'dark', 'system'].map((t) => (
+                      <div key={t}>
+                        <RadioGroupItem value={t} id={t} className="peer sr-only" />
+                        <Label htmlFor={t} className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent peer-data-[state=checked]:border-primary capitalize cursor-pointer">
+                          {t === 'light' && <Sun className="h-6 w-6 mb-2" />}
+                          {t === 'dark' && <Moon className="h-6 w-6 mb-2" />}
+                          {t === 'system' && <Laptop className="h-6 w-6 mb-2" />}
+                          {t === 'light' ? 'Světlý' : t === 'dark' ? 'Tmavý (AMOLED)' : 'Systém'}
+                        </Label>
+                      </div>
+                    ))}
+                  </RadioGroup>
                 </div>
-              </AccordionContent>
-            </Card>
-          </AccordionItem>
-          
-          <AccordionItem value="item-5" className="border-none">
-            <Card>
-              <AccordionTrigger className="p-6">
-                <CardHeader className="p-0 text-left">
-                  <CardTitle>Analýza prodejů</CardTitle>
-                  <CardDescription>Vizualizace vašich lokálních dat s pokročilými filtry.</CardDescription>
-                </CardHeader>
-              </AccordionTrigger>
-              <AccordionContent className="px-6 pb-6">
-                <div className="flex flex-col gap-8">
-                  <div className="flex flex-wrap items-center gap-3 bg-muted/30 p-4 rounded-xl border">
-                    <div className="flex items-center gap-2">
-                      <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                      <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Filtry</span>
-                    </div>
-                    
-                    <div className="flex items-center gap-2">
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button variant="outline" size="sm" className={cn("w-[120px] h-8 text-xs justify-start font-normal", !dateFrom && "text-muted-foreground")}>
-                            {dateFrom ? format(dateFrom, "d. M.") : "Od"}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus locale={cs} />
-                        </PopoverContent>
-                      </Popover>
-                      <span className="text-muted-foreground">-</span>
-                      <Popover>
-                        <PopoverTrigger asChild>
-                          <Button variant="outline" size="sm" className={cn("w-[120px] h-8 text-xs justify-start font-normal", !dateTo && "text-muted-foreground")}>
-                            {dateTo ? format(dateTo, "d. M.") : "Do"}
-                          </Button>
-                        </PopoverTrigger>
-                        <PopoverContent className="w-auto p-0" align="start">
-                          <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus locale={cs} />
-                        </PopoverContent>
-                      </Popover>
-                    </div>
 
-                    <div className="w-[100px]">
-                      <Select value={selectedYear} onValueChange={setSelectedYear}>
-                        <SelectTrigger className="h-8 text-xs">
-                          <SelectValue placeholder="Rok" />
-                        </SelectTrigger>
-                        <SelectContent>
-                          <SelectItem value="all">Vše</SelectItem>
-                          {availableYears.map(year => (
-                            <SelectItem key={year} value={year}>{year}</SelectItem>
-                          ))}
-                        </SelectContent>
-                      </Select>
-                    </div>
+                <div>
+                  <Label className="text-sm font-semibold">Počet sloupců produktů na mobilu</Label>
+                  <RadioGroup value={columnView} onValueChange={(v) => setColumnView(v as '2-col' | '3-col')} className="grid grid-cols-2 gap-4 mt-3">
+                    {['2-col', '3-col'].map((v) => (
+                      <div key={v}>
+                        <RadioGroupItem value={v} id={v} className="peer sr-only" />
+                        <Label htmlFor={v} className="flex flex-col items-center justify-between rounded-md border-2 border-muted bg-popover p-4 hover:bg-accent peer-data-[state=checked]:border-primary cursor-pointer">
+                          {v === '2-col' ? <Rows className="h-6 w-6 mb-2" /> : <LayoutGrid className="h-6 w-6 mb-2" />}
+                          {v === '2-col' ? '2 Sloupce' : '3 Sloupce'}
+                        </Label>
+                      </div>
+                    ))}
+                  </RadioGroup>
+                </div>
+              </div>
+            </AccordionContent>
+          </Card>
+        </AccordionItem>
 
-                    {(dateFrom || dateTo || selectedYear !== "all") && (
-                      <Button variant="ghost" size="sm" onClick={resetFilters} className="h-8 text-xs">
-                        <FilterX className="h-3 w-3 mr-1.5" /> Reset
+        {/* ANALÝZA PRODEJŮ */}
+        <AccordionItem value="item-analytics" className="border-none">
+          <Card>
+            <AccordionTrigger className="p-6 hover:no-underline">
+              <CardHeader className="p-0 text-left">
+                <CardTitle className="text-lg">Analýza prodejů & Statistiky</CardTitle>
+                <CardDescription>Grafické přehledy tržeb, nákladů a zisku s časovými filtry.</CardDescription>
+              </CardHeader>
+            </AccordionTrigger>
+            <AccordionContent className="px-6 pb-6 space-y-6">
+              <div className="flex flex-wrap items-center gap-3 bg-muted/30 p-4 rounded-xl border">
+                <div className="flex items-center gap-2">
+                  <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Filtry</span>
+                </div>
+                
+                <div className="flex items-center gap-2">
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className={cn("w-[120px] h-8 text-xs justify-start font-normal", !dateFrom && "text-muted-foreground")}>
+                        {dateFrom ? format(dateFrom, "d. M.") : "Od"}
                       </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={dateFrom} onSelect={setDateFrom} initialFocus locale={cs} />
+                    </PopoverContent>
+                  </Popover>
+                  <span className="text-muted-foreground">-</span>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button variant="outline" size="sm" className={cn("w-[120px] h-8 text-xs justify-start font-normal", !dateTo && "text-muted-foreground")}>
+                        {dateTo ? format(dateTo, "d. M.") : "Do"}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                      <Calendar mode="single" selected={dateTo} onSelect={setDateTo} initialFocus locale={cs} />
+                    </PopoverContent>
+                  </Popover>
+                </div>
+
+                <div className="w-[100px]">
+                  <Select value={selectedYear} onValueChange={setSelectedYear}>
+                    <SelectTrigger className="h-8 text-xs">
+                      <SelectValue placeholder="Rok" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Vše</SelectItem>
+                      {availableYears.map(year => (
+                        <SelectItem key={year} value={year}>{year}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                {(dateFrom || dateTo || selectedYear !== "all") && (
+                  <Button variant="ghost" size="sm" onClick={resetFilters} className="h-8 text-xs">
+                    <FilterX className="h-3 w-3 mr-1.5" /> Reset
+                  </Button>
+                )}
+              </div>
+
+              <div className="flex flex-wrap items-center justify-between gap-4 bg-muted/20 p-2 rounded-lg border border-dashed">
+                <Tabs value={chartMode} onValueChange={(v) => setChartMode(v as any)} className="w-auto">
+                  <TabsList className="h-8">
+                    <TabsTrigger value="stacked" className="text-xs py-1 px-3">
+                      <Rows className="h-3 w-3 mr-1.5" /> Skládaný
+                    </TabsTrigger>
+                    <TabsTrigger value="grouped" className="text-xs py-1 px-3">
+                      <LayoutGrid className="h-3 w-3 mr-1.5" /> Vedle sebe
+                    </TabsTrigger>
+                  </TabsList>
+                </Tabs>
+                
+                <div className="flex items-center gap-4 px-2">
+                  <div className="flex items-center space-x-2">
+                    <Switch id="s-show-cost" checked={showCost} onCheckedChange={setShowCost} className="scale-75" />
+                    <Label htmlFor="s-show-cost" className="text-xs cursor-pointer flex items-center gap-1.5">
+                      {showCost ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />} Nákup
+                    </Label>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch id="s-show-profit" checked={showProfit} onCheckedChange={setShowProfit} className="scale-75" />
+                    <Label htmlFor="s-show-profit" className="text-xs cursor-pointer flex items-center gap-1.5">
+                      {showProfit ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />} Zisk
+                    </Label>
+                  </div>
+                </div>
+              </div>
+
+              <div className="space-y-8">
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground">
+                    <TrendingUp className="h-4 w-4 text-primary" /> Vývoj tržeb a zisku
+                  </h4>
+                  <div className="h-[350px] w-full bg-muted/10 p-4 rounded-xl border">
+                    {analyticsData.revenueByDay.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={analyticsData.revenueByDay} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#88888822" />
+                          <XAxis dataKey="name" fontSize={10} tickLine={false} axisLine={false} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                          <YAxis fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => `${v} Kč`} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
+                          <RechartsTooltip 
+                            cursor={{ fill: 'hsl(var(--muted))', opacity: 0.1 }}
+                            contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}
+                          />
+                          <Legend verticalAlign="top" align="right" height={36} iconType="circle" />
+                          {showCost && (
+                            <Bar 
+                              dataKey="cost" 
+                              name="Nákup" 
+                              stackId={chartMode === 'stacked' ? 'a' : undefined} 
+                              fill="#94a3b8" 
+                              radius={chartMode === 'grouped' ? [4, 4, 0, 0] : [0, 0, 0, 0]} 
+                            />
+                          )}
+                          {showProfit && (
+                            <Bar 
+                              dataKey="profit" 
+                              name="Zisk" 
+                              stackId={chartMode === 'stacked' ? 'a' : undefined} 
+                              fill="#10b981" 
+                              radius={[4, 4, 0, 0]} 
+                            />
+                          )}
+                        </BarChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Žádná data pro vybrané období</div>
                     )}
                   </div>
+                </div>
 
-                  <div className="flex flex-wrap items-center justify-between gap-4 bg-muted/20 p-2 rounded-lg border border-dashed">
-                    <Tabs value={chartMode} onValueChange={(v) => setChartMode(v as any)} className="w-auto">
-                      <TabsList className="h-8">
-                        <TabsTrigger value="stacked" className="text-xs py-1 px-3">
-                          <Rows className="h-3 w-3 mr-1.5" /> Skládaný
-                        </TabsTrigger>
-                        <TabsTrigger value="grouped" className="text-xs py-1 px-3">
-                          <LayoutGrid className="h-3 w-3 mr-1.5" /> Vedle sebe
-                        </TabsTrigger>
-                      </TabsList>
-                    </Tabs>
-                    
-                    <div className="flex items-center gap-4 px-2">
-                      <div className="flex items-center space-x-2">
-                        <Switch id="s-show-cost" checked={showCost} onCheckedChange={setShowCost} className="scale-75" />
-                        <Label htmlFor="s-show-cost" className="text-xs cursor-pointer flex items-center gap-1.5">
-                          {showCost ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />} Nákup
-                        </Label>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        <Switch id="s-show-profit" checked={showProfit} onCheckedChange={setShowProfit} className="scale-75" />
-                        <Label htmlFor="s-show-profit" className="text-xs cursor-pointer flex items-center gap-1.5">
-                          {showProfit ? <Eye className="h-3 w-3" /> : <EyeOff className="h-3 w-3" />} Zisk
-                        </Label>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="space-y-12">
-                    <div className="space-y-4">
-                      <h4 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground">
-                        <TrendingUp className="h-4 w-4 text-primary" /> Vývoj tržeb a zisku
-                      </h4>
-                      <div className="h-[400px] w-full bg-muted/10 p-4 rounded-xl border">
-                        {analyticsData.revenueByDay.length > 0 ? (
-                          <ResponsiveContainer width="100%" height="100%">
-                            <BarChart data={analyticsData.revenueByDay} margin={{ top: 10, right: 10, left: 0, bottom: 0 }}>
-                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#88888822" />
-                              <XAxis dataKey="name" fontSize={10} tickLine={false} axisLine={false} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
-                              <YAxis fontSize={10} tickLine={false} axisLine={false} tickFormatter={(v) => `${v} Kč`} tick={{ fill: 'hsl(var(--muted-foreground))' }} />
-                              <RechartsTooltip 
-                                cursor={{ fill: 'hsl(var(--muted))', opacity: 0.1 }}
-                                contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }}
-                              />
-                              <Legend verticalAlign="top" align="right" height={36} iconType="circle" />
-                              {showCost && (
-                                <Bar 
-                                  dataKey="cost" 
-                                  name="Nákup" 
-                                  stackId={chartMode === 'stacked' ? 'a' : undefined} 
-                                  fill="#94a3b8" 
-                                  radius={chartMode === 'grouped' ? [4, 4, 0, 0] : [0, 0, 0, 0]} 
-                                />
-                              )}
-                              {showProfit && (
-                                <Bar 
-                                  dataKey="profit" 
-                                  name="Zisk" 
-                                  stackId={chartMode === 'stacked' ? 'a' : undefined} 
-                                  fill="#10b981" 
-                                  radius={[4, 4, 0, 0]} 
-                                />
-                              )}
-                            </BarChart>
-                          </ResponsiveContainer>
-                        ) : (
-                          <div className="flex h-full items-center justify-center text-muted-foreground text-sm italic">
-                            Pro vybrané filtry neexistují žádná data.
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                    
-                    <div className="space-y-4">
-                      <h4 className="text-xs font-bold uppercase tracking-widest flex items-center gap-2 text-muted-foreground">
-                        <PieChartIcon className="h-4 w-4 text-primary" /> TOP Produkty
-                      </h4>
-                      <div className="flex flex-col md:flex-row items-center gap-8 bg-muted/10 p-6 rounded-xl border">
-                        <div className="h-[250px] w-full md:w-1/2">
-                          <ResponsiveContainer width="100%" height="100%">
-                            <PieChart>
-                              <Pie 
-                                data={analyticsData.topProducts} 
-                                cx="50%" 
-                                cy="50%" 
-                                innerRadius={60} 
-                                outerRadius={90} 
-                                paddingAngle={5} 
-                                dataKey="value"
-                              >
-                                {analyticsData.topProducts.map((_, i) => (
-                                  <Cell key={`cell-${i}`} fill={COLORS[i % COLORS.length]} />
-                                ))}
-                              </Pie>
-                              <RechartsTooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }} />
-                            </PieChart>
-                          </ResponsiveContainer>
-                        </div>
-                        <div className="w-full md:w-1/2 grid grid-cols-2 gap-x-4 gap-y-2">
-                          {analyticsData.topProducts.map((e, i) => (
-                            <div key={e.name} className="flex items-center gap-2 text-xs">
-                              <div className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: COLORS[i % COLORS.length] }} />
-                              <span className="truncate">{e.name}: <strong>{e.value} ks</strong></span>
-                            </div>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
+                <div className="space-y-3">
+                  <h4 className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Podíl kategorií na tržbách</h4>
+                  <div className="h-[250px] w-full bg-muted/10 p-4 rounded-xl border">
+                    {analyticsData.categoryShare.length > 0 ? (
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie data={analyticsData.categoryShare} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+                            {analyticsData.categoryShare.map((_, index) => (
+                              <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+                            ))}
+                          </Pie>
+                          <RechartsTooltip contentStyle={{ backgroundColor: 'hsl(var(--card))', borderRadius: '8px', border: '1px solid hsl(var(--border))' }} />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    ) : (
+                      <div className="flex h-full items-center justify-center text-sm text-muted-foreground">Žádná data pro vybrané období</div>
+                    )}
                   </div>
                 </div>
-              </AccordionContent>
-            </Card>
-          </AccordionItem>
-          
-          <AccordionItem value="item-3" className="border-none">
-            <Card>
-              <AccordionTrigger className="p-6">
-                <CardHeader className="p-0 text-left">
-                  <CardTitle>QR Platba</CardTitle>
-                  <CardDescription>Bankovní údaje pro generování QR kódů.</CardDescription>
-                </CardHeader>
-              </AccordionTrigger>
-              <AccordionContent className="px-6 pb-6 space-y-4">
-                <div className="space-y-2">
-                  <Label>Jméno příjemce</Label>
-                  <Input value={bankingDetails.recipientName} onChange={(e) => setBankingDetails({ ...bankingDetails, recipientName: e.target.value })} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Číslo účtu / IBAN</Label>
-                  <Input value={bankingDetails.accountNumber} onChange={(e) => setBankingDetails({ ...bankingDetails, accountNumber: e.target.value })} />
-                </div>
-                <div className="space-y-2">
-                  <Label>Zpráva pro příjemce</Label>
-                  <Textarea value={message} onChange={(e) => setMessage(e.target.value)} rows={2} />
-                </div>
-                <Button onClick={handleSaveQrSettings} className="w-full h-12">Uložit nastavení</Button>
-              </AccordionContent>
-            </Card>
-          </AccordionItem>
-          
-          <AccordionItem value="item-4" className="border-none">
-            <Card>
-              <AccordionTrigger className="p-6">
-                <CardHeader className="p-0 text-left">
-                  <CardTitle>Údržba dat & Synchronizace</CardTitle>
-                  <CardDescription>Identifikace pokladny a správa databáze.</CardDescription>
-                </CardHeader>
-              </AccordionTrigger>
-              <AccordionContent className="px-6 pb-6 space-y-8">
-                <div className="space-y-4 p-4 bg-primary/5 rounded-xl border border-primary/20">
-                   <div className="flex items-center gap-2 text-primary">
-                      <MonitorSmartphone className="h-5 w-5" />
-                      <h4 className="font-bold">Identifikace tohoto zařízení</h4>
-                   </div>
-                   <div className="flex gap-2">
-                      <div className="flex-1 space-y-1.5">
-                        <Label htmlFor="pos-name">Název pokladny</Label>
-                        <Input 
-                          id="pos-name"
-                          value={posName} 
-                          onChange={(e) => setPosName(e.target.value)}
-                          placeholder="např. Pokladna 1"
-                        />
-                      </div>
-                      <Button onClick={handleSavePosName} className="mt-7 h-10">Uložit název</Button>
-                   </div>
-                   <p className="text-[11px] text-muted-foreground">Tento název bude připojen ke každé transakci. Užitečné při Master Importu do hlavního počítače.</p>
-                </div>
+              </div>
+            </AccordionContent>
+          </Card>
+        </AccordionItem>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <Button variant="outline" onClick={handleExportHistory} className="h-12">
-                    <Download className="mr-2 h-4 w-4" /> Export historie (Excel)
-                  </Button>
-                  <Button variant="outline" onClick={handleExportAllData} className="h-12 border-primary/50 text-primary">
-                    <FileJson className="mr-2 h-4 w-4" /> Export všeho (Backup)
-                  </Button>
-                  
-                  <div className="sm:col-span-2 space-y-2">
-                    <Label className="text-xs font-bold uppercase text-muted-foreground">Konsolidace dat (Master Import)</Label>
-                    <div className="flex gap-2">
-                       <Button 
-                        variant="secondary" 
-                        onClick={() => masterInputRef.current?.click()} 
-                        className="flex-1 h-12"
-                      >
-                        <Files className="mr-2 h-4 w-4" /> Vybrat soubory k importu
-                      </Button>
-                      <input 
-                        type="file" 
-                        ref={masterInputRef} 
-                        onChange={handleMasterImport} 
-                        className="hidden" 
-                        accept=".json" 
-                        multiple 
-                      />
-                    </div>
-                    <p className="text-[10px] text-muted-foreground">Můžete vybrat více souborů najednou. Transakce budou sloučeny bez duplicit, u produktů dojde ke kontrole názvů.</p>
-                  </div>
+        {/* ÚDRŽBA A SPRÁVA DAT */}
+        <AccordionItem value="item-maintenance" className="border-none">
+          <Card>
+            <AccordionTrigger className="p-6 hover:no-underline">
+              <CardHeader className="p-0 text-left">
+                <CardTitle className="text-lg">Údržba dat & Export</CardTitle>
+                <CardDescription>Export historie tržeb a správa stavu databáze.</CardDescription>
+              </CardHeader>
+            </AccordionTrigger>
+            <AccordionContent className="px-6 pb-6 space-y-4">
+              <div className="p-4 rounded-lg border bg-muted/20 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div>
+                  <div className="font-semibold text-sm">Export historie prodejů (Excel)</div>
+                  <div className="text-xs text-muted-foreground">Stáhne tabulku se všemi transakcemi, položkami, časem a použitou pokladnou.</div>
                 </div>
+                <Button variant="outline" onClick={handleExportHistory} className="shrink-0">
+                  <Download className="mr-2 h-4 w-4" /> Exportovat (.xlsx)
+                </Button>
+              </div>
 
-                <div className="pt-6 border-t grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="destructive" className="h-12">
-                        <Trash className="mr-2 h-4 w-4" /> Reset historie
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Smazat celou historii?</AlertDialogTitle>
-                        <AlertDialogDescription>Tato akce je nevratná a smaže všechny záznamy o prodejích.</AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Zrušit</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleClearHistory}>Smazat vše</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                  
-                  <AlertDialog>
-                    <AlertDialogTrigger asChild>
-                      <Button variant="outline" className="h-12 text-destructive border-destructive/20 hover:bg-destructive/5">
-                        <RefreshCcw className="mr-2 h-4 w-4" /> Výchozí stav
-                      </Button>
-                    </AlertDialogTrigger>
-                    <AlertDialogContent>
-                      <AlertDialogHeader>
-                        <AlertDialogTitle>Obnovit výchozí produkty?</AlertDialogTitle>
-                        <AlertDialogDescription>Smaže vaše stávající produkty a nahradí je ukázkovými daty.</AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <AlertDialogFooter>
-                        <AlertDialogCancel>Zrušit</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleRestoreDefaultProducts}>Obnovit</AlertDialogAction>
-                      </AlertDialogFooter>
-                    </AlertDialogContent>
-                  </AlertDialog>
-                </div>
-              </AccordionContent>
-            </Card>
-          </AccordionItem>
-        </Accordion>
-        
+              <div className="pt-4 border-t grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="destructive" className="h-11">
+                      <Trash className="mr-2 h-4 w-4" /> Smazat historii tržeb
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Smazat celou historii tržeb?</AlertDialogTitle>
+                      <AlertDialogDescription>Tato akce je nevratná a smaže všechny záznamy o prodejích.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Zrušit</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleClearHistory}>Smazat vše</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+                
+                <AlertDialog>
+                  <AlertDialogTrigger asChild>
+                    <Button variant="outline" className="h-11 text-destructive border-destructive/20 hover:bg-destructive/5">
+                      <RefreshCcw className="mr-2 h-4 w-4" /> Obnovit výchozí produkty
+                    </Button>
+                  </AlertDialogTrigger>
+                  <AlertDialogContent>
+                    <AlertDialogHeader>
+                      <AlertDialogTitle>Obnovit výchozí produkty?</AlertDialogTitle>
+                      <AlertDialogDescription>Smaže vaše stávající produkty a nahradí je ukázkovými daty.</AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                      <AlertDialogCancel>Zrušit</AlertDialogCancel>
+                      <AlertDialogAction onClick={handleRestoreDefaultProducts}>Obnovit</AlertDialogAction>
+                    </AlertDialogFooter>
+                  </AlertDialogContent>
+                </AlertDialog>
+              </div>
+            </AccordionContent>
+          </Card>
+        </AccordionItem>
+      </Accordion>
+
+      {/* MODÁL PRO PŘIDÁNÍ / ÚPRAVU PRODUKTU */}
+      <Dialog open={isSheetOpen} onOpenChange={setIsSheetOpen}>
         <DialogContent className="max-h-[90vh] sm:max-w-lg">
-          <DialogHeader><DialogTitle>{editingProduct ? 'Upravit produkt' : 'Přidat nový produkt'}</DialogTitle></DialogHeader>
+          <DialogHeader>
+            <DialogTitle>{editingProduct ? 'Upravit produkt' : 'Přidat nový produkt'}</DialogTitle>
+          </DialogHeader>
           <ScrollArea className="max-h-[calc(90vh-8rem)] -mx-6 px-6">
             <ProductForm 
               onSubmit={editingProduct ? handleEditProduct : handleAddProduct} 
@@ -1056,76 +988,8 @@ export default function SettingsPage() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isConflictDialogOpen} onOpenChange={setIsConflictDialogOpen}>
-        <DialogContent className="sm:max-w-2xl max-h-[90vh] flex flex-col">
-          <DialogHeader>
-            <DialogTitle className="flex items-center gap-2">
-              <AlertCircle className="h-5 w-5 text-orange-500" /> Nalezeny konflikty při importu
-            </DialogTitle>
-            <DialogDescription>
-              Následující produkty se již v systému nacházejí. Zvolte, jak chcete postupovat.
-            </DialogDescription>
-          </DialogHeader>
-          
-          <ScrollArea className="flex-1 -mx-6 px-6 py-4">
-            <div className="space-y-6">
-              {conflicts.map((conflict, idx) => (
-                <div key={idx} className="p-4 rounded-lg border bg-muted/30 space-y-4">
-                  <div className="flex justify-between items-start">
-                    <div>
-                      <h4 className="font-bold text-lg">{conflict.name}</h4>
-                      <p className="text-xs text-muted-foreground">Kategorie: {conflict.imported.category || 'Žádná'}</p>
-                    </div>
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4 text-xs">
-                    <div className="p-2 rounded bg-background border">
-                      <p className="font-semibold mb-1 text-primary">Stávající v systému:</p>
-                      <p>Cena: {conflict.existing.price} Kč</p>
-                      <p>Nákup: {conflict.existing.costPrice} Kč</p>
-                      <p>Sklad: {conflict.existing.stock} ks</p>
-                    </div>
-                    <div className="p-2 rounded bg-primary/5 border border-primary/20">
-                      <p className="font-semibold mb-1 text-success">Importovaná data:</p>
-                      <p>Cena: {conflict.imported.price} Kč</p>
-                      <p>Nákup: {conflict.imported.costPrice} Kč</p>
-                      <p>Sklad: {conflict.imported.stock} ks</p>
-                    </div>
-                  </div>
-
-                  <RadioGroup 
-                    value={conflict.resolution} 
-                    onValueChange={(val: any) => {
-                      const newConflicts = [...conflicts];
-                      newConflicts[idx].resolution = val;
-                      setConflicts(newConflicts);
-                    }}
-                    className="flex flex-wrap gap-4 pt-2"
-                  >
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="overwrite" id={`over-${idx}`} />
-                      <Label htmlFor={`over-${idx}`} className="text-xs cursor-pointer">Aktualizovat (Přepsat)</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="keep" id={`keep-${idx}`} />
-                      <Label htmlFor={`keep-${idx}`} className="text-xs cursor-pointer">Ponechat původní</Label>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <RadioGroupItem value="rename" id={`rename-${idx}`} />
-                      <Label htmlFor={`rename-${idx}`} className="text-xs cursor-pointer">Importovat jako kopii</Label>
-                    </div>
-                  </RadioGroup>
-                </div>
-              ))}
-            </div>
-          </ScrollArea>
-
-          <DialogFooter className="pt-4 border-t">
-            <Button variant="ghost" onClick={() => setIsConflictDialogOpen(false)}>Zrušit import</Button>
-            <Button onClick={handleResolveConflicts} className="h-10">Dokončit import a sloučit data</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* AUTH MODAL */}
+      <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
     </div>
   );
 }

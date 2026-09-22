@@ -68,14 +68,19 @@ import {
 import type { Transaction, PaymentMethod, Product } from "@/lib/types";
 import { TRANSACTIONS_STORAGE_KEY, PRODUCTS_STORAGE_KEY } from "@/lib/constants";
 import { useIsMounted } from "@/hooks/use-is-mounted";
+import { useDataContext } from "@/context/DataContext";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { cs } from "date-fns/locale";
 
 export default function HistoryPage() {
   const isMounted = useIsMounted();
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [products, setProducts] = useState<Product[]>([]);
+  const { 
+    transactions, 
+    products, 
+    deleteLastTransaction, 
+    deleteBatchTransactions 
+  } = useDataContext();
   const { toast } = useToast();
 
   const [paymentFilter, setPaymentFilter] = useState<"all" | PaymentMethod>("all");
@@ -83,19 +88,6 @@ export default function HistoryPage() {
   const [productFilter, setProductFilter] = useState<"all" | string>("all");
   const [posFilter, setPosFilter] = useState<"all" | string>("all");
   const [selectedTransactions, setSelectedTransactions] = useState<Set<string>>(new Set());
-
-  useEffect(() => {
-    if (isMounted) {
-      const storedTransactions = localStorage.getItem(TRANSACTIONS_STORAGE_KEY);
-      if (storedTransactions) {
-        setTransactions(JSON.parse(storedTransactions));
-      }
-      const storedProducts = localStorage.getItem(PRODUCTS_STORAGE_KEY);
-      if (storedProducts) {
-        setProducts(JSON.parse(storedProducts));
-      }
-    }
-  }, [isMounted]);
 
   const availablePosNames = useMemo(() => {
     const names = new Set<string>();
@@ -156,36 +148,40 @@ export default function HistoryPage() {
     return dailyTransactions.reduce((acc, tx) => acc + tx.total, 0);
   }, [transactions, dateFilter]);
 
-  const handleDeleteLastTransaction = () => {
-    const newTransactions = [...transactions];
-    newTransactions.shift(); 
-    setTransactions(newTransactions);
-    localStorage.setItem(
-      TRANSACTIONS_STORAGE_KEY,
-      JSON.stringify(newTransactions)
-    );
-    toast({
-      title: "Úspěch",
-      description: "Poslední transakce byla smazána.",
-      variant: "success",
-    });
+  const handleDeleteLastTransaction = async () => {
+    try {
+      await deleteLastTransaction();
+      toast({
+        title: "Úspěch",
+        description: "Poslední transakce byla smazána.",
+        variant: "success",
+      });
+    } catch (e) {
+      toast({
+        title: "Chyba",
+        description: "Nepodařilo se smazat transakci.",
+        variant: "destructive",
+      });
+    }
   };
 
-  const handleBatchDelete = () => {
-    const newTransactions = transactions.filter(
-      (tx) => !selectedTransactions.has(tx.id)
-    );
-    setTransactions(newTransactions);
-    localStorage.setItem(
-      TRANSACTIONS_STORAGE_KEY,
-      JSON.stringify(newTransactions)
-    );
-    setSelectedTransactions(new Set());
-    toast({
-      title: "Úspěch",
-      description: `${selectedTransactions.size} transakce byly smazány.`,
-      variant: "success",
-    });
+  const handleBatchDelete = async () => {
+    try {
+      const count = selectedTransactions.size;
+      await deleteBatchTransactions(Array.from(selectedTransactions));
+      setSelectedTransactions(new Set());
+      toast({
+        title: "Úspěch",
+        description: `${count} transakce byly smazány.`,
+        variant: "success",
+      });
+    } catch (e) {
+      toast({
+        title: "Chyba",
+        description: "Nepodařilo se smazat vybrané transakce.",
+        variant: "destructive",
+      });
+    }
   };
 
   const toggleSelectAll = () => {
