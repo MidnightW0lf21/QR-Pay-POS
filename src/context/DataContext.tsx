@@ -73,7 +73,7 @@ interface DataContextType {
   savePaymentMessage: (msg: string) => Promise<void>;
   savePosName: (name: string) => Promise<void>;
 
-  recordSale: (items: CartItem[], total: number, paymentMethod: PaymentMethod) => Promise<Transaction>;
+  recordSale: (items: CartItem[], total: number, paymentMethod: PaymentMethod, variableSymbol?: string) => Promise<Transaction>;
   deleteLastTransaction: () => Promise<void>;
   deleteBatchTransactions: (ids: string[]) => Promise<void>;
   clearAllTransactions: () => Promise<void>;
@@ -417,14 +417,17 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const recordSale = useCallback(async (
     cartItems: CartItem[], 
     total: number, 
-    paymentMethod: PaymentMethod
+    paymentMethod: PaymentMethod,
+    variableSymbol?: string
   ): Promise<Transaction> => {
     const txId = generateUUID();
     const cleanItems: CartItem[] = cartItems.map(item => ({
       productId: item.productId,
       name: item.name || '',
       price: Number(item.price) || 0,
+      originalPrice: item.originalPrice !== undefined ? Number(item.originalPrice) : undefined,
       quantity: Number(item.quantity) || 1,
+      isCustom: Boolean(item.isCustom),
     }));
 
     const newTransaction: Transaction = {
@@ -434,6 +437,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       items: cleanItems,
       paymentMethod,
       posName: posName || DEFAULT_POS_NAME,
+      ...(variableSymbol ? { variableSymbol } : {}),
     };
     const firestore = db;
 
@@ -443,19 +447,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const txRef = doc(firestore, 'users', user.uid, 'transactions', txId);
       batch.set(txRef, newTransaction);
 
-      // 2. Decrement stock for each purchased item safely
+      // 2. Decrement stock for each real catalog item safely (skip custom open items)
       cleanItems.forEach((item) => {
-        const pRef = doc(firestore, 'users', user.uid, 'products', item.productId);
-        batch.set(pRef, {
-          stock: increment(-item.quantity),
-        }, { merge: true });
+        if (!item.isCustom && !item.productId.startsWith('custom_')) {
+          const pRef = doc(firestore, 'users', user.uid, 'products', item.productId);
+          batch.set(pRef, {
+            stock: increment(-item.quantity),
+          }, { merge: true });
+        }
       });
 
       await batch.commit();
     } else {
       // Local fallback
       const updatedProducts = products.map((prod) => {
-        const item = cartItems.find((ci) => ci.productId === prod.id);
+        const item = cartItems.find((ci) => !ci.isCustom && !ci.productId.startsWith('custom_') && ci.productId === prod.id);
         if (item) {
           return { ...prod, stock: Math.max(0, prod.stock - item.quantity) };
         }

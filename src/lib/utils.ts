@@ -25,3 +25,36 @@ export function generateUUID(): string {
   });
 }
 
+/**
+ * Generates a 10-digit Variable Symbol for Czech SPAYD QR codes in format YYMMDDxxxx.
+ * Sequences from 0001 to 9999 per day and cycles back after 9999.
+ */
+export function generateVariableSymbol(): string {
+  const now = new Date();
+  const yy = String(now.getFullYear()).slice(-2);
+  const mm = String(now.getMonth() + 1).padStart(2, '0');
+  const dd = String(now.getDate()).padStart(2, '0');
+  const datePrefix = `${yy}${mm}${dd}`;
+
+  const storageKey = "qr-pay-vs-counter";
+  let counter = 1;
+
+  if (typeof window !== "undefined" && window.localStorage) {
+    try {
+      const stored = localStorage.getItem(storageKey);
+      if (stored) {
+        const parsed = JSON.parse(stored);
+        if (parsed.date === datePrefix) {
+          counter = (parsed.counter >= 9999) ? 1 : (parsed.counter + 1);
+        }
+      }
+      localStorage.setItem(storageKey, JSON.stringify({ date: datePrefix, counter }));
+    } catch {
+      counter = Math.floor(Math.random() * 9000) + 1000;
+    }
+  } else {
+    counter = Math.floor(Math.random() * 9000) + 1000;
+  }
+
+  return `${datePrefix}${String(counter).padStart(4, '0')}`;
+}

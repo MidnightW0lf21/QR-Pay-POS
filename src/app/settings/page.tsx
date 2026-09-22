@@ -47,6 +47,7 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import type { Product, BankingDetails } from "@/lib/types";
 import {
@@ -56,6 +57,9 @@ import {
   DEFAULT_BANKING_DETAILS,
   DEFAULT_POS_NAME,
   SETTINGS_ACCORDION_STATE_KEY,
+  ALL_CASH_DENOMINATIONS,
+  DEFAULT_CASH_DENOMINATIONS,
+  CASH_DENOMINATIONS_STORAGE_KEY,
 } from "@/lib/constants";
 import { useIsMounted } from "@/hooks/use-is-mounted";
 import { useAppContext } from "@/context/AppContext";
@@ -161,6 +165,31 @@ export default function SettingsPage() {
   const [chartMode, setChartMode] = useState<"stacked" | "grouped">("stacked");
   const [showCost, setShowCost] = useState(true);
   const [showProfit, setShowProfit] = useState(true);
+  const [cashDenominations, setCashDenominations] = useState<number[]>(DEFAULT_CASH_DENOMINATIONS);
+
+  useEffect(() => {
+    if (isMounted) {
+      try {
+        const stored = localStorage.getItem(CASH_DENOMINATIONS_STORAGE_KEY);
+        if (stored) setCashDenominations(JSON.parse(stored));
+      } catch {}
+    }
+  }, [isMounted]);
+
+  const toggleCashDenomination = (denom: number) => {
+    let updated: number[];
+    if (cashDenominations.includes(denom)) {
+      if (cashDenominations.length <= 1) {
+        toast({ variant: "destructive", title: "Upozornění", description: "Musí zůstat povolen alespoň jeden nominál." });
+        return;
+      }
+      updated = cashDenominations.filter(d => d !== denom);
+    } else {
+      updated = [...cashDenominations, denom].sort((a, b) => a - b);
+    }
+    setCashDenominations(updated);
+    localStorage.setItem(CASH_DENOMINATIONS_STORAGE_KEY, JSON.stringify(updated));
+  };
 
   useEffect(() => {
     const handleBeforeInstallPrompt = (e: Event) => {
@@ -747,6 +776,33 @@ export default function SettingsPage() {
                       </div>
                     ))}
                   </RadioGroup>
+                </div>
+
+                <div className="pt-2 border-t">
+                  <div className="mb-2">
+                    <Label className="text-sm font-semibold">Rychlé nominály hotovosti</Label>
+                    <p className="text-xs text-muted-foreground">Vyberte bankovky a mince, které chcete mít k dispozici při platbě v hotovosti pod účtenkou.</p>
+                  </div>
+                  <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 mt-3">
+                    {ALL_CASH_DENOMINATIONS.map((denom) => {
+                      const isChecked = cashDenominations.includes(denom);
+                      return (
+                        <label
+                          key={denom}
+                          className={cn(
+                            "flex items-center space-x-2 p-2.5 rounded-lg border cursor-pointer transition-colors text-xs font-medium select-none",
+                            isChecked ? "border-primary/60 bg-primary/5 text-foreground" : "border-muted bg-muted/20 text-muted-foreground"
+                          )}
+                        >
+                          <Checkbox 
+                            checked={isChecked} 
+                            onCheckedChange={() => toggleCashDenomination(denom)} 
+                          />
+                          <span>{denom} Kč</span>
+                        </label>
+                      );
+                    })}
+                  </div>
                 </div>
               </div>
             </AccordionContent>

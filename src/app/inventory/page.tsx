@@ -84,6 +84,7 @@ export default function InventoryPage() {
   const [chartMode, setChartMode] = useState<"stacked" | "grouped">("stacked");
   const [showCost, setShowCost] = useState(true);
   const [showProfit, setShowProfit] = useState(true);
+  const [onlyLowStock, setOnlyLowStock] = useState(false);
 
   const availableYears = useMemo(() => {
     const years = new Set<string>();
@@ -187,6 +188,11 @@ export default function InventoryPage() {
       };
     }).sort((a, b) => b.profitPerUnit - a.profitPerUnit);
   }, [products]);
+
+  const filteredProductProfitability = useMemo(() => {
+    if (!onlyLowStock) return productProfitability;
+    return productProfitability.filter(p => p.stock <= 5);
+  }, [productProfitability, onlyLowStock]);
 
   const resetFilters = () => {
     setDateFrom(undefined);
@@ -455,9 +461,17 @@ export default function InventoryPage() {
         </Card>
 
         <Card>
-          <CardHeader>
-            <CardTitle>Tabulka produktové ziskovosti</CardTitle>
-            <CardDescription>Podrobný rozpis nákladů a marží pro jednotlivé produkty.</CardDescription>
+          <CardHeader className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <CardTitle>Tabulka produktové ziskovosti</CardTitle>
+              <CardDescription>Podrobný rozpis nákladů a marží pro jednotlivé produkty.</CardDescription>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Switch id="only-low-stock" checked={onlyLowStock} onCheckedChange={setOnlyLowStock} />
+              <Label htmlFor="only-low-stock" className="text-xs font-semibold cursor-pointer">
+                Pouze docházející zásoby (≤ 5 ks)
+              </Label>
+            </div>
           </CardHeader>
           <CardContent>
             <div className="rounded-md border overflow-hidden">
@@ -473,13 +487,23 @@ export default function InventoryPage() {
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {productProfitability.map((p) => (
+                  {filteredProductProfitability.map((p) => (
                     <TableRow key={p.id}>
                       <TableCell className="font-medium">{p.name}</TableCell>
                       <TableCell className="text-center">
-                        <Badge variant={p.stock <= 5 ? "destructive" : "secondary"}>
-                          {p.stock} ks
-                        </Badge>
+                        {p.stock <= 0 ? (
+                          <Badge variant="destructive" className="text-xs">
+                            Vyprodáno
+                          </Badge>
+                        ) : p.stock <= 5 ? (
+                          <Badge variant="outline" className="text-xs bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/40">
+                            {p.stock} ks (dochází)
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-xs">
+                            {p.stock} ks
+                          </Badge>
+                        )}
                       </TableCell>
                       <TableCell className="text-right text-muted-foreground">{(p.costPrice || 0).toFixed(0)} Kč</TableCell>
                       <TableCell className="text-right font-semibold">{(p.price || 0).toFixed(0)} Kč</TableCell>

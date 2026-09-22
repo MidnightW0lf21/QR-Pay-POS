@@ -22,6 +22,8 @@ export interface CartItem {
   quantity: number;
   name: string;
   price: number;
+  originalPrice?: number;
+  isCustom?: boolean;
 }
 
 export type PaymentMethod = 'qr' | 'cash';
@@ -33,4 +35,6 @@ export interface Transaction {
   items: CartItem[];
   paymentMethod: PaymentMethod;
   posName?: string;
+  variableSymbol?: string;
 }
+

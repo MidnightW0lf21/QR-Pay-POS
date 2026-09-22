@@ -148,6 +148,38 @@ export default function HistoryPage() {
     return dailyTransactions.reduce((acc, tx) => acc + tx.total, 0);
   }, [transactions, dateFilter]);
 
+  const posBreakdown = useMemo(() => {
+    const map: Record<string, {
+      posName: string;
+      totalRevenue: number;
+      cashRevenue: number;
+      qrRevenue: number;
+      count: number;
+      itemsSold: number;
+    }> = {};
+
+    filteredTransactions.forEach(tx => {
+      const pos = tx.posName || "Hlavní pokladna";
+      if (!map[pos]) {
+        map[pos] = {
+          posName: pos,
+          totalRevenue: 0,
+          cashRevenue: 0,
+          qrRevenue: 0,
+          count: 0,
+          itemsSold: 0
+        };
+      }
+      map[pos].totalRevenue += tx.total;
+      if (tx.paymentMethod === 'cash') map[pos].cashRevenue += tx.total;
+      else map[pos].qrRevenue += tx.total;
+      map[pos].count += 1;
+      map[pos].itemsSold += tx.items.reduce((acc, it) => acc + it.quantity, 0);
+    });
+
+    return Object.values(map).sort((a, b) => b.totalRevenue - a.totalRevenue);
+  }, [filteredTransactions]);
+
   const handleDeleteLastTransaction = async () => {
     try {
       await deleteLastTransaction();
@@ -445,6 +477,41 @@ export default function HistoryPage() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* Manažerský přehled podle pokladen */}
+            {posBreakdown.length > 0 && (
+              <div className="space-y-3 pt-2">
+                <div className="flex items-center gap-2">
+                  <MonitorSmartphone className="h-4 w-4 text-primary" />
+                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                    Manažerský přehled podle pokladen
+                  </span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {posBreakdown.map((item) => (
+                    <div key={item.posName} className="p-3.5 rounded-xl border bg-card/60 shadow-sm space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-bold text-sm truncate">{item.posName}</span>
+                        <Badge variant="secondary" className="text-[10px] font-bold">
+                          {item.count} prodejů
+                        </Badge>
+                      </div>
+                      <div className="text-2xl font-black text-primary tabular-nums">
+                        {item.totalRevenue.toFixed(0)} Kč
+                      </div>
+                      <div className="grid grid-cols-2 gap-1 text-[11px] text-muted-foreground pt-1.5 border-t border-border/60">
+                        <span className="flex items-center gap-1">
+                          <Wallet className="h-3 w-3 text-emerald-500" /> {item.cashRevenue.toFixed(0)} Kč
+                        </span>
+                        <span className="flex items-center gap-1 justify-end">
+                          <QrCode className="h-3 w-3 text-sky-500" /> {item.qrRevenue.toFixed(0)} Kč
+                        </span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
 
           {transactions.length === 0 ? (
@@ -512,6 +579,11 @@ export default function HistoryPage() {
                                     {transaction.posName}
                                   </Badge>
                                 )}
+                                {transaction.variableSymbol && (
+                                  <Badge variant="outline" className="h-6 font-mono text-[11px] font-bold bg-primary/5 text-primary border-primary/30">
+                                    VS: {transaction.variableSymbol}
+                                  </Badge>
+                                )}
                             </div>
                           </div>
                           <span className="font-bold text-primary text-xl">
@@ -551,8 +623,9 @@ export default function HistoryPage() {
                           </TableBody>
                         </Table>
                       </div>
-                      <div className="text-[10px] text-muted-foreground flex justify-between items-center px-1 italic">
+                      <div className="text-[10px] text-muted-foreground flex flex-wrap justify-between items-center gap-2 px-1 italic">
                          <span>ID: {transaction.id}</span>
+                         {transaction.variableSymbol && <span className="font-mono font-semibold text-primary">VS: {transaction.variableSymbol}</span>}
                          {transaction.posName && <span>Zdroj: {transaction.posName}</span>}
                       </div>
                     </AccordionContent>

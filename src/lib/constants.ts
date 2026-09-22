@@ -26,3 +26,9 @@ export const DEFAULT_BANKING_DETAILS: BankingDetails = {
 };
 
 export const DEFAULT_POS_NAME = "Hlavní pokladna";
+
+export const ALL_CASH_DENOMINATIONS = [1, 2, 5, 10, 20, 50, 100, 200, 500, 1000, 2000, 5000];
+export const DEFAULT_CASH_DENOMINATIONS = [50, 100, 200, 500, 1000, 2000];
+export const CASH_DENOMINATIONS_STORAGE_KEY = "qr-pay-cash-denominations";
+export const VS_COUNTER_STORAGE_KEY = "qr-pay-vs-counter";
+export const LOW_STOCK_THRESHOLD = 5;
