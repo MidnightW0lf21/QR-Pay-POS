@@ -521,7 +521,7 @@ export default function Home() {
               {/* Permanent Card: "+ Vlastní položka" (Custom / Open Price) */}
               <Card 
                 onClick={() => setIsCustomItemDialogOpen(true)}
-                className="group relative flex flex-col justify-between overflow-hidden rounded-xl border-2 border-dashed border-primary/40 bg-primary/[0.02] hover:bg-primary/5 hover:border-primary transition-all cursor-pointer p-4 select-none min-h-[160px] sm:min-h-[190px]"
+                className="group relative flex flex-col justify-between overflow-hidden rounded-xl border-2 border-dashed border-primary/40 bg-primary/[0.02] hover:bg-primary/5 hover:border-primary transition-all cursor-pointer p-4 select-none aspect-square"
               >
                 <div className="flex flex-col items-center justify-center flex-1 text-center my-auto">
                   <div className="p-3 rounded-full bg-primary/10 text-primary mb-2 group-hover:scale-110 transition-transform">
@@ -550,53 +550,38 @@ export default function Home() {
                       inCart > 0 && "ring-2 ring-primary border-primary"
                     )}
                   >
-                    <div className="relative aspect-square w-full">
+                    <div className="relative w-full aspect-square">
                       <ProductImage product={product} fill />
+                      <div className="absolute inset-x-0 bottom-0 h-3/5 bg-gradient-to-t from-card/95 via-card/50 to-transparent z-10" />
                       
-                      {/* In-Cart Count Badge */}
+                      <div className="absolute bottom-3 left-3 right-3 text-card-foreground z-20 flex flex-col items-start">
+                        <p className="font-bold text-base leading-tight truncate w-full">{product.name}</p>
+                        <p className="text-2xl font-black text-primary brightness-110">{product.price.toFixed(0)} Kč</p>
+                      </div>
+                      
                       {inCart > 0 && (
-                        <div className="absolute top-2 right-2 bg-primary text-primary-foreground font-black text-xs h-6 w-6 rounded-full flex items-center justify-center shadow-lg animate-in zoom-in-50">
-                          {inCart}
+                        <div className="absolute top-2 right-2 flex items-center bg-background/90 backdrop-blur-sm rounded-full p-0.5 shadow-lg z-30">
+                          <Button 
+                            variant="ghost" 
+                            size="icon" 
+                            className="h-7 w-7 rounded-full hover:bg-muted" 
+                            onClick={(e) => { e.stopPropagation(); removeFromCart(product.id); }}
+                          >
+                            <Minus className="h-4 w-4" />
+                          </Button>
+                          <span className="text-lg font-bold w-7 text-center">{inCart}</span>
                         </div>
                       )}
-
-                      {/* Out of Stock / Low Stock Alerts */}
-                      {isOutOfStock ? (
-                        <div className="absolute top-2 left-2">
-                          <Badge variant="destructive" className="text-[10px] uppercase font-bold py-0.5 px-1.5 shadow">
-                            Vyprodáno
-                          </Badge>
-                        </div>
-                      ) : isLowStock ? (
-                        <div className="absolute top-2 left-2">
-                          <Badge variant="outline" className="text-[10px] uppercase font-bold py-0.5 px-1.5 bg-amber-500/15 text-amber-600 dark:text-amber-400 border-amber-500/40 shadow">
-                            Zbývá {remainingStock} ks
-                          </Badge>
-                        </div>
-                      ) : null}
-                    </div>
-
-                    <div className="p-3 flex flex-col justify-between flex-1 gap-1">
-                      <div>
-                        <h3 className="font-semibold text-sm leading-snug line-clamp-1 group-hover:text-primary transition-colors">
-                          {product.name}
-                        </h3>
-                        {product.category && (
-                          <p className="text-[11px] text-muted-foreground line-clamp-1">{product.category}</p>
+                      
+                      <Badge 
+                        variant={remainingStock <= 5 ? "destructive" : "secondary"} 
+                        className={cn(
+                          "absolute top-2 left-2 flex items-center text-[11px] px-2 py-0.5 z-30 font-bold", 
+                          remainingStock <= 0 ? "bg-destructive text-white" : isLowStock ? "bg-amber-500 text-white" : "bg-background/60 text-foreground border-none backdrop-blur-sm shadow-sm"
                         )}
-                      </div>
-
-                      <div className="flex items-baseline justify-between mt-2">
-                        <span className="text-base sm:text-lg font-black tabular-nums text-foreground">
-                          {product.price} <span className="text-xs font-normal text-muted-foreground">Kč</span>
-                        </span>
-                        
-                        {!isOutOfStock && !isLowStock && (
-                          <span className="text-[10px] text-muted-foreground font-medium">
-                            {remainingStock} ks
-                          </span>
-                        )}
-                      </div>
+                      >
+                        {remainingStock <= 0 ? "VYPRODÁNO" : isLowStock ? `DOCHÁZÍ (${remainingStock} ks)` : `${remainingStock} ks`}
+                      </Badge>
                     </div>
                   </Card>
                 );
