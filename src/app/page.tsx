@@ -21,7 +21,7 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { 
   Minus, Plus, ShoppingCart, Loader2, Landmark, Wallet, 
   Tag, Eye, EyeOff, Receipt, Scissors, Search, Trash2, 
-  Coins, Edit3, X, AlertTriangle, Sparkles 
+  Coins, Edit3, X, AlertTriangle, Sparkles, RotateCcw 
 } from "lucide-react";
 import type { Product, BankingDetails, Transaction, CartItem } from "@/lib/types";
 import { 
@@ -103,6 +103,7 @@ export default function Home() {
   const [isQrDialogOpen, setIsQrDialogOpen] = useState(false);
   const [isCashDialogOpen, setIsCashDialogOpen] = useState(false);
   const [cashReceived, setCashReceived] = useState<number | null>(null);
+  const [cashHistory, setCashHistory] = useState<number[]>([]);
   const [qrCodeDataUrl, setQrCodeDataUrl] = useState('');
   const [currentVs, setCurrentVs] = useState<string>('');
 
@@ -286,6 +287,60 @@ export default function Home() {
     return cashReceived - total;
   }, [cashReceived, total]);
 
+  // Fast cash operations (multiple taps, undo, clear)
+  const handleAddCashDenomination = (denom: number) => {
+    triggerHapticFeedback();
+    setCashReceived((prev) => {
+      // If cash was set to exact total (and history is empty), replacing it with the chosen bill is expected
+      if (cashHistory.length === 0 && prev === total && prev !== denom) {
+        return denom;
+      }
+      const current = prev ?? 0;
+      return current + denom;
+    });
+    setCashHistory((prev) => {
+      if (prev.length === 0 && cashReceived === total && total !== denom) {
+        return [denom];
+      }
+      return [...prev, denom];
+    });
+  };
+
+  const handleUndoCash = () => {
+    triggerHapticFeedback();
+    if (cashHistory.length === 0) return;
+    const lastDenom = cashHistory[cashHistory.length - 1];
+    setCashHistory((prev) => prev.slice(0, -1));
+    setCashReceived((prev) => {
+      if (prev === null) return null;
+      const next = prev - lastDenom;
+      return next <= 0 ? null : next;
+    });
+  };
+
+  const handleRemoveCashHistoryIndex = (indexToRemove: number) => {
+    triggerHapticFeedback();
+    const denom = cashHistory[indexToRemove];
+    setCashHistory((prev) => prev.filter((_, idx) => idx !== indexToRemove));
+    setCashReceived((prev) => {
+      if (prev === null) return null;
+      const next = prev - denom;
+      return next <= 0 ? null : next;
+    });
+  };
+
+  const handleClearCash = () => {
+    triggerHapticFeedback();
+    setCashReceived(null);
+    setCashHistory([]);
+  };
+
+  const handleSetExactCash = () => {
+    triggerHapticFeedback();
+    setCashReceived(total);
+    setCashHistory([]);
+  };
+
   // Open checkout dialog
   const handleOpenDialog = () => {
     triggerHapticFeedback();
@@ -294,6 +349,7 @@ export default function Home() {
 
     if (isCashMode) {
       setCashReceived(null);
+      setCashHistory([]);
       setIsCashDialogOpen(true);
     } else {
       // Generate new sequential Variable Symbol for this QR payment
@@ -317,6 +373,7 @@ export default function Home() {
     setIsQrDialogOpen(false);
     setIsCashDialogOpen(false);
     setCashReceived(null);
+    setCashHistory([]);
     setCart({}); 
     setIsClosing(false);
     setIsTorn(false);
@@ -962,7 +1019,20 @@ export default function Home() {
               {isCashDialogOpen && (
                 <div className="space-y-3 mb-4 w-full">
                   <div className="space-y-1.5">
-                    <Label htmlFor="cash-received" className="text-xs font-bold uppercase text-zinc-700 tracking-wider">Přijato</Label>
+                    <div className="flex items-center justify-between">
+                      <Label htmlFor="cash-received" className="text-xs font-bold uppercase text-zinc-700 tracking-wider">
+                        Přijato
+                      </Label>
+                      {cashReceived !== null && cashReceived > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleClearCash}
+                          className="text-[11px] font-bold text-destructive hover:underline flex items-center gap-0.5"
+                        >
+                          <X className="h-3 w-3" /> Vynulovat
+                        </button>
+                      )}
+                    </div>
                     <div className="relative">
                        <input 
                          ref={cashInputRef} 
@@ -970,10 +1040,25 @@ export default function Home() {
                          type="number" 
                          placeholder="0" 
                          value={cashReceived ?? ""} 
-                         onChange={(e) => setCashReceived(e.target.value === '' ? null : parseFloat(e.target.value))} 
-                         className="w-full text-center text-2xl h-12 font-bold bg-muted/20 border-dashed border-2 text-zinc-900 focus:outline-none rounded-md" 
+                         onChange={(e) => {
+                           const val = e.target.value === '' ? null : parseFloat(e.target.value);
+                           setCashReceived(val);
+                           setCashHistory([]);
+                         }} 
+                         className="w-full text-center text-2xl h-12 font-bold bg-muted/20 border-dashed border-2 text-zinc-900 focus:outline-none rounded-md px-10" 
                        />
-                       <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 font-bold">Kč</div>
+                       <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 font-bold pointer-events-none">Kč</div>
+                       {cashReceived !== null && cashReceived > 0 && (
+                         <button
+                           type="button"
+                           onClick={handleClearCash}
+                           className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 p-1"
+                           title="Vynulovat"
+                           aria-label="Vynulovat částku"
+                         >
+                           <X className="h-4 w-4" />
+                         </button>
+                       )}
                     </div>
                   </div>
 
@@ -981,10 +1066,7 @@ export default function Home() {
                   <Button
                     type="button"
                     variant="outline"
-                    onClick={() => {
-                      triggerHapticFeedback();
-                      setCashReceived(total);
-                    }}
+                    onClick={handleSetExactCash}
                     className={cn(
                       "w-full h-9 font-bold text-xs border-2 transition-all",
                       cashReceived === total 
@@ -995,30 +1077,71 @@ export default function Home() {
                     ✓ Přesně: {total.toFixed(0)} Kč
                   </Button>
 
-                  {/* FAST CASH: Configured Banknotes / Coins */}
-                  <div className="space-y-1">
-                    <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">Rychlá volba bankovky:</span>
+                  {/* FAST CASH: Configured Banknotes / Coins with Multi-tap & Undo */}
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">
+                        Rychlá volba bankovky:
+                      </span>
+                      {cashHistory.length > 0 && (
+                        <button
+                          type="button"
+                          onClick={handleUndoCash}
+                          className="flex items-center gap-1 text-[11px] font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 px-2 py-0.5 rounded transition-all active:scale-95 shadow-2xs"
+                          title="Vrátit poslední přidanou bankovku"
+                        >
+                          <RotateCcw className="h-3 w-3" />
+                          Zpět (-{cashHistory[cashHistory.length - 1]} Kč)
+                        </button>
+                      )}
+                    </div>
+
+                    {/* Breakdown pills if multiple banknotes/coins were tapped */}
+                    {cashHistory.length > 1 && (
+                      <div className="flex items-center gap-1 flex-wrap text-[11px] bg-zinc-100/90 p-1.5 rounded-md border border-dashed border-zinc-200">
+                        <span className="font-semibold text-zinc-500 text-[10px] uppercase mr-0.5">Složeno:</span>
+                        {cashHistory.map((item, idx) => (
+                          <span 
+                            key={idx} 
+                            onClick={() => handleRemoveCashHistoryIndex(idx)}
+                            className="inline-flex items-center gap-0.5 bg-white border border-zinc-300 rounded px-1.5 py-0.5 font-bold text-zinc-800 cursor-pointer hover:bg-red-50 hover:border-red-300 hover:text-destructive transition-colors group shadow-2xs"
+                            title="Kliknutím odeberete tuto bankovku"
+                          >
+                            +{item}
+                            <X className="h-2.5 w-2.5 text-zinc-400 group-hover:text-destructive" />
+                          </span>
+                        ))}
+                        <span className="ml-auto font-black text-zinc-900">
+                          = {cashReceived} Kč
+                        </span>
+                      </div>
+                    )}
+
+                    {/* Denominations Grid */}
                     <div className="grid grid-cols-3 gap-1.5">
                       {cashDenominations.map((denom) => {
-                        const isSelected = cashReceived === denom;
+                        const count = cashHistory.filter(x => x === denom).length;
+                        const isSelected = count > 0 || (cashHistory.length === 0 && cashReceived === denom);
                         return (
                           <Button
                             key={denom}
                             type="button"
                             variant="outline"
                             size="sm"
-                            onClick={() => {
-                              triggerHapticFeedback();
-                              setCashReceived(denom);
-                            }}
+                            onClick={() => handleAddCashDenomination(denom)}
                             className={cn(
-                              "h-8 text-xs font-bold transition-all px-1",
+                              "relative h-9 text-xs font-bold transition-all px-1 flex items-center justify-center active:scale-95",
                               isSelected 
-                                ? "bg-primary text-primary-foreground border-primary" 
+                                ? "bg-primary/10 border-primary text-primary font-black shadow-2xs" 
                                 : "bg-zinc-50 hover:bg-zinc-100 text-zinc-800 border-zinc-200"
                             )}
                           >
-                            {denom} Kč
+                            <span>+{denom} Kč</span>
+                            {count > 0 && (
+                              <span className="absolute -top-1.5 -right-1.5 bg-primary text-primary-foreground text-[10px] font-black h-4 min-w-4 px-1 rounded-full flex items-center justify-center shadow">
+                                {count}×
+                              </span>
+                            )}
                           </Button>
                         );
                       })}
@@ -1027,7 +1150,7 @@ export default function Home() {
 
                   {/* Calculated Change */}
                   <div className={cn("smooth-expand-container", change !== null ? "is-open" : "")}>
-                    <div className="min-h-0 pt-2">
+                    <div className="min-h-0 pt-1">
                       <div className="p-3 bg-zinc-50 rounded-lg border border-dashed border-zinc-200 text-center">
                         <p className="text-xs font-bold uppercase text-zinc-700 mb-0.5">
                           {change !== null && change >= 0 ? "Vrátit" : "Doplatit"}
