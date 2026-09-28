@@ -383,14 +383,19 @@ export default function Home() {
     const cartEntries = Object.values(cart);
     if (cartEntries.length === 0) return;
 
-    const transactionItems: CartItem[] = cartEntries.map(item => ({
-      productId: item.productId,
-      name: item.name,
-      price: item.price,
-      originalPrice: item.originalPrice !== item.price ? item.originalPrice : undefined,
-      quantity: item.quantity,
-      isCustom: item.isCustom,
-    }));
+    const transactionItems: CartItem[] = cartEntries.map(item => {
+      const entry: CartItem = {
+        productId: item.productId,
+        name: item.name,
+        price: item.price,
+        quantity: item.quantity,
+        isCustom: item.isCustom,
+      };
+      if (item.originalPrice !== undefined && item.originalPrice !== item.price) {
+        entry.originalPrice = item.originalPrice;
+      }
+      return entry;
+    });
 
     try {
       await recordSale(

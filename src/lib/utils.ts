@@ -58,3 +58,23 @@ export function generateVariableSymbol(): string {
 
   return `${datePrefix}${String(counter).padStart(4, '0')}`;
 }
+
+/**
+ * Recursively removes all undefined fields from an object or array.
+ * Required for Firestore, which throws errors on undefined values.
+ */
+export function stripUndefined<T>(obj: T): T {
+  if (obj === null || obj === undefined || typeof obj !== 'object') {
+    return obj;
+  }
+  if (Array.isArray(obj)) {
+    return obj.map((item) => stripUndefined(item)) as unknown as T;
+  }
+  const result: Record<string, any> = {};
+  for (const [key, value] of Object.entries(obj)) {
+    if (value !== undefined) {
+      result[key] = stripUndefined(value);
+    }
+  }
+  return result as T;
+}

@@ -38,7 +38,7 @@ import {
   DEVICE_DISABLED_PRODUCTS_KEY
 } from '@/lib/constants';
 import { deleteImage } from '@/lib/db';
-import { generateUUID } from '@/lib/utils';
+import { generateUUID, stripUndefined } from '@/lib/utils';
 
 export type SyncStatus = 'online' | 'offline' | 'syncing' | 'local-only';
 
@@ -305,7 +305,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
 
     if (isCloudConnected && firestore && user) {
       const pRef = doc(firestore, 'users', user.uid, 'products', id);
-      await setDoc(pRef, newProduct);
+      await setDoc(pRef, stripUndefined(newProduct));
     } else {
       const updated = [...products, newProduct];
       setProducts(updated);
@@ -318,7 +318,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const firestore = db;
     if (isCloudConnected && firestore && user) {
       const pRef = doc(firestore, 'users', user.uid, 'products', product.id);
-      await setDoc(pRef, product, { merge: true });
+      await setDoc(pRef, stripUndefined(product), { merge: true });
     } else {
       const updated = products.map((p) => (p.id === product.id ? product : p));
       setProducts(updated);
@@ -381,7 +381,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     const firestore = db;
     if (isCloudConnected && firestore && user) {
       const settingsRef = doc(firestore, 'users', user.uid, 'meta', 'settings');
-      await setDoc(settingsRef, { bankingDetails: details }, { merge: true });
+      await setDoc(settingsRef, { bankingDetails: stripUndefined(details) }, { merge: true });
     } else {
       localStorage.setItem(BANKING_DETAILS_STORAGE_KEY, JSON.stringify(details));
     }
@@ -421,16 +421,21 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     variableSymbol?: string
   ): Promise<Transaction> => {
     const txId = generateUUID();
-    const cleanItems: CartItem[] = cartItems.map(item => ({
-      productId: item.productId,
-      name: item.name || '',
-      price: Number(item.price) || 0,
-      originalPrice: item.originalPrice !== undefined ? Number(item.originalPrice) : undefined,
-      quantity: Number(item.quantity) || 1,
-      isCustom: Boolean(item.isCustom),
-    }));
+    const cleanItems: CartItem[] = cartItems.map(item => {
+      const entry: CartItem = {
+        productId: item.productId,
+        name: item.name || '',
+        price: Number(item.price) || 0,
+        quantity: Number(item.quantity) || 1,
+        isCustom: Boolean(item.isCustom),
+      };
+      if (item.originalPrice !== undefined && item.originalPrice !== null) {
+        entry.originalPrice = Number(item.originalPrice);
+      }
+      return entry;
+    });
 
-    const newTransaction: Transaction = {
+    const newTransaction: Transaction = stripUndefined({
       id: txId,
       date: new Date().toISOString(),
       total,
@@ -438,7 +443,7 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       paymentMethod,
       posName: posName || DEFAULT_POS_NAME,
       ...(variableSymbol ? { variableSymbol } : {}),
-    };
+    });
     const firestore = db;
 
     if (isCloudConnected && firestore && user) {
