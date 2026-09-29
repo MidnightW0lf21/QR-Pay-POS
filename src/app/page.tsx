@@ -123,6 +123,9 @@ export default function Home() {
 
   // Cash Denominations from Settings
   const [cashDenominations, setCashDenominations] = useState<number[]>(DEFAULT_CASH_DENOMINATIONS);
+  const halfDenomIndex = useMemo(() => Math.ceil(cashDenominations.length / 2), [cashDenominations]);
+  const leftDenominations = useMemo(() => cashDenominations.slice(0, halfDenomIndex), [cashDenominations, halfDenomIndex]);
+  const rightDenominations = useMemo(() => cashDenominations.slice(halfDenomIndex), [cashDenominations, halfDenomIndex]);
 
   // Animation States
   const [isClosing, setIsClosing] = useState(false);
@@ -962,241 +965,378 @@ export default function Home() {
 
       {/* CHECKOUT RECEIPT DIALOG (Animated Tear Receipt + Fast Cash & Auto VS) */}
       <Dialog open={isQrDialogOpen || isCashDialogOpen} onOpenChange={(open) => !open && !isClosing && handleFinalizeAndClose()}>
-        <DialogContent className="p-0 bg-transparent border-none shadow-none max-w-[360px] focus-visible:outline-none overflow-visible [&>button]:hidden" onOpenAutoFocus={(e) => e.preventDefault()}>
-          <div className={cn(
-            "relative",
-            !isClosing && "animate-receipt-print"
-          )}>
-            <div className={cn(
-              "receipt-paper bg-white p-7 pb-10 w-full relative z-20 text-zinc-900 shadow-2xl",
-              isTorn && "animate-fly-up"
-            )}>
-              {/* Receipt Header */}
-              <div className="w-full text-center border-b border-dashed border-zinc-300 pb-3 mb-3">
-                 <div className="flex items-center justify-center gap-2 mb-1 text-zinc-800">
-                   <Receipt className="h-5 w-5" />
-                   <DialogTitle className="text-xs font-bold uppercase tracking-[0.2em]">
-                     {isCashDialogOpen ? "Účtenka / Hotovost" : "Účtenka / QR Platba"}
-                   </DialogTitle>
-                 </div>
-                 <DialogDescription className="text-[10px] text-zinc-700 font-bold uppercase">
-                   {currentPosName} • {new Date().toLocaleString('cs-CZ')}
-                 </DialogDescription>
-                 
-                 {/* Auto-generated Variable Symbol indicator for QR payments */}
-                 {isQrDialogOpen && currentVs && (
-                   <p className="text-[11px] font-black tracking-widest text-primary mt-1">
-                     VS: {currentVs}
-                   </p>
-                 )}
-              </div>
-
-              {/* Total Amount */}
-              <div className="text-center w-full mb-4">
-                <p className="text-xs font-bold text-zinc-600 mb-0.5 uppercase tracking-wider">K úhradě</p>
-                <p className="text-4xl sm:text-5xl font-black text-primary tabular-nums tracking-tight">
-                  {total.toFixed(0)} <span className="text-2xl ml-1">Kč</span>
-                </p>
-              </div>
-
-              {/* QR Payment View */}
-              {isQrDialogOpen && (
-                <div className="p-3 bg-white rounded-lg shadow-inner mb-4 ring-1 ring-black/5">
-                  {qrCodeDataUrl ? (
-                    <Image src={qrCodeDataUrl} alt="QR Code" width={220} height={220} className="mx-auto" />
-                  ) : (
-                    <div className="w-[220px] h-[220px] flex items-center justify-center bg-gray-50">
-                      <Loader2 className="h-10 w-10 animate-spin text-primary" />
-                    </div>
-                  )}
+        <DialogContent 
+          className={cn(
+            "p-0 bg-transparent border-none shadow-none focus-visible:outline-none overflow-visible [&>button]:hidden",
+            isCashDialogOpen ? "max-w-[360px] md:max-w-4xl lg:max-w-5xl w-full" : "max-w-[360px]"
+          )} 
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
+          <div className="flex items-center justify-center gap-3 sm:gap-6 md:gap-8 w-full">
+            
+            {/* LEFT WING (Tablets / PC Landscape): Lower Denominations */}
+            {isCashDialogOpen && (
+              <div className={cn(
+                "hidden md:flex flex-col gap-3 justify-center w-32 sm:w-36 md:w-40 lg:w-44 shrink-0 z-30 transition-all duration-300",
+                isClosing ? "opacity-0 scale-95 pointer-events-none" : "animate-in fade-in slide-in-from-left-6"
+              )}>
+                <div className="flex items-center justify-center gap-1.5 text-zinc-400 text-xs font-bold uppercase tracking-wider mb-1">
+                  <Coins className="h-4 w-4" />
+                  <span>Bankovky</span>
                 </div>
-              )}
-
-              {/* Cash Payment View with Fast Cash Presets */}
-              {isCashDialogOpen && (
-                <div className="space-y-3 mb-4 w-full">
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <Label htmlFor="cash-received" className="text-xs font-bold uppercase text-zinc-700 tracking-wider">
-                        Přijato
-                      </Label>
-                      {cashReceived !== null && cashReceived > 0 && (
-                        <button
-                          type="button"
-                          onClick={handleClearCash}
-                          className="text-[11px] font-bold text-destructive hover:underline flex items-center gap-0.5"
-                        >
-                          <X className="h-3 w-3" /> Vynulovat
-                        </button>
+                {leftDenominations.map((denom) => {
+                  const count = cashHistory.filter(x => x === denom).length;
+                  const isSelected = count > 0 || (cashHistory.length === 0 && cashReceived === denom);
+                  return (
+                    <button
+                      key={denom}
+                      type="button"
+                      onClick={() => handleAddCashDenomination(denom)}
+                      className={cn(
+                        "relative flex flex-col items-center justify-center h-20 sm:h-22 md:h-24 rounded-2xl border-2 transition-all active:scale-95 shadow-xl select-none group",
+                        isSelected
+                          ? "bg-primary text-primary-foreground border-primary ring-4 ring-primary/30 font-black shadow-primary/20 scale-[1.02]"
+                          : "bg-zinc-900/90 hover:bg-zinc-800 text-white border-zinc-700/80 hover:border-zinc-500 backdrop-blur-md"
                       )}
-                    </div>
-                    <div className="relative">
-                       <input 
-                         ref={cashInputRef} 
-                         id="cash-received" 
-                         type="number" 
-                         inputMode="numeric"
-                         placeholder="0" 
-                         value={cashReceived ?? ""} 
-                         onChange={(e) => {
-                           const val = e.target.value === '' ? null : parseFloat(e.target.value);
-                           setCashReceived(val);
-                           setCashHistory([]);
-                         }} 
-                         className="w-full text-center text-2xl h-12 font-bold bg-muted/20 border-dashed border-2 text-zinc-900 focus:outline-none rounded-md px-10" 
-                       />
-                       <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 font-bold pointer-events-none">Kč</div>
-                       {cashReceived !== null && cashReceived > 0 && (
-                         <button
-                           type="button"
-                           onClick={handleClearCash}
-                           className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 p-1"
-                           title="Vynulovat"
-                           aria-label="Vynulovat částku"
-                         >
-                           <X className="h-4 w-4" />
-                         </button>
-                       )}
-                    </div>
-                  </div>
-
-                  {/* FAST CASH: Standalone [PŘESNĚ] button */}
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={handleSetExactCash}
-                    className={cn(
-                      "w-full h-9 font-bold text-xs border-2 transition-all",
-                      cashReceived === total 
-                        ? "border-emerald-600 bg-emerald-50 text-emerald-800" 
-                        : "border-primary/40 text-primary hover:bg-primary/5"
-                    )}
-                  >
-                    ✓ Přesně: {total.toFixed(0)} Kč
-                  </Button>
-
-                  {/* FAST CASH: Configured Banknotes / Coins with Multi-tap & Undo */}
-                  <div className="space-y-1.5">
-                    <div className="flex items-center justify-between">
-                      <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">
-                        Rychlá volba bankovky:
-                      </span>
-                      {cashHistory.length > 0 && (
-                        <button
-                          type="button"
-                          onClick={handleUndoCash}
-                          className="flex items-center gap-1 text-[11px] font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 px-2 py-0.5 rounded transition-all active:scale-95 shadow-2xs"
-                          title="Vrátit poslední přidanou bankovku"
-                        >
-                          <RotateCcw className="h-3 w-3" />
-                          Zpět (-{cashHistory[cashHistory.length - 1]} Kč)
-                        </button>
-                      )}
-                    </div>
-
-                    {/* Breakdown pills if multiple banknotes/coins were tapped */}
-                    {cashHistory.length > 1 && (
-                      <div className="flex items-center gap-1 flex-wrap text-[11px] bg-zinc-100/90 p-1.5 rounded-md border border-dashed border-zinc-200">
-                        <span className="font-semibold text-zinc-500 text-[10px] uppercase mr-0.5">Složeno:</span>
-                        {cashHistory.map((item, idx) => (
-                          <span 
-                            key={idx} 
-                            onClick={() => handleRemoveCashHistoryIndex(idx)}
-                            className="inline-flex items-center gap-0.5 bg-white border border-zinc-300 rounded px-1.5 py-0.5 font-bold text-zinc-800 cursor-pointer hover:bg-red-50 hover:border-red-300 hover:text-destructive transition-colors group shadow-2xs"
-                            title="Kliknutím odeberete tuto bankovku"
-                          >
-                            +{item}
-                            <X className="h-2.5 w-2.5 text-zinc-400 group-hover:text-destructive" />
-                          </span>
-                        ))}
-                        <span className="ml-auto font-black text-zinc-900">
-                          = {cashReceived} Kč
+                    >
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-2xl lg:text-3xl font-black tabular-nums">+{denom}</span>
+                        <span className="text-sm font-semibold opacity-80">Kč</span>
+                      </div>
+                      {count > 0 && (
+                        <span className="absolute -top-2.5 -right-2.5 bg-emerald-500 text-white font-black text-xs h-6 min-w-6 px-1.5 rounded-full flex items-center justify-center shadow-lg border-2 border-zinc-900 animate-in zoom-in-75">
+                          {count}×
                         </span>
-                      </div>
-                    )}
-
-                    {/* Denominations Grid */}
-                    <div className="grid grid-cols-3 gap-1.5">
-                      {cashDenominations.map((denom) => {
-                        const count = cashHistory.filter(x => x === denom).length;
-                        const isSelected = count > 0 || (cashHistory.length === 0 && cashReceived === denom);
-                        return (
-                          <Button
-                            key={denom}
-                            type="button"
-                            variant="outline"
-                            size="sm"
-                            onClick={() => handleAddCashDenomination(denom)}
-                            className={cn(
-                              "relative h-9 text-xs font-bold transition-all px-1 flex items-center justify-center active:scale-95",
-                              isSelected 
-                                ? "bg-primary/10 border-primary text-primary font-black shadow-2xs" 
-                                : "bg-zinc-50 hover:bg-zinc-100 text-zinc-800 border-zinc-200"
-                            )}
-                          >
-                            <span>+{denom} Kč</span>
-                            {count > 0 && (
-                              <span className="absolute -top-1.5 -right-1.5 bg-primary text-primary-foreground text-[10px] font-black h-4 min-w-4 px-1 rounded-full flex items-center justify-center shadow">
-                                {count}×
-                              </span>
-                            )}
-                          </Button>
-                        );
-                      })}
-                    </div>
-                  </div>
-
-                  {/* Calculated Change */}
-                  <div className={cn("smooth-expand-container", change !== null ? "is-open" : "")}>
-                    <div className="min-h-0 pt-1">
-                      <div className="p-3 bg-zinc-50 rounded-lg border border-dashed border-zinc-200 text-center">
-                        <p className="text-xs font-bold uppercase text-zinc-700 mb-0.5">
-                          {change !== null && change >= 0 ? "Vrátit" : "Doplatit"}
-                        </p>
-                        <p className={cn("text-3xl font-black tabular-nums", change !== null && change >= 0 ? "text-primary" : "text-destructive")}>
-                          {change !== null ? Math.abs(change).toFixed(0) : "0"} <span className="text-lg">Kč</span>
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Receipt Footer Action */}
-              <div className="w-full text-center border-t border-dashed border-zinc-300 pt-3 mt-1">
-                 <p className="text-[11px] text-zinc-700 font-bold italic mb-4">
-                   {isQrDialogOpen ? "Skenujte kód v bankovní aplikaci." : "Děkujeme za nákup!"}
-                 </p>
-                 <Button onClick={handleFinalizeAndClose} disabled={isClosing} className="w-full h-12 active:scale-95 transition-transform font-bold text-base shadow">
-                   <Scissors className="mr-2 h-5 w-5" /> Dokončit a uložit
-                 </Button>
-              </div>
-            </div>
-
-            {/* Receipt Tear Visual Effect */}
-            {!isTorn && (
-              <div className="absolute left-0 right-0 h-8 overflow-hidden z-[30]" style={{ top: 'calc(100% - 20px)' }}>
-                <div 
-                  className={cn(
-                    "h-full bg-white transition-none will-change-transform origin-left",
-                    isClosing && "animate-tear-reveal"
-                  )} 
-                  style={{ 
-                    width: '101%', 
-                    left: '-0.5%',
-                    position: 'absolute',
-                    clipPath: 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)',
-                    transform: isClosing ? undefined : 'scaleX(1)'
-                  }} 
-                />
+                      )}
+                    </button>
+                  );
+                })}
               </div>
             )}
 
+            {/* CENTER: RECEIPT PAPER (Animated print/tear) */}
             <div className={cn(
-              "absolute left-0 right-0 h-screen bg-white z-10 stub-paper shadow-lg",
-              "top-[calc(100%-1px)]", 
-              isTorn && "animate-fly-down"
-            )} />
+              "relative w-[340px] sm:w-[360px] shrink-0",
+              !isClosing && "animate-receipt-print"
+            )}>
+              <div className={cn(
+                "receipt-paper bg-white p-6 sm:p-7 pb-10 w-full relative z-20 text-zinc-900 shadow-2xl",
+                isTorn && "animate-fly-up"
+              )}>
+                {/* Receipt Header */}
+                <div className="w-full text-center border-b border-dashed border-zinc-300 pb-3 mb-3">
+                   <div className="flex items-center justify-center gap-2 mb-1 text-zinc-800">
+                     <Receipt className="h-5 w-5" />
+                     <DialogTitle className="text-xs font-bold uppercase tracking-[0.2em]">
+                       {isCashDialogOpen ? "Účtenka / Hotovost" : "Účtenka / QR Platba"}
+                     </DialogTitle>
+                   </div>
+                   <DialogDescription className="text-[10px] text-zinc-700 font-bold uppercase">
+                     {currentPosName} • {new Date().toLocaleString('cs-CZ')}
+                   </DialogDescription>
+                   
+                   {/* Auto-generated Variable Symbol indicator for QR payments */}
+                   {isQrDialogOpen && currentVs && (
+                     <p className="text-[11px] font-black tracking-widest text-primary mt-1">
+                       VS: {currentVs}
+                     </p>
+                   )}
+                </div>
+
+                {/* Total Amount */}
+                <div className="text-center w-full mb-4">
+                  <p className="text-xs font-bold text-zinc-600 mb-0.5 uppercase tracking-wider">K úhradě</p>
+                  <p className="text-4xl sm:text-5xl font-black text-primary tabular-nums tracking-tight">
+                    {total.toFixed(0)} <span className="text-2xl ml-1">Kč</span>
+                  </p>
+                </div>
+
+                {/* QR Payment View */}
+                {isQrDialogOpen && (
+                  <div className="p-3 bg-white rounded-lg shadow-inner mb-4 ring-1 ring-black/5">
+                    {qrCodeDataUrl ? (
+                      <Image src={qrCodeDataUrl} alt="QR Code" width={220} height={220} className="mx-auto" />
+                    ) : (
+                      <div className="w-[220px] h-[220px] flex items-center justify-center bg-gray-50">
+                        <Loader2 className="h-10 w-10 animate-spin text-primary" />
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Cash Payment View with Fast Cash Presets */}
+                {isCashDialogOpen && (
+                  <div className="space-y-3 mb-4 w-full">
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="cash-received" className="text-xs font-bold uppercase text-zinc-700 tracking-wider">
+                          Přijato
+                        </Label>
+                        {cashReceived !== null && cashReceived > 0 && (
+                          <button
+                            type="button"
+                            onClick={handleClearCash}
+                            className="text-[11px] font-bold text-destructive hover:underline flex items-center gap-0.5"
+                          >
+                            <X className="h-3 w-3" /> Vynulovat
+                          </button>
+                        )}
+                      </div>
+                      <div className="relative">
+                         <input 
+                           ref={cashInputRef} 
+                           id="cash-received" 
+                           type="number" 
+                           inputMode="numeric"
+                           placeholder="0" 
+                           value={cashReceived ?? ""} 
+                           onChange={(e) => {
+                             const val = e.target.value === '' ? null : parseFloat(e.target.value);
+                             setCashReceived(val);
+                             setCashHistory([]);
+                           }} 
+                           className="w-full text-center text-2xl h-12 font-bold bg-muted/20 border-dashed border-2 text-zinc-900 focus:outline-none rounded-md px-10" 
+                         />
+                         <div className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 font-bold pointer-events-none">Kč</div>
+                         {cashReceived !== null && cashReceived > 0 && (
+                           <button
+                             type="button"
+                             onClick={handleClearCash}
+                             className="absolute left-3 top-1/2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700 p-1"
+                             title="Vynulovat"
+                             aria-label="Vynulovat částku"
+                           >
+                             <X className="h-4 w-4" />
+                           </button>
+                         )}
+                      </div>
+                    </div>
+
+                    {/* FAST CASH: Standalone [PŘESNĚ] button */}
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={handleSetExactCash}
+                      className={cn(
+                        "w-full h-9 font-bold text-xs border-2 transition-all",
+                        cashReceived === total 
+                          ? "border-emerald-600 bg-emerald-50 text-emerald-800" 
+                          : "border-primary/40 text-primary hover:bg-primary/5"
+                      )}
+                    >
+                      ✓ Přesně: {total.toFixed(0)} Kč
+                    </Button>
+
+                    {/* MOBILE ONLY (< md): Small Denominations Grid */}
+                    <div className="block md:hidden space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-[10px] text-zinc-500 font-bold uppercase tracking-wider block">
+                          Rychlá volba bankovky:
+                        </span>
+                        {cashHistory.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={handleUndoCash}
+                            className="flex items-center gap-1 text-[11px] font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 px-2 py-0.5 rounded transition-all active:scale-95 shadow-2xs"
+                            title="Vrátit poslední přidanou bankovku"
+                          >
+                            <RotateCcw className="h-3 w-3" />
+                            Zpět (-{cashHistory[cashHistory.length - 1]} Kč)
+                          </button>
+                        )}
+                      </div>
+
+                      {/* Mobile breakdown pills if multiple banknotes/coins were tapped */}
+                      {cashHistory.length > 1 && (
+                        <div className="flex items-center gap-1 flex-wrap text-[11px] bg-zinc-100/90 p-1.5 rounded-md border border-dashed border-zinc-200">
+                          <span className="font-semibold text-zinc-500 text-[10px] uppercase mr-0.5">Složeno:</span>
+                          {cashHistory.map((item, idx) => (
+                            <span 
+                              key={idx} 
+                              onClick={() => handleRemoveCashHistoryIndex(idx)}
+                              className="inline-flex items-center gap-0.5 bg-white border border-zinc-300 rounded px-1.5 py-0.5 font-bold text-zinc-800 cursor-pointer hover:bg-red-50 hover:border-red-300 hover:text-destructive transition-colors group shadow-2xs"
+                              title="Kliknutím odeberete tuto bankovku"
+                            >
+                              +{item}
+                              <X className="h-2.5 w-2.5 text-zinc-400 group-hover:text-destructive" />
+                            </span>
+                          ))}
+                          <span className="ml-auto font-black text-zinc-900">
+                            = {cashReceived} Kč
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Mobile Denominations Grid */}
+                      <div className="grid grid-cols-3 gap-1.5">
+                        {cashDenominations.map((denom) => {
+                          const count = cashHistory.filter(x => x === denom).length;
+                          const isSelected = count > 0 || (cashHistory.length === 0 && cashReceived === denom);
+                          return (
+                            <Button
+                              key={denom}
+                              type="button"
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleAddCashDenomination(denom)}
+                              className={cn(
+                                "relative h-9 text-xs font-bold transition-all px-1 flex items-center justify-center active:scale-95",
+                                isSelected 
+                                  ? "bg-primary/10 border-primary text-primary font-black shadow-2xs" 
+                                  : "bg-zinc-50 hover:bg-zinc-100 text-zinc-800 border-zinc-200"
+                              )}
+                            >
+                              <span>+{denom} Kč</span>
+                              {count > 0 && (
+                                <span className="absolute -top-1.5 -right-1.5 bg-primary text-primary-foreground text-[10px] font-black h-4 min-w-4 px-1 rounded-full flex items-center justify-center shadow">
+                                  {count}×
+                                </span>
+                              )}
+                            </Button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    {/* TABLETS / PC (md+): Large "Složeno" card inside the receipt */}
+                    <div className="hidden md:block p-3.5 bg-zinc-50 rounded-xl border-2 border-dashed border-zinc-200 text-center space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs font-bold uppercase tracking-wider text-zinc-500">
+                          Složeno hotovostí:
+                        </span>
+                        {cashHistory.length > 0 && (
+                          <button
+                            type="button"
+                            onClick={handleUndoCash}
+                            className="flex items-center gap-1 text-xs font-bold text-amber-900 bg-amber-100 hover:bg-amber-200 px-2.5 py-1 rounded-lg transition-all active:scale-95 shadow-2xs"
+                            title="Vrátit poslední přidanou bankovku"
+                          >
+                            <RotateCcw className="h-3.5 w-3.5" />
+                            Zpět (-{cashHistory[cashHistory.length - 1]} Kč)
+                          </button>
+                        )}
+                      </div>
+
+                      {cashHistory.length > 0 ? (
+                        <div className="space-y-2">
+                          <div className="flex items-center justify-center gap-2 flex-wrap max-h-36 overflow-y-auto p-1">
+                            {cashHistory.map((item, idx) => (
+                              <span 
+                                key={idx} 
+                                onClick={() => handleRemoveCashHistoryIndex(idx)}
+                                className="inline-flex items-center gap-1.5 bg-white border-2 border-zinc-300 rounded-lg px-2.5 py-1 font-black text-sm text-zinc-900 cursor-pointer hover:bg-red-50 hover:border-red-400 hover:text-destructive transition-colors group shadow-sm"
+                                title="Kliknutím odeberete tuto bankovku"
+                              >
+                                +{item} Kč
+                                <X className="h-3.5 w-3.5 text-zinc-400 group-hover:text-destructive" />
+                              </span>
+                            ))}
+                          </div>
+                          <div className="text-xs font-bold text-zinc-600 border-t border-dashed border-zinc-200 pt-1.5 flex items-center justify-between">
+                            <span>Celkem zadáno:</span>
+                            <span className="text-primary text-base font-black">{cashReceived} Kč</span>
+                          </div>
+                        </div>
+                      ) : (
+                        <div className="py-2.5 text-xs font-medium text-zinc-400 flex items-center justify-center gap-2">
+                          <span>👈 Zvolte bankovky po stranách 👉</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Calculated Change */}
+                    <div className={cn("smooth-expand-container", change !== null ? "is-open" : "")}>
+                      <div className="min-h-0 pt-1">
+                        <div className="p-3 bg-zinc-50 rounded-lg border border-dashed border-zinc-200 text-center">
+                          <p className="text-xs font-bold uppercase text-zinc-700 mb-0.5">
+                            {change !== null && change >= 0 ? "Vrátit" : "Doplatit"}
+                          </p>
+                          <p className={cn("text-3xl font-black tabular-nums", change !== null && change >= 0 ? "text-primary" : "text-destructive")}>
+                            {change !== null ? Math.abs(change).toFixed(0) : "0"} <span className="text-lg">Kč</span>
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Receipt Footer Action */}
+                <div className="w-full text-center border-t border-dashed border-zinc-300 pt-3 mt-1">
+                   <p className="text-[11px] text-zinc-700 font-bold italic mb-4">
+                     {isQrDialogOpen ? "Skenujte kód v bankovní aplikaci." : "Děkujeme za nákup!"}
+                   </p>
+                   <Button onClick={handleFinalizeAndClose} disabled={isClosing} className="w-full h-12 active:scale-95 transition-transform font-bold text-base shadow">
+                     <Scissors className="mr-2 h-5 w-5" /> Dokončit a uložit
+                   </Button>
+                </div>
+              </div>
+
+              {/* Receipt Tear Visual Effect */}
+              {!isTorn && (
+                <div className="absolute left-0 right-0 h-8 overflow-hidden z-[30]" style={{ top: 'calc(100% - 20px)' }}>
+                  <div 
+                    className={cn(
+                      "h-full bg-white transition-none will-change-transform origin-left",
+                      isClosing && "animate-tear-reveal"
+                    )} 
+                    style={{ 
+                      width: '101%', 
+                      left: '-0.5%',
+                      position: 'absolute',
+                      clipPath: 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)',
+                      transform: isClosing ? undefined : 'scaleX(1)'
+                    }} 
+                  />
+                </div>
+              )}
+
+              <div className={cn(
+                "absolute left-0 right-0 h-screen bg-white z-10 stub-paper shadow-lg",
+                "top-[calc(100%-1px)]", 
+                isTorn && "animate-fly-down"
+              )} />
+            </div>
+
+            {/* RIGHT WING (Tablets / PC Landscape): Higher Denominations */}
+            {isCashDialogOpen && (
+              <div className={cn(
+                "hidden md:flex flex-col gap-3 justify-center w-32 sm:w-36 md:w-40 lg:w-44 shrink-0 z-30 transition-all duration-300",
+                isClosing ? "opacity-0 scale-95 pointer-events-none" : "animate-in fade-in slide-in-from-right-6"
+              )}>
+                <div className="flex items-center justify-center gap-1.5 text-zinc-400 text-xs font-bold uppercase tracking-wider mb-1">
+                  <Coins className="h-4 w-4" />
+                  <span>Bankovky</span>
+                </div>
+                {rightDenominations.map((denom) => {
+                  const count = cashHistory.filter(x => x === denom).length;
+                  const isSelected = count > 0 || (cashHistory.length === 0 && cashReceived === denom);
+                  return (
+                    <button
+                      key={denom}
+                      type="button"
+                      onClick={() => handleAddCashDenomination(denom)}
+                      className={cn(
+                        "relative flex flex-col items-center justify-center h-20 sm:h-22 md:h-24 rounded-2xl border-2 transition-all active:scale-95 shadow-xl select-none group",
+                        isSelected
+                          ? "bg-primary text-primary-foreground border-primary ring-4 ring-primary/30 font-black shadow-primary/20 scale-[1.02]"
+                          : "bg-zinc-900/90 hover:bg-zinc-800 text-white border-zinc-700/80 hover:border-zinc-500 backdrop-blur-md"
+                      )}
+                    >
+                      <div className="flex items-baseline gap-1">
+                        <span className="text-2xl lg:text-3xl font-black tabular-nums">+{denom}</span>
+                        <span className="text-sm font-semibold opacity-80">Kč</span>
+                      </div>
+                      {count > 0 && (
+                        <span className="absolute -top-2.5 -right-2.5 bg-emerald-500 text-white font-black text-xs h-6 min-w-6 px-1.5 rounded-full flex items-center justify-center shadow-lg border-2 border-zinc-900 animate-in zoom-in-75">
+                          {count}×
+                        </span>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            )}
+
           </div>
         </DialogContent>
       </Dialog>
