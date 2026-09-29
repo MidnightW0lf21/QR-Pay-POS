@@ -97,16 +97,20 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [deviceDisabledProductIds, setDeviceDisabledProductIds] = useState<Set<string>>(new Set());
 
-  // Load per-device disabled products from localStorage
+  // Load per-device settings (posName, disabled products) from localStorage
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
+      const storedPos = localStorage.getItem(POS_NAME_STORAGE_KEY);
+      if (storedPos) {
+        setPosName(JSON.parse(storedPos));
+      }
       const stored = localStorage.getItem(DEVICE_DISABLED_PRODUCTS_KEY);
       if (stored) {
         setDeviceDisabledProductIds(new Set(JSON.parse(stored)));
       }
     } catch (e) {
-      console.warn("Chyba při čtení lokálně vypnutých produktů:", e);
+      console.warn("Chyba při čtení lokálního nastavení zařízení:", e);
     }
   }, []);
 
@@ -191,13 +195,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         if (data.categories) setCategories(data.categories);
         if (data.bankingDetails) setBankingDetails(data.bankingDetails);
         if (data.paymentMessage) setPaymentMessage(data.paymentMessage);
-        if (data.posName) setPosName(data.posName);
+        // posName is NOT synced from cloud; it is strictly per-device
       } else {
         // First time initialization: migrate from localStorage or set defaults
         let initialCategories = DEFAULT_CATEGORIES;
         let initialBank = DEFAULT_BANKING_DETAILS;
         let initialMsg = DEFAULT_MESSAGE;
-        let initialPos = DEFAULT_POS_NAME;
 
         try {
           const lCategories = localStorage.getItem(CATEGORIES_STORAGE_KEY);
@@ -206,15 +209,12 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
           if (lBank) initialBank = JSON.parse(lBank);
           const lMsg = localStorage.getItem(MESSAGE_STORAGE_KEY);
           if (lMsg) initialMsg = JSON.parse(lMsg);
-          const lPos = localStorage.getItem(POS_NAME_STORAGE_KEY);
-          if (lPos) initialPos = JSON.parse(lPos);
         } catch (e) {}
 
         setDoc(settingsDocRef, {
           categories: initialCategories,
           bankingDetails: initialBank,
           paymentMessage: initialMsg,
-          posName: initialPos,
         }, { merge: true });
       }
     });
@@ -399,15 +399,14 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   }, [isCloudConnected, user]);
 
   const savePosName = useCallback(async (name: string): Promise<void> => {
-    setPosName(name);
-    const firestore = db;
-    if (isCloudConnected && firestore && user) {
-      const settingsRef = doc(firestore, 'users', user.uid, 'meta', 'settings');
-      await setDoc(settingsRef, { posName: name }, { merge: true });
-    } else {
-      localStorage.setItem(POS_NAME_STORAGE_KEY, JSON.stringify(name));
+    const trimmed = name.trim() || DEFAULT_POS_NAME;
+    setPosName(trimmed);
+    try {
+      localStorage.setItem(POS_NAME_STORAGE_KEY, JSON.stringify(trimmed));
+    } catch (e) {
+      console.warn("Chyba při ukládání názvu pokladny do localStorage:", e);
     }
-  }, [isCloudConnected, user]);
+  }, []);
 
   /**
    * Records a sale transaction, automatically decrements stock atomically,

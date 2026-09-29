@@ -376,7 +376,7 @@ export default function SettingsPage() {
 
   const handleSavePosName = async () => {
     await savePosName(posName);
-    toast({ title: "Úspěch", description: "Název pokladny uložen a synchronizován." });
+    toast({ title: "Úspěch", description: "Název pokladny uložen pro toto zařízení." });
   };
 
   const handleExportHistory = () => {
@@ -471,10 +471,15 @@ export default function SettingsPage() {
         <CardContent className="p-5 sm:p-6 space-y-6">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-5 items-end">
             <div className="space-y-2">
-              <Label htmlFor="pos-name" className="text-sm font-semibold flex items-center gap-2">
-                <MonitorSmartphone className="h-4 w-4 text-primary" />
-                Název této pokladny
-              </Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="pos-name" className="text-sm font-semibold flex items-center gap-2">
+                  <MonitorSmartphone className="h-4 w-4 text-primary" />
+                  Název této pokladny
+                </Label>
+                <span className="text-[10px] uppercase font-bold text-muted-foreground bg-muted px-2 py-0.5 rounded">
+                  Pouze toto zařízení
+                </span>
+              </div>
               <div className="flex gap-2">
                 <Input 
                   id="pos-name"
@@ -488,7 +493,7 @@ export default function SettingsPage() {
                 </Button>
               </div>
               <p className="text-xs text-muted-foreground">
-                Tento název se zobrazuje na účtenkách a v historii prodejů pro identifikaci obsluhy.
+                Tento název identifikuje toto konkrétní zařízení na účtenkách a v manažerském přehledu tržeb. Každá pokladna má svůj vlastní název a nesynchronizuje se po celém účtu.
               </p>
             </div>
 
