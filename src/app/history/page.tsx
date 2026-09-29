@@ -97,6 +97,47 @@ export default function HistoryPage() {
     return Array.from(names).sort();
   }, [transactions]);
 
+  // Extract products that actually exist in transaction history (even if deleted from catalog)
+  const availableHistoryProducts = useMemo(() => {
+    const productMap = new Map<string, { key: string; name: string }>();
+
+    transactions.forEach((tx) => {
+      tx.items?.forEach((item) => {
+        if (!item) return;
+
+        const isCustomItem = Boolean(item.isCustom || item.productId?.startsWith("custom_"));
+        const filterKey = isCustomItem 
+          ? `custom:${item.name || "Vlastní položka"}`
+          : (item.productId || item.name);
+
+        if (!productMap.has(filterKey)) {
+          // If still in current catalog, prefer catalog name, otherwise use historical item name
+          const catalogProd = !isCustomItem ? products.find((p) => p.id === item.productId) : null;
+          const displayName = catalogProd?.name || item.name || "Položka bez názvu";
+
+          productMap.set(filterKey, {
+            key: filterKey,
+            name: displayName,
+          });
+        }
+      });
+    });
+
+    return Array.from(productMap.values()).sort((a, b) =>
+      a.name.localeCompare(b.name, "cs")
+    );
+  }, [transactions, products]);
+
+  // Auto-reset product filter if the filtered product is no longer present in transactions
+  useEffect(() => {
+    if (productFilter !== "all") {
+      const exists = availableHistoryProducts.some((p) => p.key === productFilter);
+      if (!exists) {
+        setProductFilter("all");
+      }
+    }
+  }, [availableHistoryProducts, productFilter]);
+
   const filteredTransactions = useMemo(() => {
     let filtered = transactions;
     if (paymentFilter !== "all") {
@@ -109,7 +150,14 @@ export default function HistoryPage() {
     }
     if (productFilter !== "all") {
       filtered = filtered.filter((tx) =>
-        tx.items.some((item) => item.productId === productFilter)
+        tx.items.some((item) => {
+          if (productFilter.startsWith("custom:")) {
+            const customName = productFilter.replace("custom:", "");
+            const isCustomItem = Boolean(item.isCustom || item.productId?.startsWith("custom_"));
+            return isCustomItem && (item.name || "Vlastní položka") === customName;
+          }
+          return item.productId === productFilter || item.name === productFilter;
+        })
       );
     }
     if (posFilter !== "all") {
@@ -125,9 +173,14 @@ export default function HistoryPage() {
 
         let itemsToSum = tx.items;
         if (productFilter !== "all") {
-          itemsToSum = tx.items.filter(
-            (item) => item.productId === productFilter
-          );
+          itemsToSum = tx.items.filter((item) => {
+            if (productFilter.startsWith("custom:")) {
+              const customName = productFilter.replace("custom:", "");
+              const isCustomItem = Boolean(item.isCustom || item.productId?.startsWith("custom_"));
+              return isCustomItem && (item.name || "Vlastní položka") === customName;
+            }
+            return item.productId === productFilter || item.name === productFilter;
+          });
         }
 
         acc.totalItemsSold += itemsToSum.reduce(
@@ -421,9 +474,9 @@ export default function HistoryPage() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">Všechny produkty</SelectItem>
-                    {products.map((product) => (
-                      <SelectItem key={product.id} value={product.id}>
-                        {product.name}
+                    {availableHistoryProducts.map((p) => (
+                      <SelectItem key={p.key} value={p.key}>
+                        {p.name}
                       </SelectItem>
                     ))}
                   </SelectContent>
