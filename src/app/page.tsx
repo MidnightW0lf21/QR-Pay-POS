@@ -157,14 +157,6 @@ export default function Home() {
     }, 1200);
   };
 
-  useEffect(() => {
-    if (isCashDialogOpen) {
-      const timer = setTimeout(() => {
-        cashInputRef.current?.focus();
-      }, 500); 
-      return () => clearTimeout(timer);
-    }
-  }, [isCashDialogOpen]);
 
   const triggerHapticFeedback = () => {
     if (typeof window !== 'undefined' && typeof window.navigator !== 'undefined' && window.navigator.vibrate) {
@@ -1043,6 +1035,7 @@ export default function Home() {
                          ref={cashInputRef} 
                          id="cash-received" 
                          type="number" 
+                         inputMode="numeric"
                          placeholder="0" 
                          value={cashReceived ?? ""} 
                          onChange={(e) => {
