@@ -253,15 +253,17 @@ export default function ProductForm({ onSubmit, product, categories }: ProductFo
             </FormControl>
            </div>
           {imagePreview && (
-            <div className="mt-4 flex justify-center">
-              <Image 
-                src={imagePreview} 
-                alt="Náhled obrázku" 
-                width={120} 
-                height={120} 
-                unoptimized={true}
-                className="rounded-lg object-cover border" 
-              />
+            <div className="mt-4 flex flex-col items-center gap-1.5">
+              <span className="text-xs text-muted-foreground font-medium">Náhled zobrazení</span>
+              <div className="relative w-36 h-36 rounded-xl overflow-hidden border bg-muted/30 shadow-inner">
+                <Image 
+                  src={imagePreview} 
+                  alt="Náhled obrázku" 
+                  fill
+                  unoptimized={true}
+                  className="object-cover" 
+                />
+              </div>
             </div>
           )}
         </FormItem>
