@@ -52,29 +52,49 @@ interface CartEntry {
 }
 
 const ProductImage = ({ product, fill }: { product: Product; fill?: boolean }) => {
-  const [imageUrl, setImageUrl] = useState("https://placehold.co/400x400.png");
+  const [imageUrl, setImageUrl] = useState<string>(() => {
+    if (product.imageUrl && !product.imageUrl.startsWith('img_')) {
+      return product.imageUrl;
+    }
+    return "https://placehold.co/400x400.png";
+  });
+  const [hasError, setHasError] = useState(false);
 
   useEffect(() => {
+    let isMounted = true;
     const loadImage = async () => {
       if (product.imageUrl?.startsWith('img_')) {
         const storedImage = await getImage(product.imageUrl);
-        setImageUrl(storedImage || "https://placehold.co/400x400.png");
+        if (isMounted) {
+          setImageUrl(storedImage || "https://placehold.co/400x400.png");
+          setHasError(false);
+        }
       } else if (product.imageUrl) {
-        setImageUrl(product.imageUrl);
+        if (isMounted) {
+          setImageUrl(product.imageUrl);
+          setHasError(false);
+        }
       } else {
-        setImageUrl("https://placehold.co/400x400.png");
+        if (isMounted) {
+          setImageUrl("https://placehold.co/400x400.png");
+          setHasError(false);
+        }
       }
     };
     loadImage();
+    return () => {
+      isMounted = false;
+    };
   }, [product.imageUrl]);
 
   return (
     <div className={cn("relative overflow-hidden bg-muted", fill ? "h-full w-full" : "h-40 w-40 rounded-md")}>
       <Image 
-        src={imageUrl} 
+        src={hasError ? "https://placehold.co/400x400.png" : imageUrl} 
         alt={product.name} 
         fill={fill}
-        unoptimized={imageUrl.startsWith('data:')}
+        unoptimized={true}
+        onError={() => setHasError(true)}
         className="object-cover transition-transform duration-300 group-hover:scale-105"
         data-ai-hint="product image"
       />

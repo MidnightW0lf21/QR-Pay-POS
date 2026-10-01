@@ -255,7 +255,7 @@ export default function ProductForm({ onSubmit, product, categories }: ProductFo
                 alt="Náhled obrázku" 
                 width={120} 
                 height={120} 
-                unoptimized={imagePreview.startsWith('data:')}
+                unoptimized={true}
                 className="rounded-lg object-cover border" 
               />
             </div>
