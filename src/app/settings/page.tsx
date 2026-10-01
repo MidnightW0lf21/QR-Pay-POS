@@ -588,7 +588,7 @@ export default function SettingsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {products.map((p) => (
+                    {[...products].sort((a, b) => a.name.localeCompare(b.name, 'cs')).map((p) => (
                       <TableRow key={p.id}>
                         <TableCell className="font-medium">{p.name}</TableCell>
                         <TableCell className="text-muted-foreground">{p.category || "-"}</TableCell>

@@ -459,24 +459,26 @@ export default function Home() {
   // Product filtering (with inline search, device enabled, category, out-of-stock)
   const visibleProducts = useMemo(() => {
     const query = searchQuery.toLowerCase().trim();
-    return products.filter(p => {
-      if (p.enabled === false) return false;
-      if (!isProductEnabledOnDevice(p.id)) return false;
-      
-      if (selectedCategory !== "all") {
-        if (!p.category || p.category !== selectedCategory) return false;
-      }
-      
-      if (!showOutOfStock && p.stock <= 0) return false;
+    return products
+      .filter(p => {
+        // Device-level enable switch ("Na této pokladně")
+        if (!isProductEnabledOnDevice(p.id)) return false;
+        
+        if (selectedCategory !== "all") {
+          if (!p.category || p.category !== selectedCategory) return false;
+        }
+        
+        if (!showOutOfStock && p.stock <= 0) return false;
 
-      if (query) {
-        const matchName = p.name.toLowerCase().includes(query);
-        const matchCat = p.category ? p.category.toLowerCase().includes(query) : false;
-        if (!matchName && !matchCat) return false;
-      }
-      
-      return true;
-    });
+        if (query) {
+          const matchName = p.name.toLowerCase().includes(query);
+          const matchCat = p.category ? p.category.toLowerCase().includes(query) : false;
+          if (!matchName && !matchCat) return false;
+        }
+        
+        return true;
+      })
+      .sort((a, b) => a.name.localeCompare(b.name, 'cs'));
   }, [products, selectedCategory, showOutOfStock, isProductEnabledOnDevice, searchQuery]);
 
   if (!isMounted) {
