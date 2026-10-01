@@ -43,7 +43,7 @@ const productFormSchema = z.object({
 type ProductFormValues = z.infer<typeof productFormSchema>;
 
 interface ProductFormProps {
-  onSubmit: (data: Omit<Product, 'id'> | Product) => void;
+  onSubmit: (data: Omit<Product, 'id'> | Product) => Promise<void> | void;
   product?: Product | null;
   categories: string[];
 }
@@ -114,6 +114,9 @@ export default function ProductForm({ onSubmit, product, categories }: ProductFo
         const userId = user?.uid || "local_user";
         const prodId = product?.id || generateUUID();
         imageUrl = await uploadProductImage(userId, prodId, selectedFile);
+      } else if (data.imageUrl?.startsWith('img_') && imagePreview && imagePreview.startsWith('data:')) {
+        // Auto-migrace: pokud má produkt starý lokální IndexedDB klíč (img_...), převedeme jej na kompaktní dataUrl pro synchronizaci do všech pokladen
+        imageUrl = imagePreview;
       } else if (data.imageUrl) {
         imageUrl = data.imageUrl;
       }
@@ -121,11 +124,12 @@ export default function ProductForm({ onSubmit, product, categories }: ProductFo
       const finalData = { ...data, imageUrl };
       
       if (product) {
-        onSubmit({ ...product, ...finalData });
+        await onSubmit({ ...product, ...finalData });
       } else {
-        onSubmit(finalData);
+        await onSubmit(finalData);
       }
     } catch (err: any) {
+      console.error("Chyba při ukládání produktu:", err);
       toast({
         variant: "destructive",
         title: "Chyba při ukládání",
