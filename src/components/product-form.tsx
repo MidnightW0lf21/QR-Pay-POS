@@ -6,7 +6,7 @@ import * as z from "zod";
 import Image from "next/image";
 import { useState, useEffect } from "react";
 import { saveImage, getImage } from "@/lib/db";
-import { uploadProductImage } from "@/lib/storage";
+import { uploadProductImage, compressImageToDataUrl } from "@/lib/storage";
 import { useAuth } from "@/context/AuthContext";
 
 import { Button } from "@/components/ui/button";
@@ -85,7 +85,7 @@ export default function ProductForm({ onSubmit, product, categories }: ProductFo
     loadInitialImage();
   }, [product]);
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file) {
       if (file.size > 5 * 1024 * 1024) { // 5MB limit
@@ -97,11 +97,16 @@ export default function ProductForm({ onSubmit, product, categories }: ProductFo
         return;
       }
       setSelectedFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
+      try {
+        const squareDataUrl = await compressImageToDataUrl(file);
+        setImagePreview(squareDataUrl);
+      } catch (err) {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          setImagePreview(reader.result as string);
+        };
+        reader.readAsDataURL(file);
+      }
     }
   };
 

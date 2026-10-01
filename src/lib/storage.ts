@@ -1,39 +1,35 @@
 /**
- * Resizes and compresses an image in browser using canvas to a lightweight WebP/JPEG Data URL.
- * Produces very small images (~15-25KB) that fit directly in Firestore documents (Firestore limit is 1MB),
- * allowing 100% FREE real-time cloud sync across all devices without needing a paid Firebase Blaze plan or Firebase Storage.
+ * Resizes and compresses an image in browser to a perfect 400x400 square WebP Data URL.
+ * Automatically center-crops any image (landscape, portrait, or square) to 1:1 aspect ratio,
+ * ensuring zero distortion/stretching and lightweight size (~15-25KB) stored directly in Firestore.
  */
 export async function compressImageToDataUrl(
   file: File,
-  maxWidth = 400,
-  maxHeight = 400,
-  quality = 0.75
+  size = 400,
+  quality = 0.8
 ): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
     reader.readAsDataURL(file);
     reader.onload = (event) => {
       const img = new Image();
-      img.src = event.target?.result as string;
       img.onload = () => {
-        let width = img.width;
-        let height = img.height;
+        const naturalWidth = img.naturalWidth || img.width;
+        const naturalHeight = img.naturalHeight || img.height;
 
-        if (width > height) {
-          if (width > maxWidth) {
-            height = Math.round((height * maxWidth) / width);
-            width = maxWidth;
-          }
-        } else {
-          if (height > maxHeight) {
-            width = Math.round((width * maxHeight) / height);
-            width = maxHeight;
-          }
+        if (!naturalWidth || !naturalHeight) {
+          reject(new Error("Nelze načíst rozměry obrázku."));
+          return;
         }
 
+        // Center-crop to exact 1:1 square
+        const minDimension = Math.min(naturalWidth, naturalHeight);
+        const sx = Math.round((naturalWidth - minDimension) / 2);
+        const sy = Math.round((naturalHeight - minDimension) / 2);
+
         const canvas = document.createElement("canvas");
-        canvas.width = width;
-        canvas.height = height;
+        canvas.width = size;
+        canvas.height = size;
 
         const ctx = canvas.getContext("2d");
         if (!ctx) {
@@ -41,9 +37,23 @@ export async function compressImageToDataUrl(
           return;
         }
 
-        ctx.drawImage(img, 0, 0, width, height);
+        ctx.imageSmoothingEnabled = true;
+        ctx.imageSmoothingQuality = "high";
 
-        // Convert to WebP (fallback to JPEG if webp not supported)
+        // Draw center-cropped square into 400x400 canvas
+        ctx.drawImage(
+          img,
+          sx,
+          sy,
+          minDimension,
+          minDimension,
+          0,
+          0,
+          size,
+          size
+        );
+
+        // Convert to WebP (fallback to JPEG)
         try {
           const webpDataUrl = canvas.toDataURL("image/webp", quality);
           if (webpDataUrl && webpDataUrl.startsWith("data:image/webp")) {
@@ -56,6 +66,7 @@ export async function compressImageToDataUrl(
         resolve(jpegDataUrl);
       };
       img.onerror = (error) => reject(error);
+      img.src = event.target?.result as string;
     };
     reader.onerror = (error) => reject(error);
   });
@@ -63,8 +74,8 @@ export async function compressImageToDataUrl(
 
 /**
  * Prepares product image for direct Firestore sync.
- * Compresses the image to a compact WebP Data URL (~15-25KB) stored directly in Firestore,
- * making it 100% free, instant, and reliable across all devices without needing Firebase Storage or a Blaze plan.
+ * Compresses the image to a compact square WebP Data URL (~15-25KB) stored directly in Firestore,
+ * making it 100% free, instant, and distortion-free across all devices.
  */
 export async function uploadProductImage(
   _userId: string,
