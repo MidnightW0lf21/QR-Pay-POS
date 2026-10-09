@@ -48,6 +48,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
 import { useToast } from "@/hooks/use-toast";
 import type { Product, BankingDetails } from "@/lib/types";
 import { getProductCategories } from "@/lib/types";
