@@ -113,7 +113,8 @@ export default function Home() {
     bankingDetails, 
     posName: currentPosName,
     recordSale,
-    isProductEnabledOnDevice
+    isProductEnabledOnDevice,
+    deviceProductOrder
   } = useDataContext();
 
   // Cart State (keyed by item identifier)
@@ -488,8 +489,17 @@ export default function Home() {
         
         return true;
       })
-      .sort((a, b) => a.name.localeCompare(b.name, 'cs'));
-  }, [products, selectedCategory, showOutOfStock, isProductEnabledOnDevice, searchQuery]);
+      .sort((a, b) => {
+        if (deviceProductOrder && deviceProductOrder.length > 0) {
+          const idxA = deviceProductOrder.indexOf(a.id);
+          const idxB = deviceProductOrder.indexOf(b.id);
+          if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+          if (idxA !== -1) return -1;
+          if (idxB !== -1) return 1;
+        }
+        return a.name.localeCompare(b.name, 'cs');
+      });
+  }, [products, selectedCategory, showOutOfStock, isProductEnabledOnDevice, searchQuery, deviceProductOrder]);
 
   if (!isMounted) {
     return (

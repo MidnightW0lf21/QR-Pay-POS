@@ -35,7 +35,8 @@ import {
   BANKING_DETAILS_STORAGE_KEY,
   TRANSACTIONS_STORAGE_KEY,
   POS_NAME_STORAGE_KEY,
-  DEVICE_DISABLED_PRODUCTS_KEY
+  DEVICE_DISABLED_PRODUCTS_KEY,
+  DEVICE_PRODUCT_ORDER_KEY
 } from '@/lib/constants';
 import { deleteImage } from '@/lib/db';
 import { generateUUID, stripUndefined } from '@/lib/utils';
@@ -60,10 +61,13 @@ interface DataContextType {
   deleteProduct: (productId: string) => Promise<void>;
   toggleProductEnabled: (productId: string, enabled: boolean) => Promise<void>;
 
-  // Per-device product visibility
+  // Per-device product visibility & order
   isProductEnabledOnDevice: (productId: string) => boolean;
   toggleProductDeviceEnabled: (productId: string, enabled: boolean) => void;
   enableAllProductsOnDevice: () => void;
+  deviceProductOrder: string[];
+  moveProductOrder: (productId: string, direction: 'up' | 'down') => void;
+  resetProductOrderToAlphabetical: () => void;
 
   addCategory: (category: string) => Promise<void>;
   deleteCategory: (category: string) => Promise<void>;
@@ -96,8 +100,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
   const [hasPendingWrites, setHasPendingWrites] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [deviceDisabledProductIds, setDeviceDisabledProductIds] = useState<Set<string>>(new Set());
+  const [deviceProductOrder, setDeviceProductOrder] = useState<string[]>([]);
 
-  // Load per-device settings (posName, disabled products) from localStorage
+  // Load per-device settings (posName, disabled products, product order) from localStorage
   useEffect(() => {
     if (typeof window === 'undefined') return;
     try {
@@ -108,6 +113,10 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
       const stored = localStorage.getItem(DEVICE_DISABLED_PRODUCTS_KEY);
       if (stored) {
         setDeviceDisabledProductIds(new Set(JSON.parse(stored)));
+      }
+      const storedOrder = localStorage.getItem(DEVICE_PRODUCT_ORDER_KEY);
+      if (storedOrder) {
+        setDeviceProductOrder(JSON.parse(storedOrder));
       }
     } catch (e) {
       console.warn("Chyba při čtení lokálního nastavení zařízení:", e);
@@ -576,6 +585,46 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
     } catch (e) {}
   }, []);
 
+  const moveProductOrder = useCallback((productId: string, direction: 'up' | 'down') => {
+    setDeviceProductOrder((prevOrder) => {
+      // Determine current full sequence of products
+      const sortedProducts = [...products].sort((a, b) => {
+        const idxA = prevOrder.indexOf(a.id);
+        const idxB = prevOrder.indexOf(b.id);
+        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+        if (idxA !== -1) return -1;
+        if (idxB !== -1) return 1;
+        return a.name.localeCompare(b.name, 'cs');
+      });
+
+      const currentIds = sortedProducts.map(p => p.id);
+      const currentIndex = currentIds.indexOf(productId);
+      if (currentIndex === -1) return prevOrder;
+
+      const targetIndex = direction === 'up' ? currentIndex - 1 : currentIndex + 1;
+      if (targetIndex < 0 || targetIndex >= currentIds.length) return prevOrder;
+
+      const newIds = [...currentIds];
+      const temp = newIds[currentIndex];
+      newIds[currentIndex] = newIds[targetIndex];
+      newIds[targetIndex] = temp;
+
+      try {
+        localStorage.setItem(DEVICE_PRODUCT_ORDER_KEY, JSON.stringify(newIds));
+      } catch (e) {
+        console.warn("Chyba při ukládání pořadí produktů:", e);
+      }
+      return newIds;
+    });
+  }, [products]);
+
+  const resetProductOrderToAlphabetical = useCallback(() => {
+    setDeviceProductOrder([]);
+    try {
+      localStorage.removeItem(DEVICE_PRODUCT_ORDER_KEY);
+    } catch (e) {}
+  }, []);
+
   return (
     <DataContext.Provider
       value={{
@@ -598,6 +647,9 @@ export function DataProvider({ children }: { children: React.ReactNode }) {
         isProductEnabledOnDevice,
         toggleProductDeviceEnabled,
         enableAllProductsOnDevice,
+        deviceProductOrder,
+        moveProductOrder,
+        resetProductOrderToAlphabetical,
 
         addCategory,
         deleteCategory,

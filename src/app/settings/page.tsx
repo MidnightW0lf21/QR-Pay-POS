@@ -74,7 +74,8 @@ import {
   Plus, Edit, Trash2, Loader2, Sun, Moon, Laptop, Download, 
   Trash, RefreshCcw, Smartphone, X, LayoutGrid, Rows, 
   Tag, Boxes, TrendingUp, Calendar as CalendarIcon, 
-  FilterX, Eye, EyeOff, MonitorSmartphone, CheckCircle2, Cloud
+  FilterX, Eye, EyeOff, MonitorSmartphone, CheckCircle2, Cloud,
+  ArrowUp, ArrowDown, ArrowDownAZ
 } from "lucide-react";
 import { deleteImage, getAllImageKeys } from "@/lib/db";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -140,6 +141,9 @@ export default function SettingsPage() {
     isProductEnabledOnDevice,
     toggleProductDeviceEnabled,
     enableAllProductsOnDevice,
+    deviceProductOrder,
+    moveProductOrder,
+    resetProductOrderToAlphabetical,
     addCategory,
     deleteCategory,
     saveCategories,
@@ -235,6 +239,19 @@ export default function SettingsPage() {
       setShowInstallPrompt(false);
     }
   };
+
+  const orderedProducts = useMemo(() => {
+    return [...products].sort((a, b) => {
+      if (deviceProductOrder && deviceProductOrder.length > 0) {
+        const idxA = deviceProductOrder.indexOf(a.id);
+        const idxB = deviceProductOrder.indexOf(b.id);
+        if (idxA !== -1 && idxB !== -1) return idxA - idxB;
+        if (idxA !== -1) return -1;
+        if (idxB !== -1) return 1;
+      }
+      return a.name.localeCompare(b.name, 'cs');
+    });
+  }, [products, deviceProductOrder]);
 
   const availableYears = useMemo(() => {
     const years = new Set<string>();
@@ -563,7 +580,7 @@ export default function SettingsPage() {
               <CardHeader className="p-0 text-left">
                 <CardTitle className="text-lg">Správa produktů</CardTitle>
                 <CardDescription>
-                  Společný katalog produktů a zásob. Přepínač &quot;Na této pokladně&quot; určuje, které produkty se nabízejí k prodeji na tomto konkrétním zařízení.
+                  Společný katalog produktů a zásob. Šipkami určete pořadí zobrazení na této pokladně. Přepínač &quot;Na této pokladně&quot; určuje, které produkty se nabízejí k prodeji na tomto konkrétním zařízení.
                 </CardDescription>
               </CardHeader>
             </AccordionTrigger>
@@ -575,22 +592,36 @@ export default function SettingsPage() {
                 >
                   <Plus className="mr-2 h-4 w-4" /> Přidat produkt
                 </Button>
-                <Button 
-                  variant="outline" 
-                  size="sm" 
-                  onClick={() => {
-                    enableAllProductsOnDevice();
-                    toast({ title: "Všechny produkty povoleny na této pokladně." });
-                  }}
-                >
-                  Povolit vše na této kase
-                </Button>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => {
+                      resetProductOrderToAlphabetical();
+                      toast({ title: "Pořadí produktů resetováno na abecední (A-Z)." });
+                    }}
+                    title="Obnovit výchozí abecední řazení"
+                  >
+                    <ArrowDownAZ className="mr-1.5 h-4 w-4" /> Seřadit A-Z
+                  </Button>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    onClick={() => {
+                      enableAllProductsOnDevice();
+                      toast({ title: "Všechny produkty povoleny na této pokladně." });
+                    }}
+                  >
+                    Povolit vše na této kase
+                  </Button>
+                </div>
               </div>
 
               <div className="rounded-lg border overflow-hidden">
                 <Table>
                   <TableHeader>
                     <TableRow>
+                      <TableHead className="w-20 text-center">Pořadí</TableHead>
                       <TableHead>Název</TableHead>
                       <TableHead>Kat.</TableHead>
                       <TableHead>Sklad</TableHead>
@@ -599,10 +630,37 @@ export default function SettingsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {[...products].sort((a, b) => a.name.localeCompare(b.name, 'cs')).map((p) => {
+                    {orderedProducts.map((p, index) => {
                       const cats = getProductCategories(p);
                       return (
                         <TableRow key={p.id}>
+                          <TableCell className="text-center">
+                            <div className="flex items-center justify-center gap-1">
+                              <span className="text-xs text-muted-foreground font-mono w-5 text-right">{index + 1}.</span>
+                              <div className="flex flex-col gap-0.5">
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-6 w-6 p-0 hover:bg-muted"
+                                  disabled={index === 0}
+                                  onClick={() => moveProductOrder(p.id, 'up')}
+                                  title="Posunout nahoru"
+                                >
+                                  <ArrowUp className="h-3.5 w-3.5" />
+                                </Button>
+                                <Button 
+                                  variant="ghost" 
+                                  size="icon" 
+                                  className="h-6 w-6 p-0 hover:bg-muted"
+                                  disabled={index === orderedProducts.length - 1}
+                                  onClick={() => moveProductOrder(p.id, 'down')}
+                                  title="Posunout dolů"
+                                >
+                                  <ArrowDown className="h-3.5 w-3.5" />
+                                </Button>
+                              </div>
+                            </div>
+                          </TableCell>
                           <TableCell className="font-medium">{p.name}</TableCell>
                           <TableCell>
                             {cats.length > 0 ? (

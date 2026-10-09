@@ -8,6 +8,7 @@ export const TRANSACTIONS_STORAGE_KEY = "qr-pay-transactions";
 export const SETTINGS_ACCORDION_STATE_KEY = "qr-pay-settings-accordion-state";
 export const POS_NAME_STORAGE_KEY = "qr-pay-pos-name";
 export const DEVICE_DISABLED_PRODUCTS_KEY = "qr-pay-device-disabled-products";
+export const DEVICE_PRODUCT_ORDER_KEY = "qr-pay-device-product-order";
 
 export const DEFAULT_CATEGORIES: string[] = ["Nápoje", "Jídlo", "Merch"];
 
