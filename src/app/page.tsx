@@ -241,8 +241,8 @@ export default function Home() {
 
   const handleAddCustomItem = () => {
     const priceNum = parseFloat(customItemPrice);
-    if (isNaN(priceNum) || priceNum <= 0) {
-      toast({ variant: "destructive", title: "Neplatná částka", description: "Zadejte kladnou cenu položky." });
+    if (isNaN(priceNum) || priceNum < 0) {
+      toast({ variant: "destructive", title: "Neplatná částka", description: "Zadejte cenu 0 Kč nebo vyšší." });
       return;
     }
 
@@ -361,6 +361,14 @@ export default function Home() {
     triggerHapticFeedback();
     setIsClosing(false);
     setIsTorn(false);
+
+    if (total === 0) {
+      // 0 Kč free issue: open receipt with 0 Kč received
+      setCashReceived(0);
+      setCashHistory([]);
+      setIsCashDialogOpen(true);
+      return;
+    }
 
     if (isCashMode) {
       setCashReceived(null);
@@ -799,7 +807,7 @@ export default function Home() {
             </ScrollArea>
 
             {/* Sidebar Bottom Checkout Panel */}
-            {total > 0 && (
+            {totalItemsCount > 0 && (
               <div className="p-4 border-t bg-muted/20 space-y-3">
                 <div className="flex justify-between items-baseline">
                   <span className="text-xs text-muted-foreground uppercase font-bold tracking-wider">K úhradě</span>
@@ -810,10 +818,27 @@ export default function Home() {
                 <Button 
                   size="lg" 
                   onClick={handleOpenDialog} 
-                  className="w-full h-12 text-base font-bold shadow-md active:scale-98 transition-transform"
+                  className={cn(
+                    "w-full h-12 text-base font-bold shadow-md active:scale-98 transition-transform",
+                    total === 0 && "bg-emerald-600 hover:bg-emerald-700 text-white"
+                  )}
                 >
-                  {isCashMode ? <Wallet className="mr-2 h-5 w-5" /> : <Landmark className="mr-2 h-5 w-5" />}
-                  {isCashMode ? 'Zaplatit hotově' : 'Generovat QR'}
+                  {total === 0 ? (
+                    <>
+                      <Scissors className="mr-2 h-5 w-5" />
+                      Vydat zdarma (0 Kč)
+                    </>
+                  ) : isCashMode ? (
+                    <>
+                      <Wallet className="mr-2 h-5 w-5" />
+                      Zaplatit hotově
+                    </>
+                  ) : (
+                    <>
+                      <Landmark className="mr-2 h-5 w-5" />
+                      Generovat QR
+                    </>
+                  )}
                 </Button>
               </div>
             )}
@@ -823,7 +848,7 @@ export default function Home() {
       </div>
 
       {/* MOBILE STICKY BOTTOM BAR (Visible only on mobile/portrait, hidden on lg screens where sidebar is used) */}
-      {total > 0 && (
+      {totalItemsCount > 0 && (
         <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-md border-t p-3 sm:p-4 z-40 shadow-2xl">
           <div className="container mx-auto max-w-7xl flex items-center justify-between gap-3">
             <div className="flex items-center gap-2">
@@ -842,9 +867,30 @@ export default function Home() {
               </div>
             </div>
 
-            <Button size="lg" onClick={handleOpenDialog} className="h-12 px-5 font-bold active:scale-95 transition-transform shrink-0">
-              {isCashMode ? <Wallet className="mr-2 h-5 w-5" /> : <Landmark className="mr-2 h-5 w-5" />}
-              {isCashMode ? 'Zaplatit hotově' : 'Generovat QR'}
+            <Button 
+              size="lg" 
+              onClick={handleOpenDialog} 
+              className={cn(
+                "h-12 px-5 font-bold active:scale-95 transition-transform shrink-0",
+                total === 0 && "bg-emerald-600 hover:bg-emerald-700 text-white"
+              )}
+            >
+              {total === 0 ? (
+                <>
+                  <Scissors className="mr-2 h-5 w-5" />
+                  Vydat zdarma
+                </>
+              ) : isCashMode ? (
+                <>
+                  <Wallet className="mr-2 h-5 w-5" />
+                  Zaplatit hotově
+                </>
+              ) : (
+                <>
+                  <Landmark className="mr-2 h-5 w-5" />
+                  Generovat QR
+                </>
+              )}
             </Button>
           </div>
         </div>
@@ -1052,7 +1098,7 @@ export default function Home() {
                    <div className="flex items-center justify-center gap-2 mb-1 text-zinc-800">
                      <Receipt className="h-5 w-5" />
                      <DialogTitle className="text-xs font-bold uppercase tracking-[0.2em]">
-                       {isCashDialogOpen ? "Účtenka / Hotovost" : "Účtenka / QR Platba"}
+                       {total === 0 ? "Účtenka / Výdej zdarma" : isCashDialogOpen ? "Účtenka / Hotovost" : "Účtenka / QR Platba"}
                      </DialogTitle>
                    </div>
                    <DialogDescription className="text-[10px] text-zinc-700 font-bold uppercase">
@@ -1073,6 +1119,13 @@ export default function Home() {
                   <p className="text-4xl sm:text-5xl font-black text-primary tabular-nums tracking-tight">
                     {total.toFixed(0)} <span className="text-2xl ml-1">Kč</span>
                   </p>
+                  {total === 0 && (
+                    <div className="mt-1">
+                      <span className="inline-block px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
+                        Výdej zdarma (0 Kč)
+                      </span>
+                    </div>
+                  )}
                 </div>
 
                 {/* QR Payment View */}
