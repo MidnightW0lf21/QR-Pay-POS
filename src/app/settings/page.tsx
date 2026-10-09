@@ -47,9 +47,10 @@ import {
   AccordionItem,
   AccordionTrigger,
 } from "@/components/ui/accordion";
-import { Checkbox } from "@/components/ui/checkbox";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import type { Product, BankingDetails } from "@/lib/types";
+import { getProductCategories } from "@/lib/types";
 import {
   DEFAULT_PRODUCTS,
   DEFAULT_CATEGORIES,
@@ -293,10 +294,19 @@ export default function SettingsPage() {
       tx.items.forEach(item => {
         const prod = products.find(p => p.id === item.productId);
         const costPrice = prod ? prod.costPrice : 0;
-        const category = (prod && prod.category) ? prod.category : "Nezařazeno";
+        const prodCategories = prod ? getProductCategories(prod) : [];
+        const itemTotal = item.price * item.quantity;
 
         txCost += costPrice * item.quantity;
-        categoryMap[category] = (categoryMap[category] || 0) + (item.price * item.quantity);
+
+        if (prodCategories.length === 0) {
+          categoryMap["Nezařazeno"] = (categoryMap["Nezařazeno"] || 0) + itemTotal;
+        } else {
+          const splitAmount = itemTotal / prodCategories.length;
+          prodCategories.forEach(cat => {
+            categoryMap[cat] = (categoryMap[cat] || 0) + splitAmount;
+          });
+        }
       });
 
       const txProfit = Math.max(0, tx.total - txCost);
@@ -588,11 +598,25 @@ export default function SettingsPage() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {[...products].sort((a, b) => a.name.localeCompare(b.name, 'cs')).map((p) => (
-                      <TableRow key={p.id}>
-                        <TableCell className="font-medium">{p.name}</TableCell>
-                        <TableCell className="text-muted-foreground">{p.category || "-"}</TableCell>
-                        <TableCell>{p.stock} ks</TableCell>
+                    {[...products].sort((a, b) => a.name.localeCompare(b.name, 'cs')).map((p) => {
+                      const cats = getProductCategories(p);
+                      return (
+                        <TableRow key={p.id}>
+                          <TableCell className="font-medium">{p.name}</TableCell>
+                          <TableCell>
+                            {cats.length > 0 ? (
+                              <div className="flex flex-wrap gap-1">
+                                {cats.map((cat) => (
+                                  <Badge key={cat} variant="secondary" className="text-[11px] px-2 py-0.5 font-normal">
+                                    {cat}
+                                  </Badge>
+                                ))}
+                              </div>
+                            ) : (
+                              <span className="text-muted-foreground">-</span>
+                            )}
+                          </TableCell>
+                          <TableCell>{p.stock} ks</TableCell>
                         <TableCell className="text-center">
                           <Switch 
                             checked={isProductEnabledOnDevice(p.id)} 
@@ -632,7 +656,8 @@ export default function SettingsPage() {
                           </AlertDialog>
                         </TableCell>
                       </TableRow>
-                    ))}
+                    );
+                  })}
                   </TableBody>
                 </Table>
               </div>

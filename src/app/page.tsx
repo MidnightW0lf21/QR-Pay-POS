@@ -23,7 +23,7 @@ import {
   Tag, Eye, EyeOff, Receipt, Scissors, Search, Trash2, 
   Coins, Edit3, X, AlertTriangle, Sparkles, RotateCcw 
 } from "lucide-react";
-import type { Product, BankingDetails, Transaction, CartItem } from "@/lib/types";
+import { type Product, type BankingDetails, type Transaction, type CartItem, getProductCategories } from "@/lib/types";
 import { 
   DEFAULT_PRODUCTS, 
   DEFAULT_CATEGORIES, 
@@ -464,15 +464,17 @@ export default function Home() {
         // Device-level enable switch ("Na této pokladně")
         if (!isProductEnabledOnDevice(p.id)) return false;
         
+        const prodCategories = getProductCategories(p);
+
         if (selectedCategory !== "all") {
-          if (!p.category || p.category !== selectedCategory) return false;
+          if (!prodCategories.includes(selectedCategory)) return false;
         }
         
         if (!showOutOfStock && p.stock <= 0) return false;
 
         if (query) {
           const matchName = p.name.toLowerCase().includes(query);
-          const matchCat = p.category ? p.category.toLowerCase().includes(query) : false;
+          const matchCat = prodCategories.some(c => c.toLowerCase().includes(query));
           if (!matchName && !matchCat) return false;
         }
         

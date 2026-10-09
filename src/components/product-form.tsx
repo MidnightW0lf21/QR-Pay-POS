@@ -8,6 +8,7 @@ import { useState, useEffect } from "react";
 import { saveImage, getImage } from "@/lib/db";
 import { uploadProductImage, compressImageToDataUrl } from "@/lib/storage";
 import { useAuth } from "@/context/AuthContext";
+import { Tag, Check } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -20,15 +21,8 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import type { Product } from "@/lib/types";
-import { generateUUID } from "@/lib/utils";
+import { type Product, getProductCategories } from "@/lib/types";
+import { generateUUID, cn } from "@/lib/utils";
 import { useToast } from "@/hooks/use-toast";
 
 const productFormSchema = z.object({
@@ -37,6 +31,7 @@ const productFormSchema = z.object({
   costPrice: z.coerce.number().int({ message: "Nákupní cena musí být celé číslo." }).min(0, { message: "Nákupní cena musí být nezáporné číslo." }),
   stock: z.coerce.number().int({ message: "Sklad musí být celé číslo." }).min(0, { message: "Sklad musí být nezáporné číslo." }),
   category: z.string().optional(),
+  categories: z.array(z.string()).default([]),
   imageUrl: z.string().optional(),
 });
 
@@ -55,6 +50,8 @@ export default function ProductForm({ onSubmit, product, categories }: ProductFo
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
   
+  const initialCategories = product ? getProductCategories(product) : [];
+
   const form = useForm<ProductFormValues>({
     resolver: zodResolver(productFormSchema),
     defaultValues: {
@@ -62,10 +59,26 @@ export default function ProductForm({ onSubmit, product, categories }: ProductFo
       price: product?.price || 0,
       costPrice: product?.costPrice || 0,
       stock: product?.stock || 0,
-      category: product?.category || "",
+      category: initialCategories[0] || "",
+      categories: initialCategories,
       imageUrl: product?.imageUrl || "",
     },
   });
+
+  useEffect(() => {
+    if (product) {
+      const cats = getProductCategories(product);
+      form.reset({
+        name: product.name,
+        price: product.price,
+        costPrice: product.costPrice,
+        stock: product.stock,
+        category: cats[0] || "",
+        categories: cats,
+        imageUrl: product.imageUrl || "",
+      });
+    }
+  }, [product, form]);
 
   useEffect(() => {
     async function loadInitialImage() {
@@ -126,7 +139,15 @@ export default function ProductForm({ onSubmit, product, categories }: ProductFo
         imageUrl = data.imageUrl;
       }
 
-      const finalData = { ...data, imageUrl };
+      const selectedCats = data.categories || [];
+      const primaryCategory = selectedCats[0] || "";
+
+      const finalData = { 
+        ...data, 
+        category: primaryCategory,
+        categories: selectedCats,
+        imageUrl 
+      };
       
       if (product) {
         await onSubmit({ ...product, ...finalData });
@@ -202,31 +223,63 @@ export default function ProductForm({ onSubmit, product, categories }: ProductFo
             </FormItem>
           )}
         />
+        
+        {/* MULTI-CATEGORY SELECTION */}
         <FormField
           control={form.control}
-          name="category"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Kategorie</FormLabel>
-              <Select onValueChange={field.onChange} defaultValue={field.value}>
-                <FormControl>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Vyberte kategorii" />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="none">Žádná</SelectItem>
-                  {categories.map((cat) => (
-                    <SelectItem key={cat} value={cat}>
-                      {cat}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
+          name="categories"
+          render={({ field }) => {
+            const selectedCats: string[] = Array.isArray(field.value) ? field.value : [];
+            const toggleCategory = (cat: string) => {
+              const next = selectedCats.includes(cat)
+                ? selectedCats.filter((c) => c !== cat)
+                : [...selectedCats, cat];
+              field.onChange(next);
+              form.setValue("category", next[0] || "");
+            };
+
+            return (
+              <FormItem className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <FormLabel>Kategorie</FormLabel>
+                  <span className="text-xs text-muted-foreground font-medium">
+                    {selectedCats.length === 0 ? "Žádná vybraná" : `Vybráno: ${selectedCats.length}`}
+                  </span>
+                </div>
+                {categories.length === 0 ? (
+                  <p className="text-xs text-muted-foreground italic py-1">
+                    Zatím nemáte vytvořené žádné kategorie. Můžete je přidat v sekci Kategorie.
+                  </p>
+                ) : (
+                  <div className="flex flex-wrap gap-2 pt-0.5">
+                    {categories.map((cat) => {
+                      const isSelected = selectedCats.includes(cat);
+                      return (
+                        <button
+                          type="button"
+                          key={cat}
+                          onClick={() => toggleCategory(cat)}
+                          className={cn(
+                            "inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs transition-all border select-none cursor-pointer active:scale-95",
+                            isSelected
+                              ? "bg-primary text-primary-foreground border-primary shadow-sm font-semibold"
+                              : "bg-muted/40 text-muted-foreground border-border hover:bg-muted hover:text-foreground font-normal"
+                          )}
+                        >
+                          <Tag className="h-3 w-3" />
+                          <span>{cat}</span>
+                          {isSelected && <Check className="h-3 w-3 ml-0.5 stroke-[3]" />}
+                        </button>
+                      );
+                    })}
+                  </div>
+                )}
+                <FormMessage />
+              </FormItem>
+            );
+          }}
         />
+
         <FormItem>
            <FormLabel>Obrázek produktu</FormLabel>
            <div className="flex space-x-2">

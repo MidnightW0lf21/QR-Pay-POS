@@ -6,10 +6,22 @@ export interface Product {
   price: number;
   costPrice: number;
   category?: string;
+  categories?: string[];
   icon?: keyof typeof icons;
   imageUrl?: string;
   enabled?: boolean;
   stock: number;
+}
+
+export function getProductCategories(product?: Partial<Product> | null): string[] {
+  if (!product) return [];
+  if (Array.isArray(product.categories) && product.categories.length > 0) {
+    return product.categories.filter((c): c is string => typeof c === 'string' && c.trim().length > 0);
+  }
+  if (product.category && typeof product.category === 'string' && product.category.trim() && product.category !== 'none') {
+    return [product.category.trim()];
+  }
+  return [];
 }
 
 export interface BankingDetails {
