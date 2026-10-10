@@ -423,7 +423,8 @@ export default function InventoryPage() {
                       border: '1px solid hsl(var(--border))',
                       boxShadow: '0 4px 12px rgba(0,0,0,0.1)'
                     }}
-                    itemStyle={{ fontSize: '12px', fontWeight: 600 }}
+                    itemStyle={{ fontSize: '12px', fontWeight: 600, color: 'hsl(var(--foreground))' }}
+                    labelStyle={{ fontSize: '12px', fontWeight: 700, color: 'hsl(var(--foreground))' }}
                   />
                   <Legend 
                     verticalAlign="top" 
