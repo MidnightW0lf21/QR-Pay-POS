@@ -83,11 +83,44 @@ export default function HistoryPage() {
   } = useDataContext();
   const { toast } = useToast();
 
+  const currentYearStr = useMemo(() => new Date().getFullYear().toString(), []);
+  const [selectedYear, setSelectedYear] = useState<string>(() => new Date().getFullYear().toString());
   const [paymentFilter, setPaymentFilter] = useState<"all" | PaymentMethod>("all");
   const [dateFilter, setDateFilter] = useState<Date | undefined>(undefined);
   const [productFilter, setProductFilter] = useState<"all" | string>("all");
   const [posFilter, setPosFilter] = useState<"all" | string>("all");
   const [selectedTransactions, setSelectedTransactions] = useState<Set<string>>(new Set());
+
+  const availableYears = useMemo(() => {
+    const years = new Set<string>();
+    years.add(currentYearStr);
+    transactions.forEach((tx) => {
+      if (tx.date) {
+        const y = new Date(tx.date).getFullYear();
+        if (!isNaN(y)) {
+          years.add(y.toString());
+        }
+      }
+    });
+    return Array.from(years).sort().reverse();
+  }, [transactions, currentYearStr]);
+
+  const handleYearChange = (year: string) => {
+    setSelectedYear(year);
+    if (year !== "all" && dateFilter && dateFilter.getFullYear().toString() !== year) {
+      setDateFilter(undefined);
+    }
+  };
+
+  const handleDateSelect = (date: Date | undefined) => {
+    setDateFilter(date);
+    if (date) {
+      const dateYear = date.getFullYear().toString();
+      if (selectedYear !== "all" && selectedYear !== dateYear) {
+        setSelectedYear(dateYear);
+      }
+    }
+  };
 
   const availablePosNames = useMemo(() => {
     const names = new Set<string>();
@@ -140,6 +173,13 @@ export default function HistoryPage() {
 
   const filteredTransactions = useMemo(() => {
     let filtered = transactions;
+    if (selectedYear !== "all") {
+      filtered = filtered.filter((tx) => {
+        if (!tx.date) return false;
+        const txYear = new Date(tx.date).getFullYear().toString();
+        return txYear === selectedYear;
+      });
+    }
     if (paymentFilter !== "all") {
       filtered = filtered.filter((tx) => tx.paymentMethod === paymentFilter);
     }
@@ -164,7 +204,7 @@ export default function HistoryPage() {
       filtered = filtered.filter((tx) => tx.posName === posFilter);
     }
     return filtered;
-  }, [transactions, paymentFilter, dateFilter, productFilter, posFilter]);
+  }, [transactions, selectedYear, paymentFilter, dateFilter, productFilter, posFilter]);
 
   const stats = useMemo(() => {
     return filteredTransactions.reduce(
@@ -307,7 +347,20 @@ export default function HistoryPage() {
     setDateFilter(undefined);
     setProductFilter("all");
     setPosFilter("all");
+    setSelectedYear(currentYearStr);
   };
+
+  useEffect(() => {
+    setSelectedTransactions((prev) => {
+      if (prev.size === 0) return prev;
+      const validIds = new Set(filteredTransactions.map((tx) => tx.id));
+      const next = new Set<string>();
+      prev.forEach((id) => {
+        if (validIds.has(id)) next.add(id);
+      });
+      return next.size === prev.size ? prev : next;
+    });
+  }, [filteredTransactions]);
 
   if (!isMounted) {
     return (
@@ -457,7 +510,7 @@ export default function HistoryPage() {
                     <Calendar
                       mode="single"
                       selected={dateFilter}
-                      onSelect={setDateFilter}
+                      onSelect={handleDateSelect}
                       initialFocus
                       locale={cs}
                     />
@@ -534,11 +587,16 @@ export default function HistoryPage() {
             {/* Manažerský přehled podle pokladen */}
             {posBreakdown.length > 0 && (
               <div className="space-y-3 pt-2">
-                <div className="flex items-center gap-2">
-                  <MonitorSmartphone className="h-4 w-4 text-primary" />
-                  <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
-                    Manažerský přehled podle pokladen
-                  </span>
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <MonitorSmartphone className="h-4 w-4 text-primary" />
+                    <span className="text-xs font-bold uppercase tracking-wider text-muted-foreground">
+                      Manažerský přehled podle pokladen
+                    </span>
+                  </div>
+                  <Badge variant="outline" className="text-[11px] font-semibold text-muted-foreground bg-background">
+                    {selectedYear !== "all" ? `Rok ${selectedYear}` : "Všechny roky"}
+                  </Badge>
                 </div>
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
                   {posBreakdown.map((item) => (
@@ -571,30 +629,62 @@ export default function HistoryPage() {
             <p className="text-muted-foreground text-center py-8">
               Nebyly nalezeny žádné transakce.
             </p>
-          ) : filteredTransactions.length === 0 ? (
-            <p className="text-muted-foreground text-center py-8 bg-muted/20 rounded-lg border-2 border-dashed">
-              Pro vybrané filtry nebyly nalezeny žádné transakce.
-            </p>
           ) : (
             <Accordion type="single" collapsible className="w-full">
-              <div className="flex items-center px-4 py-3 border-b bg-muted/30">
-                <Checkbox
-                  id="select-all"
-                  checked={
-                    selectedTransactions.size === filteredTransactions.length &&
-                    filteredTransactions.length > 0
-                  }
-                  onCheckedChange={toggleSelectAll}
-                  aria-label="Vybrat vše"
-                />
-                <Label
-                  htmlFor="select-all"
-                  className="ml-3 text-sm font-bold uppercase text-muted-foreground"
-                >
-                  Vybrat vše (zobrazeno {filteredTransactions.length})
-                </Label>
+              <div className="flex flex-wrap items-center justify-between gap-3 px-4 py-2.5 border-b bg-muted/30">
+                <div className="flex items-center gap-3">
+                  {/* Výběr roku */}
+                  <Select value={selectedYear} onValueChange={handleYearChange}>
+                    <SelectTrigger className="h-8 w-[125px] text-xs font-semibold bg-background">
+                      <CalendarIcon className="mr-1.5 h-3.5 w-3.5 text-muted-foreground" />
+                      <SelectValue placeholder="Rok" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">Všechny roky</SelectItem>
+                      {availableYears.map((year) => (
+                        <SelectItem key={year} value={year}>
+                          Rok {year}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+
+                  <div className="h-4 w-[1px] bg-border" />
+
+                  {/* Vybrat vše */}
+                  <div className="flex items-center">
+                    <Checkbox
+                      id="select-all"
+                      checked={
+                        selectedTransactions.size === filteredTransactions.length &&
+                        filteredTransactions.length > 0
+                      }
+                      onCheckedChange={toggleSelectAll}
+                      disabled={filteredTransactions.length === 0}
+                      aria-label="Vybrat vše"
+                    />
+                    <Label
+                      htmlFor="select-all"
+                      className="ml-2.5 text-xs sm:text-sm font-bold uppercase text-muted-foreground cursor-pointer select-none"
+                    >
+                      Vybrat vše (zobrazeno {filteredTransactions.length})
+                    </Label>
+                  </div>
+                </div>
+
+                {selectedTransactions.size > 0 && (
+                  <span className="text-xs text-primary font-medium">
+                    Vybráno: {selectedTransactions.size}
+                  </span>
+                )}
               </div>
-              {filteredTransactions.map((transaction) => {
+
+              {filteredTransactions.length === 0 ? (
+                <p className="text-muted-foreground text-center py-8 bg-muted/20 rounded-lg border-2 border-dashed m-4">
+                  Pro vybrané filtry {selectedYear !== "all" ? `v roce ${selectedYear}` : ""} nebyly nalezeny žádné transakce.
+                </p>
+              ) : (
+                filteredTransactions.map((transaction) => {
                 const paymentInfo = getPaymentMethodInfo(
                   transaction.paymentMethod
                 );
@@ -684,7 +774,7 @@ export default function HistoryPage() {
                     </AccordionContent>
                   </AccordionItem>
                 );
-              })}
+              }))}
             </Accordion>
           )}
         </CardContent>
