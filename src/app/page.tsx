@@ -14,6 +14,14 @@ import {
   DialogDescription,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetDescription,
+  SheetFooter,
+} from "@/components/ui/sheet";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Switch } from "@/components/ui/switch";
@@ -21,7 +29,8 @@ import { ScrollArea, ScrollBar } from "@/components/ui/scroll-area";
 import { 
   Minus, Plus, ShoppingCart, Loader2, Landmark, Wallet, 
   Tag, Eye, EyeOff, Receipt, Scissors, Search, Trash2, 
-  Coins, Edit3, X, AlertTriangle, Sparkles, RotateCcw 
+  Coins, Edit3, X, AlertTriangle, Sparkles, RotateCcw,
+  ChevronUp
 } from "lucide-react";
 import { type Product, type BankingDetails, type Transaction, type CartItem, getProductCategories } from "@/lib/types";
 import { 
@@ -141,6 +150,9 @@ export default function Home() {
   // Price Override Modal State
   const [editingCartItem, setEditingCartItem] = useState<CartEntry | null>(null);
   const [overridePriceInput, setOverridePriceInput] = useState("");
+
+  // Mobile Full Cart Sheet State
+  const [isMobileCartSheetOpen, setIsMobileCartSheetOpen] = useState(false);
 
   // Cash Denominations from Settings
   const [cashDenominations, setCashDenominations] = useState<number[]>(DEFAULT_CASH_DENOMINATIONS);
@@ -522,7 +534,7 @@ export default function Home() {
         aria-hidden="true"
       />
 
-      <div className="container mx-auto max-w-7xl p-3 sm:p-5 md:p-6 pb-32 lg:pb-8">
+      <div className="container mx-auto max-w-7xl p-3 sm:p-5 md:p-6 pb-44 lg:pb-8">
         
         {/* MAIN LAYOUT: Split into Products (Left) and Sticky POS Sidebar (Right on Landscape/Desktop) */}
         <div className="flex flex-col lg:flex-row gap-6 items-start">
@@ -734,11 +746,16 @@ export default function Home() {
                 <div className="space-y-2.5">
                   {Object.entries(cart).map(([cartKey, item]) => {
                     const isPriceModified = item.originalPrice !== undefined && item.price !== item.originalPrice;
+                    const isFree = item.price === 0;
 
                     return (
                       <div 
                         key={cartKey} 
-                        className="p-2.5 rounded-xl border bg-background/50 hover:bg-background transition-colors flex flex-col gap-2"
+                        className={cn(
+                          "p-2.5 rounded-xl border bg-background/50 hover:bg-background transition-colors flex flex-col gap-2",
+                          isFree && "border-emerald-500/40 bg-emerald-500/5",
+                          isPriceModified && !isFree && "border-amber-500/40 bg-amber-500/5"
+                        )}
                       >
                         <div className="flex items-start justify-between gap-2">
                           <div className="min-w-0 flex-1">
@@ -760,13 +777,15 @@ export default function Home() {
                             }}
                             className={cn(
                               "text-xs font-bold px-2 py-0.5 rounded-md border flex items-center gap-1 transition-colors",
-                              isPriceModified 
-                                ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30" 
-                                : "bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground border-border"
+                              isFree
+                                ? "bg-emerald-600 text-white border-emerald-600 font-extrabold shadow-sm"
+                                : isPriceModified 
+                                  ? "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/30" 
+                                  : "bg-muted/40 hover:bg-muted text-muted-foreground hover:text-foreground border-border"
                             )}
                             title="Klepnutím upravíte cenu pro tento nákup"
                           >
-                            <span>{item.price} Kč</span>
+                            <span>{isFree ? "0 Kč ZDARMA" : `${item.price} Kč`}</span>
                             <Edit3 className="h-2.5 w-2.5 opacity-60" />
                           </button>
                         </div>
@@ -857,38 +876,304 @@ export default function Home() {
         </div>
       </div>
 
-      {/* MOBILE STICKY BOTTOM BAR (Visible only on mobile/portrait, hidden on lg screens where sidebar is used) */}
+      {/* MOBILE STICKY BOTTOM DOCK (Ultra-kompaktní výsuvný košík pro telefony) */}
       {totalItemsCount > 0 && (
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-md border-t p-3 sm:p-4 z-40 shadow-2xl">
-          <div className="container mx-auto max-w-7xl flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2">
-              <Button 
-                variant="ghost" 
-                size="icon" 
-                onClick={clearCart}
-                className="text-destructive hover:bg-destructive/10 h-10 w-10 shrink-0"
-                title="Vysypat celý košík"
-              >
-                <Trash2 className="h-5 w-5" />
-              </Button>
-              <div className="min-w-0">
-                <span className="text-[11px] text-muted-foreground uppercase font-bold block">Celkem ({totalItemsCount})</span>
-                <span className="text-xl sm:text-2xl font-black text-primary tabular-nums">{total.toFixed(0)} Kč</span>
-              </div>
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-background/95 backdrop-blur-md border-t z-40 shadow-2xl transition-all duration-200">
+          {/* Top Bar: Expand Toggle & Quick Info */}
+          <div className="px-3 py-1.5 flex items-center justify-between border-b border-border/40 bg-muted/30">
+            <button 
+              type="button"
+              onClick={() => setIsMobileCartSheetOpen(true)}
+              className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground hover:text-foreground active:opacity-70 transition-colors"
+            >
+              <ChevronUp className="h-4 w-4 text-primary animate-pulse" />
+              <span>Košík ({totalItemsCount} ks)</span>
+              <span className="text-[11px] font-normal text-muted-foreground">• Klepnutím rozbalit</span>
+            </button>
+            <Button
+              variant="ghost" 
+              size="sm" 
+              onClick={clearCart}
+              className="h-6 text-[11px] text-destructive hover:bg-destructive/10 px-2 font-medium"
+              title="Vysypat celý košík"
+            >
+              <Trash2 className="h-3 w-3 mr-1" /> Vysypat
+            </Button>
+          </div>
+
+          {/* Horizontal Scrollable Items Tray */}
+          <div className="flex gap-2 overflow-x-auto px-3 py-2 scrollbar-none items-center">
+            {Object.entries(cart).map(([cartKey, item]) => {
+              const isPriceModified = item.originalPrice !== undefined && item.price !== item.originalPrice;
+              const isFree = item.price === 0;
+
+              return (
+                <div 
+                  key={cartKey} 
+                  className={cn(
+                    "flex-shrink-0 flex items-center gap-2 p-1.5 pr-2 rounded-xl border bg-card shadow-sm select-none transition-all",
+                    isFree 
+                      ? "border-emerald-500/50 bg-emerald-500/5 ring-1 ring-emerald-500/20" 
+                      : isPriceModified 
+                        ? "border-amber-500/50 bg-amber-500/5 ring-1 ring-amber-500/20" 
+                        : "border-border"
+                  )}
+                >
+                  <div className="flex flex-col min-w-0 max-w-[110px]">
+                    <span className="text-xs font-bold truncate leading-tight">{item.name}</span>
+                    
+                    {/* Editable Price Badge */}
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setEditingCartItem(item);
+                        setOverridePriceInput(String(item.price));
+                      }}
+                      className={cn(
+                        "mt-0.5 text-[11px] font-extrabold px-1.5 py-0.5 rounded border flex items-center gap-1 w-fit transition-colors",
+                        isFree 
+                          ? "bg-emerald-600 text-white border-emerald-600 font-black shadow-sm" 
+                          : isPriceModified 
+                            ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/40" 
+                            : "bg-muted text-foreground border-border/80 hover:bg-muted/80"
+                      )}
+                      title="Klepnutím upravíte cenu (nebo dáte zdarma)"
+                    >
+                      <span>{isFree ? "0 Kč ZDARMA" : `${item.price} Kč`}</span>
+                      <Edit3 className="h-2.5 w-2.5 opacity-70" />
+                    </button>
+                  </div>
+
+                  {/* Quantity Stepper */}
+                  <div className="flex items-center gap-1 ml-1 pl-1.5 border-l border-border/50">
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      type="button"
+                      className="h-6 w-6 rounded-md hover:bg-destructive/10 hover:text-destructive" 
+                      onClick={() => removeFromCart(cartKey)}
+                    >
+                      <Minus className="h-3 w-3" />
+                    </Button>
+                    <span className="w-5 text-center font-bold tabular-nums text-xs">
+                      {item.quantity}
+                    </span>
+                    <Button 
+                      variant="outline" 
+                      size="icon" 
+                      type="button"
+                      className="h-6 w-6 rounded-md" 
+                      onClick={() => {
+                        const prod = products.find(p => p.id === item.productId);
+                        if (prod) addToCart(prod);
+                        else {
+                          setCart(prev => ({
+                            ...prev,
+                            [cartKey]: { ...item, quantity: item.quantity + 1 }
+                          }));
+                        }
+                      }}
+                    >
+                      <Plus className="h-3 w-3" />
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Bottom Bar: Total & Checkout Button */}
+          <div className="px-3 pb-3 pt-1 flex items-center justify-between gap-3">
+            <div 
+              onClick={() => setIsMobileCartSheetOpen(true)}
+              className="min-w-0 cursor-pointer active:opacity-75 transition-opacity"
+            >
+              <span className="text-[10px] text-muted-foreground uppercase font-bold tracking-wider block">K úhradě</span>
+              <span className="text-xl sm:text-2xl font-black text-primary tabular-nums tracking-tight">
+                {total.toFixed(0)} <span className="text-sm font-bold">Kč</span>
+              </span>
             </div>
 
             <Button 
               size="lg" 
               onClick={handleOpenDialog} 
               className={cn(
-                "h-12 px-5 font-bold active:scale-95 transition-transform shrink-0",
+                "h-11 px-5 font-bold active:scale-95 transition-transform shrink-0 shadow-md",
+                total === 0 && "bg-emerald-600 hover:bg-emerald-700 text-white"
+              )}
+            >
+              {total === 0 ? (
+                <>
+                  <Scissors className="mr-1.5 h-4 w-4" />
+                  Vydat zdarma (0 Kč)
+                </>
+              ) : isCashMode ? (
+                <>
+                  <Wallet className="mr-1.5 h-4 w-4" />
+                  Zaplatit hotově
+                </>
+              ) : (
+                <>
+                  <Landmark className="mr-1.5 h-4 w-4" />
+                  Generovat QR
+                </>
+              )}
+            </Button>
+          </div>
+        </div>
+      )}
+
+      {/* FULL MOBILE CART BOTTOM SHEET (Plně rozbalený košík) */}
+      <Sheet open={isMobileCartSheetOpen} onOpenChange={setIsMobileCartSheetOpen}>
+        <SheetContent side="bottom" className="p-0 max-h-[85vh] flex flex-col rounded-t-2xl lg:hidden">
+          <SheetHeader className="p-4 pb-2 border-b flex-row items-center justify-between space-y-0">
+            <div className="flex items-center gap-2">
+              <Receipt className="h-5 w-5 text-primary" />
+              <div>
+                <SheetTitle className="text-base font-bold">Rozpis košíku</SheetTitle>
+                <SheetDescription className="text-xs">
+                  {totalItemsCount} {totalItemsCount === 1 ? "položka" : totalItemsCount < 5 ? "položky" : "položek"}
+                </SheetDescription>
+              </div>
+            </div>
+            {totalItemsCount > 0 && (
+              <Button 
+                variant="ghost" 
+                size="sm" 
+                onClick={() => {
+                  clearCart();
+                  setIsMobileCartSheetOpen(false);
+                }} 
+                className="text-xs text-destructive hover:bg-destructive/10 h-8 px-2.5"
+              >
+                <Trash2 className="h-3.5 w-3.5 mr-1" /> Vysypat vše
+              </Button>
+            )}
+          </SheetHeader>
+
+          <ScrollArea className="flex-1 p-4 max-h-[50vh]">
+            {totalItemsCount === 0 ? (
+              <div className="py-12 text-center text-muted-foreground">
+                <ShoppingCart className="h-10 w-10 mx-auto mb-2 opacity-40" />
+                <p className="text-sm font-semibold">Košík je prázdný</p>
+              </div>
+            ) : (
+              <div className="space-y-3">
+                {Object.entries(cart).map(([cartKey, item]) => {
+                  const isPriceModified = item.originalPrice !== undefined && item.price !== item.originalPrice;
+                  const isFree = item.price === 0;
+
+                  return (
+                    <div 
+                      key={cartKey} 
+                      className={cn(
+                        "p-3 rounded-xl border bg-card space-y-2 transition-colors",
+                        isFree 
+                          ? "border-emerald-500/40 bg-emerald-500/5" 
+                          : isPriceModified 
+                            ? "border-amber-500/40 bg-amber-500/5" 
+                            : "border-border"
+                      )}
+                    >
+                      <div className="flex items-start justify-between gap-2">
+                        <div>
+                          <p className="font-bold text-sm leading-snug">{item.name}</p>
+                          {item.originalPrice !== undefined && (
+                            <p className="text-xs text-muted-foreground">
+                              Katalogová cena: {item.originalPrice} Kč
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Editable Price Badge */}
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setEditingCartItem(item);
+                            setOverridePriceInput(String(item.price));
+                          }}
+                          className={cn(
+                            "text-xs font-bold px-2.5 py-1 rounded-md border flex items-center gap-1.5 transition-colors shrink-0",
+                            isFree 
+                              ? "bg-emerald-600 text-white border-emerald-600 font-extrabold shadow-sm" 
+                              : isPriceModified 
+                                ? "bg-amber-500/20 text-amber-600 dark:text-amber-400 border-amber-500/40" 
+                                : "bg-muted text-muted-foreground hover:text-foreground border-border"
+                          )}
+                          title="Klepnutím upravíte cenu pro tento nákup"
+                        >
+                          <span>{isFree ? "0 Kč ZDARMA" : `${item.price} Kč`}</span>
+                          <Edit3 className="h-3 w-3 opacity-70" />
+                        </button>
+                      </div>
+
+                      <div className="flex items-center justify-between pt-2 border-t border-border/40 text-xs">
+                        <div className="flex items-center gap-1.5">
+                          <Button 
+                            variant="outline" 
+                            size="icon" 
+                            type="button"
+                            className="h-7 w-7 rounded-md hover:bg-destructive/10 hover:text-destructive" 
+                            onClick={() => removeFromCart(cartKey)}
+                          >
+                            <Minus className="h-3.5 w-3.5" />
+                          </Button>
+                          <span className="w-8 text-center font-bold tabular-nums text-sm">
+                            {item.quantity}
+                          </span>
+                          <Button 
+                            variant="outline" 
+                            size="icon" 
+                            type="button"
+                            className="h-7 w-7 rounded-md" 
+                            onClick={() => {
+                              const prod = products.find(p => p.id === item.productId);
+                              if (prod) addToCart(prod);
+                              else {
+                                setCart(prev => ({
+                                  ...prev,
+                                  [cartKey]: { ...item, quantity: item.quantity + 1 }
+                                }));
+                              }
+                            }}
+                          >
+                            <Plus className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+
+                        <span className="font-extrabold tabular-nums text-base">
+                          {(item.price * item.quantity).toFixed(0)} Kč
+                        </span>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </ScrollArea>
+
+          <SheetFooter className="p-4 border-t bg-muted/20 flex-row items-center justify-between gap-3">
+            <div>
+              <span className="text-[10px] text-muted-foreground uppercase font-bold block">Celkem k úhradě</span>
+              <span className="text-2xl font-black text-primary tabular-nums">
+                {total.toFixed(0)} Kč
+              </span>
+            </div>
+            <Button 
+              size="lg" 
+              onClick={() => {
+                setIsMobileCartSheetOpen(false);
+                handleOpenDialog();
+              }} 
+              className={cn(
+                "h-12 px-6 font-bold shadow-md active:scale-95 transition-transform",
                 total === 0 && "bg-emerald-600 hover:bg-emerald-700 text-white"
               )}
             >
               {total === 0 ? (
                 <>
                   <Scissors className="mr-2 h-5 w-5" />
-                  Vydat zdarma
+                  Vydat zdarma (0 Kč)
                 </>
               ) : isCashMode ? (
                 <>
@@ -902,9 +1187,9 @@ export default function Home() {
                 </>
               )}
             </Button>
-          </div>
-        </div>
-      )}
+          </SheetFooter>
+        </SheetContent>
+      </Sheet>
 
       {/* MODAL: Custom Item Dialog ("+ Vlastní položka") */}
       <Dialog open={isCustomItemDialogOpen} onOpenChange={setIsCustomItemDialogOpen}>
@@ -1009,29 +1294,50 @@ export default function Home() {
               <p className="text-xs text-muted-foreground">Tato změna platí pouze pro tuto objednávku. Cena v katalogu zůstává nezměněna.</p>
             </div>
 
-            {/* Quick Percentage Discounts */}
-            {editingCartItem && editingCartItem.originalPrice > 0 && (
-              <div className="space-y-1.5">
-                <Label className="text-xs text-muted-foreground">Rychlá sleva z původní ceny:</Label>
-                <div className="grid grid-cols-4 gap-2">
-                  {[
-                    { label: "-10 %", val: Math.round(editingCartItem.originalPrice * 0.9) },
-                    { label: "-20 %", val: Math.round(editingCartItem.originalPrice * 0.8) },
-                    { label: "-50 %", val: Math.round(editingCartItem.originalPrice * 0.5) },
-                    { label: "Zdarma", val: 0 },
-                  ].map((disc) => (
-                    <Button 
-                      key={disc.label} 
-                      variant="outline" 
-                      size="sm" 
-                      type="button"
-                      onClick={() => setOverridePriceInput(String(disc.val))}
-                      className="text-xs"
-                    >
-                      {disc.label} ({disc.val} Kč)
-                    </Button>
-                  ))}
+            {/* Quick Percentage Discounts & Free Option */}
+            {editingCartItem && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs text-muted-foreground font-semibold">Rychlá volba:</Label>
+                  <Button 
+                    type="button"
+                    size="sm"
+                    variant={overridePriceInput === "0" ? "default" : "outline"}
+                    onClick={() => setOverridePriceInput("0")}
+                    className={cn(
+                      "h-7 text-xs font-bold transition-all",
+                      overridePriceInput === "0" 
+                        ? "bg-emerald-600 text-white hover:bg-emerald-700" 
+                        : "border-emerald-500/50 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-500/10"
+                    )}
+                  >
+                    <Scissors className="mr-1 h-3.5 w-3.5" /> Vydat zdarma (0 Kč)
+                  </Button>
                 </div>
+
+                {editingCartItem.originalPrice > 0 && (
+                  <div className="grid grid-cols-3 gap-2">
+                    {[
+                      { label: "-10 %", val: Math.round(editingCartItem.originalPrice * 0.9) },
+                      { label: "-20 %", val: Math.round(editingCartItem.originalPrice * 0.8) },
+                      { label: "-50 %", val: Math.round(editingCartItem.originalPrice * 0.5) },
+                    ].map((disc) => (
+                      <Button 
+                        key={disc.label} 
+                        variant="outline" 
+                        size="sm" 
+                        type="button"
+                        onClick={() => setOverridePriceInput(String(disc.val))}
+                        className={cn(
+                          "text-xs font-medium h-9",
+                          overridePriceInput === String(disc.val) && "border-primary bg-primary/10 font-bold"
+                        )}
+                      >
+                        {disc.label} ({disc.val} Kč)
+                      </Button>
+                    ))}
+                  </div>
+                )}
               </div>
             )}
           </div>
